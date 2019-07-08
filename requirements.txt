@@ -1,3 +1,4 @@
 imapclient
 mail-parser
 wrapt_timeout_decorator
+dnspython>=1.16.0

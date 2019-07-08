@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 import email
 import socket
 from email.mime.application import MIMEApplication
@@ -16,51 +15,55 @@ class SMTPError(RuntimeError):
     """Raised when a SMTP error occurs"""
 
 
-def email_results(results, host, mail_from, mail_to, port=0,
-                  ssl=False, user=None, password=None, subject=None,
-                  attachments=None, message=None,
-                  ssl_context=None):
+def send_email(host, message_from, message_to=None, message_cc=None,
+               message_bcc=None, port=0, require_encryption=False, user=None,
+               password=None, envelope_from=None, subject=None,
+               attachments=None, plain_message=None, html_message=None,
+               ssl_context=None):
     """
-    Emails parsing results as a zip file
+    ESend an email using a SMTP relay
 
     Args:
-        results (OrderedDict): Parsing results
-        host: Mail server hostname or IP address
-        mail_from: The value of the message from header
-        mail_to : A list of addresses to mail to
+        host (str): Mail server hostname or IP address
+        message_from (str): The value of the message from header
+        message_to (list): A list of addresses to send mail to
+        message_cc (list): A List of addresses to Carbon Copy (CC)
+        message_bcc (list:  A list of addresses to Blind Carbon Copy (BCC)
         port (int): Port to use
-        ssl (bool): Require a SSL connection from the start
-        user: An optional username
-        password: An optional password
-        subject: Overrides the default message subject
-        attachments (list): A list of tuples, containing filenames ans bytes
-        message: The plain text message body
+        require_encryption (bool): Require a SSL/TLS connection from the start
+        user (str): An optional username
+        password (str): An optional password
+        envelope_from (str): Overrides the SMTP envelope "mail from" header
+        subject (str): The message subject
+        attachments (list): A list of tuples, containing filenames as bytes
+        plain_message (str): The plain text message body
+        html_message (str): The HTML message body
         ssl_context: SSL context options
     """
-    logging.debug("Emailing report to: {0}".format(",".join(mail_to)))
-    date_string = datetime.now().strftime("%Y-%m-%d")
-
-    assert isinstance(mail_to, list)
-
     msg = MIMEMultipart()
-    msg['From'] = mail_from
-    msg['To'] = ", ".join(mail_to)
+    msg['From'] = message_from
+    msg['To'] = ", ".join(message_to)
+    if message_cc is not None:
+        msg['Cc'] = ", ".join(message_cc)
     msg['Date'] = email.utils.formatdate(localtime=True)
-    msg['Subject'] = subject or "DMARC results for {0}".format(date_string)
-    text = message or "Please see the attached zip file\n"
+    msg['Subject'] = subject
 
-    msg.attach(MIMEText(text))
+    msg.attach(MIMEText(plain_message, "plain"))
+    if html_message is not None:
+        msg.attach(MIMEText(plain_message, "html"))
 
-    zip_bytes = get_report_zip(results)
-    part = MIMEApplication(zip_bytes, Name=filename)
-
-    part['Content-Disposition'] = 'attachment; filename="{0}"'.format(filename)
-    msg.attach(part)
+    for attachment in attachments:
+        filename = attachment[0]
+        payload = attachment[1]
+        part = MIMEApplication(payload, Name=filename)
+        content_disposition = 'attachment; filename="{0}"'.format(filename)
+        part['Content-Disposition'] = content_disposition
+        msg.attach(part)
 
     try:
         if ssl_context is None:
             ssl_context = create_default_context()
-        if ssl:
+        if require_encryption:
             server = smtplib.SMTP_SSL(host, port=port, context=ssl_context)
             server.connect(host, port)
             server.ehlo_or_helo_if_needed()
@@ -76,7 +79,15 @@ def email_results(results, host, mail_from, mail_to, port=0,
                                "Proceeding in plain text!")
         if user and password:
             server.login(user, password)
-        server.sendmail(mail_from, mail_to, msg.as_string())
+        if envelope_from is None:
+            envelope_from = message_from
+        envelope_to = message_to.copy()
+        if message_cc is not None:
+            message_to += message_cc
+        if message_bcc is not None:
+            message_to += message_bcc
+        envelope_to = list(set(envelope_to))
+        server.sendmail(envelope_from, envelope_to, msg.as_string())
     except smtplib.SMTPException as error:
         error = error.__str__().lstrip("b'").rstrip("'").rstrip(".")
         raise SMTPError(error)
