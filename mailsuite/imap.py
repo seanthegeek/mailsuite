@@ -2,7 +2,7 @@ import logging
 import socket
 import imapclient
 import imapclient.exceptions
-from ssl import SSLError, CertificateError, create_default_context
+from ssl import CERT_NONE, SSLError, CertificateError, create_default_context
 
 from wrapt_timeout_decorator import *
 
@@ -27,13 +27,16 @@ class IMAPClient(imapclient.IMAPClient):
     action_timeout = 2
 
     def __init__(self, host, username, password, port=None, ssl=True,
-                 ssl_context=None, initial_folder="INBOX",
+                 verify=True, initial_folder="INBOX",
                  idle_callback=None, max_attempts=3):
-        if ssl_context is None:
-            ssl_context = create_default_context()
+
+        ssl_context = create_default_context()
+        if verify is False:
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = CERT_NONE
         self._init_args = dict(host=host, username=username,
                                password=password, port=port, ssl=True,
-                               ssl_context=ssl_context,
+                               verify=verify,
                                initial_folder="INBOX",
                                idle_callback=idle_callback,
                                max_attempts=max_attempts)
@@ -85,7 +88,7 @@ class IMAPClient(imapclient.IMAPClient):
                       self._init_args["password"],
                       port=self._init_args["port"],
                       ssl=self._init_args["ssl"],
-                      ssl_context=self._init_args["ssl_context"],
+                      verify=self._init_args["verify"],
                       initial_folder=self._init_args["initial_folder"],
                       idle_callback=self._init_args["idle_callback"],
                       max_attempts=self._init_args["max_attempts"]
@@ -93,6 +96,8 @@ class IMAPClient(imapclient.IMAPClient):
 
     @timeout(fetch_timeout, timeout_exception=_IMAPTimeout)
     def fetch_message(self, msg_uid, attempt=1, parse=False):
+        logger.debug("Fetching message UID {0} attempt {1} of {2}".format(
+            msg_uid, attempt, self.max_attempts))
         try:
             raw_msg = self.fetch(msg_uid, ["RFC822"])[msg_uid]
             msg_keys = [b'RFC822', b'BODY[NULL]', b'BODY[]']
@@ -116,9 +121,14 @@ class IMAPClient(imapclient.IMAPClient):
                 return self.fetch_message(msg_uid, attempt=attempt,
                                           parse=parse)
         except _IMAPTimeout:
-            attempt = attempt + 1
-            return self.fetch_message(msg_uid, attempt=attempt,
-                                      parse=parse)
+            if attempt <= self.max_attempts:
+                attempt = attempt + 1
+                return self.fetch_message(msg_uid, attempt=attempt,
+                                          parse=parse)
+            else:
+                raise imapclient.exceptions.IMAPClientError(
+                    "MAx fetch attempts reached"
+                )
 
     @timeout(action_timeout, timeout_exception=_IMAPTimeout)
     def delete_messages(self, msg_uids, silent=True, attempt=1):
