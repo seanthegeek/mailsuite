@@ -32,28 +32,44 @@ class IMAPClient(imapclient.IMAPClient):
         idle_start_time = time.monotonic()
         self.idle()
         while True:
-            # Refresh the IDLE session every 5 minutes to stay connected
-            if time.monotonic() - idle_start_time > 5 * 60:
-                logger.info("IMAP: Refreshing IDLE session")
-                self.idle_done()
-                idle_start_time = time.monotonic()
-                self.idle()
-            responses = self.idle_check(timeout=30)
-            if responses is not None:
-                if len(responses) == 0:
-                    # Gmail/G-Suite returns an empty list
+            try:
+                # Refresh the IDLE session every 5 minutes to stay connected
+                if time.monotonic() - idle_start_time > 5 * 60:
+                    logger.info("IMAP: Refreshing IDLE session")
                     self.idle_done()
-                    idle_callback()
                     idle_start_time = time.monotonic()
                     self.idle()
-                else:
-                    for r in responses:
-                        if r[0] != 0 and r[1] == b'RECENT':
-                            self.idle_done()
-                            idle_callback()
-                            idle_start_time = time.monotonic()
-                            self.idle()
-                            break
+                responses = self.idle_check(timeout=30)
+                if responses is not None:
+                    if len(responses) == 0:
+                        # Gmail/G-Suite returns an empty list
+                        self.idle_done()
+                        idle_callback()
+                        idle_start_time = time.monotonic()
+                        self.idle()
+                    else:
+                        for r in responses:
+                            if r[0] != 0 and r[1] == b'RECENT':
+                                self.idle_done()
+                                idle_callback()
+                                idle_start_time = time.monotonic()
+                                self.idle()
+                                break
+            except (KeyError, socket.error, BrokenPipeError,
+                    ConnectionResetError):
+                logger.debug("IMAP error: Connection reset")
+                self.reset_connection()
+            except imapclient.exceptions.IMAPClientError as error:
+                error = error.__str__().lstrip("b'").rstrip("'").rstrip(".")
+                # Workaround for random Exchange/Office365 IMAP errors
+                if "unexpected response" in error or "BAD" in error:
+                    self.reset_connection()
+            except KeyboardInterrupt:
+                break
+        try:
+            self.idle_done()
+        except BrokenPipeError:
+            pass
 
     def __init__(self, host, username, password, port=None, ssl=True,
                  verify=True, initial_folder="INBOX",
