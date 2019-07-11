@@ -32,8 +32,7 @@ class IMAPClient(imapclient.IMAPClient):
         idle_start_time = time.monotonic()
         self.idle()
         while True:
-            # Refresh the IDLE session every 5 minutes to stay
-            # connected
+            # Refresh the IDLE session every 5 minutes to stay connected
             if time.monotonic() - idle_start_time > 5 * 60:
                 logger.info("IMAP: Refreshing IDLE session")
                 self.idle_done()
@@ -42,8 +41,7 @@ class IMAPClient(imapclient.IMAPClient):
             responses = self.idle_check(timeout=30)
             if responses is not None:
                 if len(responses) == 0:
-                    # Gmail/G-Suite does not generate anything in the
-                    # responses
+                    # Gmail/G-Suite returns an empty list
                     self.idle_done()
                     idle_callback()
                     idle_start_time = time.monotonic()
