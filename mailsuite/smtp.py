@@ -6,7 +6,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import email.utils
 import smtplib
-from ssl import SSLError, CertificateError, create_default_context
+from ssl import SSLError, CertificateError, create_default_context, CERT_NONE
 
 logger = logging.getLogger("mailsuite.smtp")
 
@@ -16,10 +16,10 @@ class SMTPError(RuntimeError):
 
 
 def send_email(host, message_from, message_to=None, message_cc=None,
-               message_bcc=None, port=0, require_encryption=False, user=None,
-               password=None, envelope_from=None, subject=None,
-               attachments=None, plain_message=None, html_message=None,
-               ssl_context=None):
+               message_bcc=None, port=0, require_encryption=False,
+               verify=True, user=None, password=None, envelope_from=None,
+               subject=None, attachments=None, plain_message=None,
+               html_message=None):
     """
     ESend an email using a SMTP relay
 
@@ -31,6 +31,7 @@ def send_email(host, message_from, message_to=None, message_cc=None,
         message_bcc (list:  A list of addresses to Blind Carbon Copy (BCC)
         port (int): Port to use
         require_encryption (bool): Require a SSL/TLS connection from the start
+        verify (bool): Verify the SSL/TLS certificate
         user (str): An optional username
         password (str): An optional password
         envelope_from (str): Overrides the SMTP envelope "mail from" header
@@ -38,7 +39,6 @@ def send_email(host, message_from, message_to=None, message_cc=None,
         attachments (list): A list of tuples, containing filenames as bytes
         plain_message (str): The plain text message body
         html_message (str): The HTML message body
-        ssl_context: SSL context options
     """
     msg = MIMEMultipart()
     msg['From'] = message_from
@@ -61,8 +61,10 @@ def send_email(host, message_from, message_to=None, message_cc=None,
         msg.attach(part)
 
     try:
-        if ssl_context is None:
-            ssl_context = create_default_context()
+        ssl_context = create_default_context()
+        if verify is False:
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = CERT_NONE
         if require_encryption:
             server = smtplib.SMTP_SSL(host, port=port, context=ssl_context)
             server.connect(host, port)
