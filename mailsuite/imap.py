@@ -96,8 +96,8 @@ class IMAPClient(imapclient.IMAPClient):
         try:
             self.login(username, password)
             self.server_capabilities = self.capabilities()
-            self._move_supported = "MOVE" in self.server_capabilities
-            self._idle_supported = "IDLE" in self.server_capabilities
+            self._move_supported = b"MOVE" in self.server_capabilities
+            self._idle_supported = b"IDLE" in self.server_capabilities
             self.select_folder(initial_folder)
         except (ConnectionResetError, socket.error,
                 TimeoutError,
