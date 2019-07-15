@@ -28,7 +28,7 @@ class IMAPClient(imapclient.IMAPClient):
         if self._idle_supported is False:
             raise imapclient.exceptions.IMAPClientError(
                 "IDLE is not supported by the server")
-        idle_callback()
+        idle_callback(self)
         idle_start_time = time.monotonic()
         self.idle()
         while True:
@@ -38,20 +38,20 @@ class IMAPClient(imapclient.IMAPClient):
                     logger.info("IMAP: Refreshing IDLE session")
                     self.idle_done()
                     idle_start_time = time.monotonic()
-                    self.idle()
+                    self.idle(self)
                 responses = self.idle_check(timeout=30)
                 if responses is not None:
                     if len(responses) == 0:
                         # Gmail/G-Suite returns an empty list
                         self.idle_done()
-                        idle_callback()
+                        idle_callback(self)
                         idle_start_time = time.monotonic()
                         self.idle()
                     else:
                         for r in responses:
                             if r[0] != 0 and r[1] == b'RECENT':
                                 self.idle_done()
-                                idle_callback()
+                                idle_callback(self)
                                 idle_start_time = time.monotonic()
                                 self.idle()
                                 break
