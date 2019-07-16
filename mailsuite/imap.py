@@ -82,7 +82,7 @@ class IMAPClient(imapclient.IMAPClient):
         self._init_args = dict(host=host, username=username,
                                password=password, port=port, ssl=ssl,
                                verify=verify,
-                               initial_folder="INBOX",
+                               initial_folder=initial_folder,
                                idle_callback=idle_callback,
                                idle_timeout=idle_timeout)
         self.idle_callback = idle_callback
