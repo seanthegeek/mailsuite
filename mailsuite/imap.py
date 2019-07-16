@@ -83,8 +83,10 @@ class IMAPClient(imapclient.IMAPClient):
                                password=password, port=port, ssl=ssl,
                                verify=verify,
                                initial_folder="INBOX",
-                               idle_callback=idle_callback)
+                               idle_callback=idle_callback,
+                               idle_timeout=idle_timeout)
         self.idle_callback = idle_callback
+        self.idle_timeout = idle_timeout
         if not ssl:
             logger.info("Connecting to IMAP over plain text")
         imapclient.IMAPClient.__init__(self,
@@ -119,7 +121,7 @@ class IMAPClient(imapclient.IMAPClient):
             raise imapclient.exceptions.IMAPClientError("Broken pipe")
 
         if idle_callback is not None:
-            self._start_idle(idle_callback)
+            self._start_idle(idle_callback, idle_timeout=idle_timeout)
 
     def reset_connection(self):
         logger.info("Reconnecting to IMAP")
@@ -135,7 +137,8 @@ class IMAPClient(imapclient.IMAPClient):
                       ssl=self._init_args["ssl"],
                       verify=self._init_args["verify"],
                       initial_folder=self._init_args["initial_folder"],
-                      idle_callback=self._init_args["idle_callback"]
+                      idle_callback=self._init_args["idle_callback"],
+                      idle_timeout=self._init_args["idle_timeout"]
                       )
 
     def fetch_message(self, msg_uid, parse=False):
@@ -164,12 +167,12 @@ class IMAPClient(imapclient.IMAPClient):
         folder_path = folder_path.replace("\\", "/").strip("/")
         if not self.folder_exists(folder_path):
             logger.info("Creating folder: {0}".format(folder_path))
-        try:
-            imapclient.IMAPClient.create_folder(self, folder_path)
-        except imapclient.exceptions.IMAPClientError:
-            # Try replacing / with . (Required by the devcot server
-            folder_path = folder_path.replace("/", ".")
-            self.create_folder(folder_path)
+            try:
+                imapclient.IMAPClient.create_folder(self, folder_path)
+            except imapclient.exceptions.IMAPClientError:
+                # Try replacing / with . (Required by the devcot server
+                folder_path = folder_path.replace("/", ".")
+                self.create_folder(folder_path)
 
     def move_messages(self, msg_uids, folder_path):
         folder_path = folder_path.replace("\\", "/").strip("/")
