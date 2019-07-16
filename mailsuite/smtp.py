@@ -8,7 +8,7 @@ import email.utils
 import smtplib
 from ssl import SSLError, CertificateError, create_default_context, CERT_NONE
 
-logger = logging.getLogger("mailsuite.smtp")
+logger = logging.getLogger(__name__)
 
 
 class SMTPError(RuntimeError):

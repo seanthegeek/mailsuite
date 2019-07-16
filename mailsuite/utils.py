@@ -14,9 +14,7 @@ import dns.resolver
 import dns.exception
 
 
-logger = logging.getLogger("mailsuite")
-mailparser_logger = logging.getLogger("mailparser")
-mailparser_logger.setLevel(logging.CRITICAL)
+logger = logging.getLogger(__name__)
 
 null_file = open(os.devnull, "w")
 

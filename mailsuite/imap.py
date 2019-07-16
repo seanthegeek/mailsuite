@@ -8,7 +8,7 @@ import imapclient.exceptions
 
 import mailsuite.utils
 
-logger = logging.getLogger("mailsuite.imap")
+logger = logging.getLogger(__name__)
 
 
 def _chunks(l, n):
@@ -24,7 +24,7 @@ class _IMAPTimeout(Exception):
 class IMAPClient(imapclient.IMAPClient):
     """A simplified IMAP client"""
 
-    def _start_idle(self, idle_callback):
+    def _start_idle(self, idle_callback, idle_timeout=30):
         if self._idle_supported is False:
             raise imapclient.exceptions.IMAPClientError(
                 "IDLE is not supported by the server")
@@ -39,7 +39,7 @@ class IMAPClient(imapclient.IMAPClient):
                     self.idle_done()
                     idle_start_time = time.monotonic()
                     self.idle(self)
-                responses = self.idle_check(timeout=30)
+                responses = self.idle_check(timeout=idle_timeout)
                 if responses is not None:
                     if len(responses) == 0:
                         # Gmail/G-Suite returns an empty list
@@ -73,7 +73,7 @@ class IMAPClient(imapclient.IMAPClient):
 
     def __init__(self, host, username, password, port=None, ssl=True,
                  verify=True, initial_folder="INBOX",
-                 idle_callback=None):
+                 idle_callback=None, idle_timeout=30):
 
         ssl_context = create_default_context()
         if verify is False:
