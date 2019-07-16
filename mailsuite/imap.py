@@ -17,14 +17,17 @@ def _chunks(l, n):
         yield l[i:i + n]
 
 
-class _IMAPTimeout(Exception):
-    """Raised when an IMAP action times out"""
-
-
 class IMAPClient(imapclient.IMAPClient):
     """A simplified IMAP client"""
 
     def _start_idle(self, idle_callback, idle_timeout=30):
+        """
+        Starts an IMAP IDLE session
+
+        Args:
+            idle_callback (function: A callback function
+            idle_timeout (int): Number of seconds to wait for an IDLE response
+        """
         if self._idle_supported is False:
             raise imapclient.exceptions.IMAPClientError(
                 "IDLE is not supported by the server")
@@ -74,7 +77,20 @@ class IMAPClient(imapclient.IMAPClient):
     def __init__(self, host, username, password, port=None, ssl=True,
                  verify=True, initial_folder="INBOX",
                  idle_callback=None, idle_timeout=30):
+        """
+        Connects to an IMAP server
 
+        Args:
+            host (str):T he server hostname or IP address
+            username (str): The username
+            password (str): The password
+            port (int): The port
+            ssl (bool): Use SSL or TLS
+            verify (bool): Verify the SSL/TLS certificate
+            initial_folder (str): The initial folder to select
+            idle_callback: The function to call when new messages are detected
+            idle_timeout (int): Number of seconds to wait for an IDLE response
+        """
         ssl_context = create_default_context()
         if verify is False:
             ssl_context.check_hostname = False
@@ -124,6 +140,7 @@ class IMAPClient(imapclient.IMAPClient):
             self._start_idle(idle_callback, idle_timeout=idle_timeout)
 
     def reset_connection(self):
+        """Resets the connection to the IMAP server"""
         logger.info("Reconnecting to IMAP")
         try:
             self.shutdown()
@@ -142,6 +159,17 @@ class IMAPClient(imapclient.IMAPClient):
                       )
 
     def fetch_message(self, msg_uid, parse=False):
+        """
+        Fetch a message by UID, and optionally parse it
+
+        Args:
+            msg_uid (int): The message UID
+            parse (bool): Return parsed results from mailparser
+
+        Returns:
+            str: The raw mail message, including headers
+            dict: A parsed email message
+        """
         raw_msg = self.fetch(msg_uid, ["RFC822"])[msg_uid]
         msg_keys = [b'RFC822', b'BODY[NULL]', b'BODY[]']
         msg_key = ''
@@ -155,6 +183,13 @@ class IMAPClient(imapclient.IMAPClient):
         return message
 
     def delete_messages(self, msg_uids, silent=True):
+        """
+        Deletes the given messages by Message UIDs
+
+        Args:
+            msg_uids (list): A list of UIDs of messages to delete
+            silent (bool): Do it silently
+        """
         logger.info("Deleting message UID(s) {0}".format(",".join(
             str(uid) for uid in msg_uids)))
         if type(msg_uids) == str or type(msg_uids) == int:
@@ -164,6 +199,12 @@ class IMAPClient(imapclient.IMAPClient):
         imapclient.IMAPClient.expunge(self, msg_uids)
 
     def create_folder(self, folder_path):
+        """
+        Creates an IMAP folder at the given path
+
+        Args:
+            folder_path (str): The path of the folder to create
+        """
         folder_path = folder_path.replace("\\", "/").strip("/")
         if not self.folder_exists(folder_path):
             logger.info("Creating folder: {0}".format(folder_path))
@@ -175,6 +216,13 @@ class IMAPClient(imapclient.IMAPClient):
                 self.create_folder(folder_path)
 
     def move_messages(self, msg_uids, folder_path):
+        """
+        Move the emails with the given UIDs to the given folder
+
+        Args:
+            msg_uids: A UID or list of UIDs of messages to move
+            folder_path (str): The path of the destination folder
+        """
         folder_path = folder_path.replace("\\", "/").strip("/")
         if type(msg_uids) == str or type(msg_uids) == int:
             msg_uids = [int(msg_uids)]
