@@ -36,7 +36,7 @@ setup(
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://.github.io/seanthegeek/mailsuite',
+    url='https://github.io/seanthegeek/mailsuite',
 
     # Author details
     author='Sean Whalen',

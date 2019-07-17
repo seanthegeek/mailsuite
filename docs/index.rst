@@ -23,3 +23,13 @@ Features
   - Uses opportunistic encryption (``STARTTLS``) by default
   - Easily add attachments, plain text, and HTML
 
+API
+---
+
+.. automodule:: mailsuite
+   :members:
+
+Indices and tables
+------------------
+
+* :ref:`genindex`
