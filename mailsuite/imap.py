@@ -177,7 +177,7 @@ class IMAPClient(imapclient.IMAPClient):
             if key in raw_msg.keys():
                 msg_key = key
                 break
-        message = raw_msg[msg_key]
+        message = raw_msg[msg_key].decode("utf-8", "replace")
         if parse:
             message = mailsuite.utils.parse_email(message)
         return message
