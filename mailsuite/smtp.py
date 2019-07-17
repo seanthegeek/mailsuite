@@ -17,7 +17,7 @@ class SMTPError(RuntimeError):
 
 def send_email(host, message_from, message_to=None, message_cc=None,
                message_bcc=None, port=0, require_encryption=False,
-               verify=True, user=None, password=None, envelope_from=None,
+               verify=True, username=None, password=None, envelope_from=None,
                subject=None, attachments=None, plain_message=None,
                html_message=None):
     """
@@ -32,7 +32,7 @@ def send_email(host, message_from, message_to=None, message_cc=None,
         port (int): Port to use
         require_encryption (bool): Require a SSL/TLS connection from the start
         verify (bool): Verify the SSL/TLS certificate
-        user (str): An optional username
+        username (str): An optional username
         password (str): An optional password
         envelope_from (str): Overrides the SMTP envelope "mail from" header
         subject (str): The message subject
@@ -79,8 +79,8 @@ def send_email(host, message_from, message_to=None, message_cc=None,
             else:
                 logger.warning("SMTP server does not support STARTTLS. "
                                "Proceeding in plain text!")
-        if user and password:
-            server.login(user, password)
+        if username and password:
+            server.login(username, password)
         if envelope_from is None:
             envelope_from = message_from
         envelope_to = message_to.copy()
