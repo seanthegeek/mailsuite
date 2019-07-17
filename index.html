@@ -87,6 +87,9 @@
 <li><a class="reference internal" href="#">mailsuite</a><ul>
 <li><a class="reference internal" href="#features">Features</a></li>
 <li><a class="reference internal" href="#module-mailsuite">API</a></li>
+<li><a class="reference internal" href="#module-mailsuite.imap">mailsuite.imap</a></li>
+<li><a class="reference internal" href="#module-mailsuite.smtp">mailsuite.smtp</a></li>
+<li><a class="reference internal" href="#module-mailsuite.utils">mailsuite.utils</a></li>
 <li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
 </ul>
 </li>
@@ -183,6 +186,259 @@
 <div class="section" id="module-mailsuite">
 <span id="api"></span><h2>API<a class="headerlink" href="#module-mailsuite" title="Permalink to this headline">¶</a></h2>
 <p>A Python package to simplify receiving, parsing, and sending email</p>
+</div>
+<div class="section" id="module-mailsuite.imap">
+<span id="mailsuite-imap"></span><h2>mailsuite.imap<a class="headerlink" href="#module-mailsuite.imap" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="mailsuite.imap.IMAPClient">
+<em class="property">class </em><code class="sig-prename descclassname">mailsuite.imap.</code><code class="sig-name descname">IMAPClient</code><span class="sig-paren">(</span><em class="sig-param">host</em>, <em class="sig-param">username</em>, <em class="sig-param">password</em>, <em class="sig-param">port=None</em>, <em class="sig-param">ssl=True</em>, <em class="sig-param">verify=True</em>, <em class="sig-param">initial_folder='INBOX'</em>, <em class="sig-param">idle_callback=None</em>, <em class="sig-param">idle_timeout=30</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient" title="Permalink to this definition">¶</a></dt>
+<dd><p>A simplified IMAP client</p>
+<dl class="method">
+<dt id="mailsuite.imap.IMAPClient.create_folder">
+<code class="sig-name descname">create_folder</code><span class="sig-paren">(</span><em class="sig-param">folder_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.create_folder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.create_folder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates an IMAP folder at the given path</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>folder_path</strong> (<em>str</em>) – The path of the folder to create</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="mailsuite.imap.IMAPClient.delete_messages">
+<code class="sig-name descname">delete_messages</code><span class="sig-paren">(</span><em class="sig-param">msg_uids</em>, <em class="sig-param">silent=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.delete_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.delete_messages" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deletes the given messages by Message UIDs</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>msg_uids</strong> (<em>list</em>) – A list of UIDs of messages to delete</p></li>
+<li><p><strong>silent</strong> (<em>bool</em>) – Do it silently</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="mailsuite.imap.IMAPClient.fetch_message">
+<code class="sig-name descname">fetch_message</code><span class="sig-paren">(</span><em class="sig-param">msg_uid</em>, <em class="sig-param">parse=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.fetch_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.fetch_message" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fetch a message by UID, and optionally parse it</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>msg_uid</strong> (<em>int</em>) – The message UID</p></li>
+<li><p><strong>parse</strong> (<em>bool</em>) – Return parsed results from mailparser</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The raw mail message, including headers
+dict: A parsed email message</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="mailsuite.imap.IMAPClient.move_messages">
+<code class="sig-name descname">move_messages</code><span class="sig-paren">(</span><em class="sig-param">msg_uids</em>, <em class="sig-param">folder_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.move_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.move_messages" title="Permalink to this definition">¶</a></dt>
+<dd><p>Move the emails with the given UIDs to the given folder</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>msg_uids</strong> – A UID or list of UIDs of messages to move</p></li>
+<li><p><strong>folder_path</strong> (<em>str</em>) – The path of the destination folder</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="mailsuite.imap.IMAPClient.reset_connection">
+<code class="sig-name descname">reset_connection</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.reset_connection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.reset_connection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resets the connection to the IMAP server</p>
+</dd></dl>
+
+</dd></dl>
+
+<div class="toctree-wrapper compound">
+</div>
+</div>
+<div class="section" id="module-mailsuite.smtp">
+<span id="mailsuite-smtp"></span><h2>mailsuite.smtp<a class="headerlink" href="#module-mailsuite.smtp" title="Permalink to this headline">¶</a></h2>
+<dl class="exception">
+<dt id="mailsuite.smtp.SMTPError">
+<em class="property">exception </em><code class="sig-prename descclassname">mailsuite.smtp.</code><code class="sig-name descname">SMTPError</code><a class="reference internal" href="_modules/mailsuite/smtp.html#SMTPError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.smtp.SMTPError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Raised when a SMTP error occurs</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mailsuite.smtp.send_email">
+<code class="sig-prename descclassname">mailsuite.smtp.</code><code class="sig-name descname">send_email</code><span class="sig-paren">(</span><em class="sig-param">host</em>, <em class="sig-param">message_from</em>, <em class="sig-param">message_to=None</em>, <em class="sig-param">message_cc=None</em>, <em class="sig-param">message_bcc=None</em>, <em class="sig-param">port=0</em>, <em class="sig-param">require_encryption=False</em>, <em class="sig-param">verify=True</em>, <em class="sig-param">username=None</em>, <em class="sig-param">password=None</em>, <em class="sig-param">envelope_from=None</em>, <em class="sig-param">subject=None</em>, <em class="sig-param">attachments=None</em>, <em class="sig-param">plain_message=None</em>, <em class="sig-param">html_message=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/smtp.html#send_email"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.smtp.send_email" title="Permalink to this definition">¶</a></dt>
+<dd><p>ESend an email using a SMTP relay</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>host</strong> (<em>str</em>) – Mail server hostname or IP address</p></li>
+<li><p><strong>message_from</strong> (<em>str</em>) – The value of the message from header</p></li>
+<li><p><strong>message_to</strong> (<em>list</em>) – A list of addresses to send mail to</p></li>
+<li><p><strong>message_cc</strong> (<em>list</em>) – A List of addresses to Carbon Copy (CC)</p></li>
+<li><p><strong>(</strong><strong>list</strong> (<em>message_bcc</em>) – A list of addresses to Blind Carbon Copy (BCC)</p></li>
+<li><p><strong>port</strong> (<em>int</em>) – Port to use</p></li>
+<li><p><strong>require_encryption</strong> (<em>bool</em>) – Require a SSL/TLS connection from the start</p></li>
+<li><p><strong>verify</strong> (<em>bool</em>) – Verify the SSL/TLS certificate</p></li>
+<li><p><strong>username</strong> (<em>str</em>) – An optional username</p></li>
+<li><p><strong>password</strong> (<em>str</em>) – An optional password</p></li>
+<li><p><strong>envelope_from</strong> (<em>str</em>) – Overrides the SMTP envelope “mail from” header</p></li>
+<li><p><strong>subject</strong> (<em>str</em>) – The message subject</p></li>
+<li><p><strong>attachments</strong> (<em>list</em>) – A list of tuples, containing filenames as bytes</p></li>
+<li><p><strong>plain_message</strong> (<em>str</em>) – The plain text message body</p></li>
+<li><p><strong>html_message</strong> (<em>str</em>) – The HTML message body</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<div class="toctree-wrapper compound">
+</div>
+</div>
+<div class="section" id="module-mailsuite.utils">
+<span id="mailsuite-utils"></span><h2>mailsuite.utils<a class="headerlink" href="#module-mailsuite.utils" title="Permalink to this headline">¶</a></h2>
+<dl class="exception">
+<dt id="mailsuite.utils.EmailParserError">
+<em class="property">exception </em><code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">EmailParserError</code><a class="reference internal" href="_modules/mailsuite/utils.html#EmailParserError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.EmailParserError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Raised when an error parsing the email occurs</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mailsuite.utils.convert_outlook_msg">
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">convert_outlook_msg</code><span class="sig-paren">(</span><em class="sig-param">msg_bytes</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#convert_outlook_msg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.convert_outlook_msg" title="Permalink to this definition">¶</a></dt>
+<dd><p>Uses the <code class="docutils literal notranslate"><span class="pre">msgconvert</span></code> Perl utility to convert an Outlook MS file to
+standard RFC 822 format</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>msg_bytes</strong> (<em>bytes</em>) – the content of the .msg file</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A RFC 822 string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="mailsuite.utils.decode_base64">
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">decode_base64</code><span class="sig-paren">(</span><em class="sig-param">data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#decode_base64"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.decode_base64" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decodes a base64 string, with padding being optional</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>data</strong> – A base64 encoded string</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The decoded bytes</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>bytes</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="mailsuite.utils.get_filename_safe_string">
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">get_filename_safe_string</code><span class="sig-paren">(</span><em class="sig-param">string</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#get_filename_safe_string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.get_filename_safe_string" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a string to a string that is safe for a filename
+:param string: A string to make safe for a filename
+:type string: str</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A string safe for a filename</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="mailsuite.utils.get_reverse_dns">
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">get_reverse_dns</code><span class="sig-paren">(</span><em class="sig-param">ip_address</em>, <em class="sig-param">cache=None</em>, <em class="sig-param">nameservers=None</em>, <em class="sig-param">timeout=2.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#get_reverse_dns"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.get_reverse_dns" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resolves an IP address to a hostname using a reverse DNS query</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ip_address</strong> (<em>str</em>) – The IP address to resolve</p></li>
+<li><p><strong>cache</strong> (<em>ExpiringDict</em>) – Cache storage</p></li>
+<li><p><strong>nameservers</strong> (<em>list</em>) – A list of one or more nameservers to use</p></li>
+<li><p><strong>public DNS resolvers by default</strong><strong>)</strong> (<em>(</em><em>Cloudflare's</em>) – </p></li>
+<li><p><strong>timeout</strong> (<em>float</em>) – Sets the DNS query timeout in seconds</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The reverse DNS hostname (if any)</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="mailsuite.utils.is_outlook_msg">
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">is_outlook_msg</code><span class="sig-paren">(</span><em class="sig-param">content</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#is_outlook_msg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.is_outlook_msg" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if the given content is a Outlook msg OLE file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>content</strong> – Content to check</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A flag the indicates if a file is a Outlook MSG file</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="mailsuite.utils.parse_email">
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">parse_email</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">strip_attachment_payloads=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#parse_email"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.parse_email" title="Permalink to this definition">¶</a></dt>
+<dd><p>A simplified email parser</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> – The RFC 822 message string, or MSG binary</p></li>
+<li><p><strong>strip_attachment_payloads</strong> (<em>bool</em>) – Remove attachment payloads</p></li>
+</ul>
+</dd>
+</dl>
+<p>Returns (dict): Parsed email data</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="mailsuite.utils.query_dns">
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">query_dns</code><span class="sig-paren">(</span><em class="sig-param">domain</em>, <em class="sig-param">record_type</em>, <em class="sig-param">cache=None</em>, <em class="sig-param">nameservers=None</em>, <em class="sig-param">timeout=2.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#query_dns"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.query_dns" title="Permalink to this definition">¶</a></dt>
+<dd><p>Queries DNS</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>domain</strong> (<em>str</em>) – The domain or subdomain to query about</p></li>
+<li><p><strong>record_type</strong> (<em>str</em>) – The record type to query for</p></li>
+<li><p><strong>cache</strong> (<em>ExpiringDict</em>) – Cache storage</p></li>
+<li><p><strong>nameservers</strong> (<em>list</em>) – A list of one or more nameservers to use</p></li>
+<li><p><strong>public DNS resolvers by default</strong><strong>)</strong> (<em>(</em><em>Cloudflare's</em>) – </p></li>
+<li><p><strong>timeout</strong> (<em>float</em>) – Sets the DNS timeout in seconds</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A list of answers</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<div class="toctree-wrapper compound">
+</div>
 </div>
 <div class="section" id="indices-and-tables">
 <h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h2>
