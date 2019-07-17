@@ -251,4 +251,3 @@ class IMAPClient(imapclient.IMAPClient):
                 ))
                 self.copy(msg_uids, folder_path)
                 self.delete_messages(msg_uids)
-
