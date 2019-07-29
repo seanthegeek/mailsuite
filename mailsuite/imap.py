@@ -1,10 +1,13 @@
 import logging
 import time
 import socket
+import imaplib
 from ssl import CERT_NONE, SSLError, CertificateError, create_default_context
 
 import imapclient
 import imapclient.exceptions
+
+from wrapt_timeout_decorator import *
 
 import mailsuite.utils
 
@@ -15,6 +18,10 @@ def _chunks(l, n):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(l), n):
         yield l[i:i + n]
+
+
+class MaxAttemptsReached(Exception):
+    """Raised when the maximum number of attempts are reached"""
 
 
 class IMAPClient(imapclient.IMAPClient):
@@ -58,7 +65,8 @@ class IMAPClient(imapclient.IMAPClient):
                                 idle_start_time = time.monotonic()
                                 self.idle()
                                 break
-            except (KeyError, socket.error, BrokenPipeError,
+            except (KeyError, imaplib.IMAP4.abort,
+                    socket.error, BrokenPipeError,
                     ConnectionResetError):
                 logger.debug("IMAP error: Connection reset")
                 self.reset_connection()
@@ -76,7 +84,8 @@ class IMAPClient(imapclient.IMAPClient):
 
     def __init__(self, host, username, password, port=None, ssl=True,
                  verify=True, initial_folder="INBOX",
-                 idle_callback=None, idle_timeout=30):
+                 idle_callback=None, idle_timeout=30,
+                 fetch_timeout=10, move_timeout=2, max_attempts=4):
         """
         Connects to an IMAP server
 
@@ -90,6 +99,9 @@ class IMAPClient(imapclient.IMAPClient):
             initial_folder (str): The initial folder to select
             idle_callback: The function to call when new messages are detected
             idle_timeout (int): Number of seconds to wait for an IDLE response
+            fetch_timeout (float): The timeout for fetching messages
+            move_timeout (float): The timeout for moving messages
+            max_attempts (int): The maximum number of attempts to make
         """
         ssl_context = create_default_context()
         if verify is False:
@@ -100,9 +112,15 @@ class IMAPClient(imapclient.IMAPClient):
                                verify=verify,
                                initial_folder=initial_folder,
                                idle_callback=idle_callback,
-                               idle_timeout=idle_timeout)
+                               idle_timeout=idle_timeout,
+                               fetch_timeout=fetch_timeout,
+                               move_timeout=move_timeout,
+                               max_attempts=max_attempts)
         self.idle_callback = idle_callback
         self.idle_timeout = idle_timeout
+        self.fetch_timeout = fetch_timeout
+        self.move_timeout = move_timeout
+        self.max_attempts = max_attempts
         if not ssl:
             logger.info("Connecting to IMAP over plain text")
         imapclient.IMAPClient.__init__(self,
@@ -158,29 +176,47 @@ class IMAPClient(imapclient.IMAPClient):
                       idle_timeout=self._init_args["idle_timeout"]
                       )
 
-    def fetch_message(self, msg_uid, parse=False):
+    def fetch_message(self, msg_uid, parse=False, attempt=1):
         """
         Fetch a message by UID, and optionally parse it
 
         Args:
             msg_uid (int): The message UID
             parse (bool): Return parsed results from mailparser
+            attempt (int): The current attempt
 
         Returns:
             str: The raw mail message, including headers
             dict: A parsed email message
         """
-        raw_msg = self.fetch(msg_uid, ["RFC822"])[msg_uid]
-        msg_keys = [b'RFC822', b'BODY[NULL]', b'BODY[]']
-        msg_key = ''
-        for key in msg_keys:
-            if key in raw_msg.keys():
-                msg_key = key
-                break
-        message = raw_msg[msg_key].decode("utf-8", "replace")
-        if parse:
-            message = mailsuite.utils.parse_email(message)
-        return message
+        try:
+            raw_msg = timeout(dec_timeout=self.fetch_timeout)(self.fetch)(
+                msg_uid, ['RFC822'])[msg_uid]
+            msg_keys = [b'RFC822', b'BODY[NULL]', b'BODY[]']
+            msg_key = ''
+            for key in msg_keys:
+                if key in raw_msg.keys():
+                    msg_key = key
+                    break
+            message = raw_msg[msg_key].decode("utf-8", "replace")
+            if parse:
+                message = mailsuite.utils.parse_email(message)
+            return message
+        except TimeoutError:
+            logger.debug(
+                "Attempt {0} of {1} timed out after {2} seconds".format(
+                    attempt,
+                    self.max_attempts,
+                    self.fetch_timeout
+                ))
+            if attempt < self.max_attempts:
+                attempt += 1
+                self.reset_connection()
+                return self.fetch_message(msg_uid, parse=parse,
+                                          attempt=attempt)
+            else:
+                raise MaxAttemptsReached("Failed after {0} attempts".format(
+                    self.max_attempts))
 
     def delete_messages(self, msg_uids, silent=True):
         """

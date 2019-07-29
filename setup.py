@@ -93,7 +93,8 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=['imapclient>=2.1.0',
                       'mail-parser>=3.9.3',
-                      'dnspython>=1.16.0'
+                      'dnspython>=1.16.0',
+                      'wrapt_timeout_decorator>=1.3.0'
                       ],
 
 )
