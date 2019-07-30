@@ -14,6 +14,12 @@ Features
   - Move messages to other folders
   - Delete messages
   - Monitor folders for new messages
+  - Always use ``/`` as the folder hierarchy separator, and convert to the
+    server's hierarchy separator in the background
+  - Always remove folder name characters that conflict with the server's
+    hierarchy separators
+  - Prepend the namespace to the folder path when required
+
   - Automatically reconnect when needed
   - Work around quirks in Gmail/G-suite, Office 365, Exchange, and Dovcot
 

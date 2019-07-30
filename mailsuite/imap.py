@@ -20,6 +20,28 @@ def _chunks(l, n):
 class IMAPClient(imapclient.IMAPClient):
     """A simplified IMAP client"""
 
+    def _normalise_folder(self, folder_name):
+        """
+        Returns an appropriate path based on the namespace (if any) and
+        hierarchy separator
+
+        Args:
+            folder_name (str): The path to correct
+
+        Returns:
+            str: A corrected path
+        """
+        if folder_name in ["", "*", "INBOX"]:
+            return imapclient.IMAPClient._normalise_folder(self, folder_name)
+        folder_name = folder_name.strip("/")
+        folder_name = folder_name.replace(self._path_prefix, "")
+        if not self._hierarchy_separator == "/":
+            folder_name = folder_name.replace(self._hierarchy_separator, "")
+            folder_name = folder_name.replace("/", self._hierarchy_separator)
+        folder_name = "{0}{1}".format(self._path_prefix, folder_name)
+
+        return imapclient.IMAPClient._normalise_folder(self, folder_name)
+
     def _start_idle(self, idle_callback, idle_timeout=30):
         """
         Starts an IMAP IDLE session
@@ -103,6 +125,8 @@ class IMAPClient(imapclient.IMAPClient):
                                idle_timeout=idle_timeout)
         self.idle_callback = idle_callback
         self.idle_timeout = idle_timeout
+        self._path_prefix = ""
+        self._hierarchy_separator = ""
         if not ssl:
             logger.info("Connecting to IMAP over plain text")
         imapclient.IMAPClient.__init__(self,
@@ -116,6 +140,17 @@ class IMAPClient(imapclient.IMAPClient):
             self.server_capabilities = self.capabilities()
             self._move_supported = b"MOVE" in self.server_capabilities
             self._idle_supported = b"IDLE" in self.server_capabilities
+            self._namespace = b"NAMESPACE" in self.server_capabilities
+            self._hierarchy_separator = self.list_folders()[0][1]
+            if self._namespace:
+                self._namespace = self.namespace()
+                personal_namespace = self._namespace.personal
+                if len(personal_namespace) > 0:
+                    self._hierarchy_separator = personal_namespace[0][1]
+                    if not personal_namespace[0][0] == "":
+                        self._path_prefix = personal_namespace[0][0]
+            else:
+                self._namespace = None
             self.select_folder(initial_folder)
         except (ConnectionResetError, socket.error,
                 TimeoutError,
@@ -205,15 +240,10 @@ class IMAPClient(imapclient.IMAPClient):
         Args:
             folder_path (str): The path of the folder to create
         """
-        folder_path = folder_path.replace("\\", "/").strip("/")
+
         if not self.folder_exists(folder_path):
             logger.info("Creating folder: {0}".format(folder_path))
-            try:
-                imapclient.IMAPClient.create_folder(self, folder_path)
-            except imapclient.exceptions.IMAPClientError:
-                # Try replacing / with . (Required by the devcot server
-                folder_path = folder_path.replace("/", ".")
-                self.create_folder(folder_path)
+            imapclient.IMAPClient.create_folder(self, folder_path)
 
     def move_messages(self, msg_uids, folder_path):
         """
