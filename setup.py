@@ -14,10 +14,10 @@ from setuptools import setup
 from codecs import open
 from os import path
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
-description = "A Python package to make receiving, parsing, and sending email " \
-              "easier"
+description = "A Python package to make receiving, parsing, and sending " \
+              "email easier"
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file

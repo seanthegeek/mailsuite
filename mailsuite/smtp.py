@@ -47,6 +47,8 @@ def send_email(host, message_from, message_to=None, message_cc=None,
         msg['Cc'] = ", ".join(message_cc)
     msg['Date'] = email.utils.formatdate(localtime=True)
     msg['Subject'] = subject
+    if attachments is None:
+        attachments = []
 
     msg.attach(MIMEText(plain_message, "plain"))
     if html_message is not None:

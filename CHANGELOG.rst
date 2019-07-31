@@ -1,3 +1,9 @@
+1.1.1
+-----
+
+- Fix error when sending email with no attachments
+- Correct ``mailsuite.__version__``
+
 1.1.0
 -----
 
