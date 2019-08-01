@@ -8,6 +8,7 @@ import json
 import hashlib
 import base64
 import email
+import email.utils
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText

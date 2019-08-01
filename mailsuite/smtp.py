@@ -1,10 +1,5 @@
 import logging
-import email
 import socket
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-import email.utils
 import smtplib
 from ssl import SSLError, CertificateError, create_default_context, CERT_NONE
 
