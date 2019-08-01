@@ -18,8 +18,8 @@ class SMTPError(RuntimeError):
 def send_email(host, message_from, message_to=None, message_cc=None,
                message_bcc=None, port=0, require_encryption=False,
                verify=True, username=None, password=None, envelope_from=None,
-               subject=None, attachments=None, plain_message=None,
-               html_message=None):
+               subject=None, message_headers=None, attachments=None,
+               plain_message=None, html_message=None):
     """
     ESend an email using a SMTP relay
 
@@ -36,6 +36,7 @@ def send_email(host, message_from, message_to=None, message_cc=None,
         password (str): An optional password
         envelope_from (str): Overrides the SMTP envelope "mail from" header
         subject (str): The message subject
+        message_headers (dict): Custom message headers
         attachments (list): A list of tuples, containing filenames as bytes
         plain_message (str): The plain text message body
         html_message (str): The HTML message body
@@ -47,6 +48,9 @@ def send_email(host, message_from, message_to=None, message_cc=None,
         msg['Cc'] = ", ".join(message_cc)
     msg['Date'] = email.utils.formatdate(localtime=True)
     msg['Subject'] = subject
+    if message_headers is not None:
+        for header in message_headers:
+            msg[header] = message_headers[header]
     if attachments is None:
         attachments = []
 
