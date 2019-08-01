@@ -8,6 +8,8 @@ import email.utils
 import smtplib
 from ssl import SSLError, CertificateError, create_default_context, CERT_NONE
 
+from mailsuite.utils import create_email
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,30 +43,11 @@ def send_email(host, message_from, message_to=None, message_cc=None,
         plain_message (str): The plain text message body
         html_message (str): The HTML message body
     """
-    msg = MIMEMultipart()
-    msg['From'] = message_from
-    msg['To'] = ", ".join(message_to)
-    if message_cc is not None:
-        msg['Cc'] = ", ".join(message_cc)
-    msg['Date'] = email.utils.formatdate(localtime=True)
-    msg['Subject'] = subject
-    if message_headers is not None:
-        for header in message_headers:
-            msg[header] = message_headers[header]
-    if attachments is None:
-        attachments = []
-
-    msg.attach(MIMEText(plain_message, "plain"))
-    if html_message is not None:
-        msg.attach(MIMEText(plain_message, "html"))
-
-    for attachment in attachments:
-        filename = attachment[0]
-        payload = attachment[1]
-        part = MIMEApplication(payload, Name=filename)
-        content_disposition = 'attachment; filename="{0}"'.format(filename)
-        part['Content-Disposition'] = content_disposition
-        msg.attach(part)
+    msg = create_email(message_from=message_from, message_to=message_to,
+                       message_cc=message_cc, subject=subject,
+                       message_headers=message_headers,
+                       attachments=attachments,
+                       plain_message=plain_message, html_message=html_message)
 
     try:
         ssl_context = create_default_context()
@@ -95,7 +78,7 @@ def send_email(host, message_from, message_to=None, message_cc=None,
         if message_bcc is not None:
             message_to += message_bcc
         envelope_to = list(set(envelope_to))
-        server.sendmail(envelope_from, envelope_to, msg.as_string())
+        server.sendmail(envelope_from, envelope_to, msg)
     except smtplib.SMTPException as error:
         error = error.__str__().lstrip("b'").rstrip("'").rstrip(".")
         raise SMTPError(error)

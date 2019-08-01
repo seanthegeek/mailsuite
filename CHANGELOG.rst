@@ -2,6 +2,7 @@
 -----
 
 - Add support for sending emails with custom message headers
+- Add ``parsedmarc.utils.create_email`` function
 
 1.1.1
 -----

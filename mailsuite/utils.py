@@ -7,6 +7,10 @@ import shutil
 import json
 import hashlib
 import base64
+import email
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 import mailparser
 import dns.reversename
@@ -309,3 +313,50 @@ def get_reverse_dns(ip_address, cache=None, nameservers=None, timeout=2.0):
         pass
 
     return hostname
+
+
+def create_email(message_from, message_to=None, message_cc=None,
+                 subject=None, message_headers=None, attachments=None,
+                 plain_message=None, html_message=None):
+    """
+    Creates an RFC 822 email message and returns it as a string
+
+    Args:
+        message_from (str): The value of the message from header
+        message_to (list): A list of addresses to send mail to
+        message_cc (list): A List of addresses to Carbon Copy (CC)
+        subject (str): The message subject
+        message_headers (dict): Custom message headers
+        attachments (list): A list of tuples, containing filenames as bytes
+        plain_message (str): The plain text message body
+        html_message (str): The HTML message body
+
+    Returns:
+        str: A RFC 822 email message
+    """
+    msg = MIMEMultipart()
+    msg['From'] = message_from
+    msg['To'] = ", ".join(message_to)
+    if message_cc is not None:
+        msg['Cc'] = ", ".join(message_cc)
+    msg['Date'] = email.utils.formatdate(localtime=True)
+    msg['Subject'] = subject
+    if message_headers is not None:
+        for header in message_headers:
+            msg[header] = message_headers[header]
+    if attachments is None:
+        attachments = []
+
+    msg.attach(MIMEText(plain_message, "plain"))
+    if html_message is not None:
+        msg.attach(MIMEText(plain_message, "html"))
+
+    for attachment in attachments:
+        filename = attachment[0]
+        payload = attachment[1]
+        part = MIMEApplication(payload, Name=filename)
+        content_disposition = 'attachment; filename="{0}"'.format(filename)
+        part['Content-Disposition'] = content_disposition
+        msg.attach(part)
+
+    return msg.as_string()
