@@ -13,9 +13,9 @@ Features
   - Create new folders
   - Move messages to other folders
   - Delete messages
-  - Monitor folders for new messages
+  - Monitor folders for new messages using the IMAP ``IDLE`` command
   - Always use ``/`` as the folder hierarchy separator, and convert to the
-    server's  hierarchy separator in the background
+    server's hierarchy separator in the background
   - Always remove folder name characters that conflict with the server's
     hierarchy separators
   - Prepend the namespace to the folder path when required
@@ -25,6 +25,9 @@ Features
     DavMail
 
 - Consistent email parsing
+
+  - SHA256 hashes of attachments
+
 - Simplified email sending via SMTP
 
   - Uses opportunistic encryption (``STARTTLS``) by default

@@ -13,7 +13,7 @@ Features
   - Create new folders
   - Move messages to other folders
   - Delete messages
-  - Monitor folders for new messages
+  - Monitor folders for new messages using the IMAP ``IDLE`` command
   - Always use ``/`` as the folder hierarchy separator, and convert to the
     server's hierarchy separator in the background
   - Always remove folder name characters that conflict with the server's
