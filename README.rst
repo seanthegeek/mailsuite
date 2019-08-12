@@ -21,9 +21,13 @@ Features
   - Prepend the namespace to the folder path when required
 
   - Automatically reconnect when needed
-  - Work around quirks in Gmail/G-suite, Office 365, Exchange, and Dovcot
+  - Work around quirks in Gmail/G-suite, Office 365, Exchange, Dovcot, and
+    DavMail
 
 - Consistent email parsing
+
+  - SHA256 hashes of attachments
+
 - Simplified email sending via SMTP
 
   - Uses opportunistic encryption (``STARTTLS``) by default
