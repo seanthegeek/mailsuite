@@ -1,3 +1,8 @@
+1.2.1
+-----
+
+- Fix IMAP hierarchy separator parsing
+
 1.2.0
 -----
 

@@ -14,7 +14,7 @@ from setuptools import setup
 from codecs import open
 from os import path
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 
 description = "A Python package to make receiving, parsing, and sending " \
               "email easier"

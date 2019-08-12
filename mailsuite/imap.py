@@ -103,7 +103,7 @@ class IMAPClient(imapclient.IMAPClient):
         Connects to an IMAP server
 
         Args:
-            host (str):T he server hostname or IP address
+            host (str): The server hostname or IP address
             username (str): The username
             password (str): The password
             port (int): The port
@@ -142,6 +142,9 @@ class IMAPClient(imapclient.IMAPClient):
             self._idle_supported = b"IDLE" in self.server_capabilities
             self._namespace = b"NAMESPACE" in self.server_capabilities
             self._hierarchy_separator = self.list_folders()[0][1]
+            if type(self._hierarchy_separator == bytes):
+                self._hierarchy_separator = self._hierarchy_separator.decode(
+                    "utf-8")
             if self._namespace:
                 self._namespace = self.namespace()
                 personal_namespace = self._namespace.personal
@@ -149,6 +152,9 @@ class IMAPClient(imapclient.IMAPClient):
                     self._hierarchy_separator = personal_namespace[0][1]
                     if not personal_namespace[0][0] == "":
                         self._path_prefix = personal_namespace[0][0]
+                        if type(self._path_prefix) == bytes:
+                            self._path_prefix = self._path_prefix.decode(
+                                "utf-8")
             else:
                 self._namespace = None
             self.select_folder(initial_folder)
