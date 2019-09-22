@@ -3,7 +3,6 @@
 
 - Set a configurable default IMAP timeout of 30 seconds
 - Set a configurable maximum of 4 IMAP timeout retry attempts
-- Add support for reading ``MBOX`` files
 
 1.2.1
 -----
