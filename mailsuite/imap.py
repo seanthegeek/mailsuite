@@ -304,7 +304,7 @@ class IMAPClient(imapclient.IMAPClient):
             msg_uids: A UID or list of UIDs of messages to move
             folder_path (str): The path of the destination folder
         """
-        folder_path = folder_path.replace("\\", "/").strip("/")
+        folder_path = folder_path.replace("\\", "/").rstrip("/")
         if type(msg_uids) == str or type(msg_uids) == int:
             msg_uids = [int(msg_uids)]
         for chunk in _chunks(msg_uids, 100):
