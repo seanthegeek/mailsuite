@@ -37,7 +37,7 @@ class IMAPClient(imapclient.IMAPClient):
         """
         if folder_name in ["", "*", "INBOX"]:
             return imapclient.IMAPClient._normalise_folder(self, folder_name)
-        folder_name = folder_name.strip("/")
+        folder_name = folder_name.rstrip("/")
         folder_name = folder_name.replace(self._path_prefix, "")
         if not self._hierarchy_separator == "/":
             folder_name = folder_name.replace(self._hierarchy_separator, "")

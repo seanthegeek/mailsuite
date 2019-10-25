@@ -1,3 +1,11 @@
+Changelog
+=========
+
+1.3.1
+-----
+
+- Do not remove leading `/` from folder names
+
 1.3.0
 -----
 
