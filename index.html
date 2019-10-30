@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>mailsuite &mdash; mailsuite 1.2.1 documentation</title>
+  <title>mailsuite &mdash; mailsuite 1.3.1 documentation</title>
   
 
   
@@ -58,7 +58,7 @@
             
             
               <div class="version">
-                1.2.1
+                1.3.1
               </div>
             
           
@@ -201,28 +201,32 @@ DavMail</p></li>
 <span id="mailsuite-imap"></span><h3>mailsuite.imap<a class="headerlink" href="#module-mailsuite.imap" title="Permalink to this headline">¶</a></h3>
 <dl class="class">
 <dt id="mailsuite.imap.IMAPClient">
-<em class="property">class </em><code class="sig-prename descclassname">mailsuite.imap.</code><code class="sig-name descname">IMAPClient</code><span class="sig-paren">(</span><em class="sig-param">host</em>, <em class="sig-param">username</em>, <em class="sig-param">password</em>, <em class="sig-param">port=None</em>, <em class="sig-param">ssl=True</em>, <em class="sig-param">verify=True</em>, <em class="sig-param">initial_folder='INBOX'</em>, <em class="sig-param">idle_callback=None</em>, <em class="sig-param">idle_timeout=30</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">mailsuite.imap.</code><code class="sig-name descname">IMAPClient</code><span class="sig-paren">(</span><em class="sig-param">host</em>, <em class="sig-param">username</em>, <em class="sig-param">password</em>, <em class="sig-param">port=None</em>, <em class="sig-param">ssl=True</em>, <em class="sig-param">verify=True</em>, <em class="sig-param">timeout=30</em>, <em class="sig-param">max_retries=4</em>, <em class="sig-param">initial_folder='INBOX'</em>, <em class="sig-param">idle_callback=None</em>, <em class="sig-param">idle_timeout=30</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient" title="Permalink to this definition">¶</a></dt>
 <dd><p>A simplified IMAP client</p>
 <dl class="method">
 <dt id="mailsuite.imap.IMAPClient.create_folder">
-<code class="sig-name descname">create_folder</code><span class="sig-paren">(</span><em class="sig-param">folder_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.create_folder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.create_folder" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">create_folder</code><span class="sig-paren">(</span><em class="sig-param">folder_path</em>, <em class="sig-param">_attempt=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.create_folder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.create_folder" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates an IMAP folder at the given path</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>folder_path</strong> (<em>str</em>) – The path of the folder to create</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder_path</strong> (<em>str</em>) – The path of the folder to create</p></li>
+<li><p><strong>_attempt</strong> (<em>int</em>) – The attempt number</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="method">
 <dt id="mailsuite.imap.IMAPClient.delete_messages">
-<code class="sig-name descname">delete_messages</code><span class="sig-paren">(</span><em class="sig-param">msg_uids</em>, <em class="sig-param">silent=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.delete_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.delete_messages" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">delete_messages</code><span class="sig-paren">(</span><em class="sig-param">msg_uids</em>, <em class="sig-param">silent=True</em>, <em class="sig-param">_attempt=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.delete_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.delete_messages" title="Permalink to this definition">¶</a></dt>
 <dd><p>Deletes the given messages by Message UIDs</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>msg_uids</strong> (<em>list</em>) – A list of UIDs of messages to delete</p></li>
 <li><p><strong>silent</strong> (<em>bool</em>) – Do it silently</p></li>
+<li><p><strong>_attempt</strong> (<em>int</em>) – The attempt number</p></li>
 </ul>
 </dd>
 </dl>
@@ -230,13 +234,14 @@ DavMail</p></li>
 
 <dl class="method">
 <dt id="mailsuite.imap.IMAPClient.fetch_message">
-<code class="sig-name descname">fetch_message</code><span class="sig-paren">(</span><em class="sig-param">msg_uid</em>, <em class="sig-param">parse=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.fetch_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.fetch_message" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">fetch_message</code><span class="sig-paren">(</span><em class="sig-param">msg_uid</em>, <em class="sig-param">parse=False</em>, <em class="sig-param">_attempt=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.fetch_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.fetch_message" title="Permalink to this definition">¶</a></dt>
 <dd><p>Fetch a message by UID, and optionally parse it</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>msg_uid</strong> (<em>int</em>) – The message UID</p></li>
 <li><p><strong>parse</strong> (<em>bool</em>) – Return parsed results from mailparser</p></li>
+<li><p><strong>_attempt</strong> (<em>int</em>) – The attempt number</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -251,13 +256,14 @@ dict: A parsed email message</p>
 
 <dl class="method">
 <dt id="mailsuite.imap.IMAPClient.move_messages">
-<code class="sig-name descname">move_messages</code><span class="sig-paren">(</span><em class="sig-param">msg_uids</em>, <em class="sig-param">folder_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.move_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.move_messages" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">move_messages</code><span class="sig-paren">(</span><em class="sig-param">msg_uids</em>, <em class="sig-param">folder_path</em>, <em class="sig-param">_attempt=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.move_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.move_messages" title="Permalink to this definition">¶</a></dt>
 <dd><p>Move the emails with the given UIDs to the given folder</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>msg_uids</strong> – A UID or list of UIDs of messages to move</p></li>
 <li><p><strong>folder_path</strong> (<em>str</em>) – The path of the destination folder</p></li>
+<li><p><strong>_attempt</strong> (<em>int</em>) – The attempt number</p></li>
 </ul>
 </dd>
 </dl>
@@ -269,6 +275,12 @@ dict: A parsed email message</p>
 <dd><p>Resets the connection to the IMAP server</p>
 </dd></dl>
 
+</dd></dl>
+
+<dl class="exception">
+<dt id="mailsuite.imap.MaxRetriesExceeded">
+<em class="property">exception </em><code class="sig-prename descclassname">mailsuite.imap.</code><code class="sig-name descname">MaxRetriesExceeded</code><a class="reference internal" href="_modules/mailsuite/imap.html#MaxRetriesExceeded"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.MaxRetriesExceeded" title="Permalink to this definition">¶</a></dt>
+<dd><p>Raised when the maximum number of retries in exceeded</p>
 </dd></dl>
 
 <div class="toctree-wrapper compound">
