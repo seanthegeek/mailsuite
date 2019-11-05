@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.4.0
+-----
+
+- Add ``headers_string`` to parsed output
+
 1.3.1
 -----
 

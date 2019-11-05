@@ -152,6 +152,11 @@ def parse_email(data, strip_attachment_payloads=False):
     headers = json.loads(parsed_email.headers_json).copy()
     parsed_email = json.loads(parsed_email.mail_json).copy()
     parsed_email["headers"] = headers
+    headers_str = ""
+    for header in headers:
+        headers_str += "{0}: {1}\n".format(header, headers[header])
+    headers_str = headers_str.rstrip()
+    parsed_email["headers_string"] = headers_str
 
     if "received" in parsed_email:
         for received in parsed_email["received"]:
