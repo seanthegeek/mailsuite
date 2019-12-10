@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>mailsuite.imap &mdash; mailsuite 1.4.0 documentation</title>
+  <title>mailsuite.imap &mdash; mailsuite 1.5.0 documentation</title>
   
 
   
@@ -58,7 +58,7 @@
             
             
               <div class="version">
-                1.4.0
+                1.5.0
               </div>
             
           
@@ -148,7 +148,7 @@
 <span></span><span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">socket</span>
-<span class="kn">from</span> <span class="nn">ssl</span> <span class="k">import</span> <span class="n">CERT_NONE</span><span class="p">,</span> <span class="n">SSLError</span><span class="p">,</span> <span class="n">CertificateError</span><span class="p">,</span> <span class="n">create_default_context</span>
+<span class="kn">from</span> <span class="nn">ssl</span> <span class="kn">import</span> <span class="n">CERT_NONE</span><span class="p">,</span> <span class="n">SSLError</span><span class="p">,</span> <span class="n">CertificateError</span><span class="p">,</span> <span class="n">create_default_context</span>
 
 <span class="kn">import</span> <span class="nn">imapclient</span>
 <span class="kn">import</span> <span class="nn">imapclient.exceptions</span>
@@ -247,7 +247,7 @@
         <span class="k">except</span> <span class="ne">BrokenPipeError</span><span class="p">:</span>
             <span class="k">pass</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ssl</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ssl</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                  <span class="n">verify</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">max_retries</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
                  <span class="n">initial_folder</span><span class="o">=</span><span class="s2">&quot;INBOX&quot;</span><span class="p">,</span> <span class="n">idle_callback</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">idle_timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
