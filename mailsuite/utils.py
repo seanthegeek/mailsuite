@@ -14,6 +14,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import mailparser
+import html2text
 import dns.reversename
 import dns.resolver
 import dns.exception
@@ -22,6 +23,10 @@ import dns.exception
 logger = logging.getLogger(__name__)
 
 null_file = open(os.devnull, "w")
+
+html_parser = html2text.HTML2Text()
+html_parser.unicode_snob = True
+html_parser.decode_errors = "replace"
 
 
 class EmailParserError(RuntimeError):
@@ -240,7 +245,9 @@ def parse_email(data, strip_attachment_payloads=False):
 
     if "body" not in parsed_email:
         parsed_email["body"] = None
-
+        parsed_email["body_markdown"] = None
+    else:
+        parsed_email["body_markdown"] = html_parser.handle(parsed_email["body"])
     return parsed_email
 
 

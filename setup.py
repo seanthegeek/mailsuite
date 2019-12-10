@@ -14,7 +14,7 @@ from setuptools import setup
 from codecs import open
 from os import path
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 description = "A Python package to make receiving, parsing, and sending " \
               "email easier"
@@ -93,7 +93,8 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=['imapclient>=2.1.0',
                       'mail-parser>=3.9.3',
-                      'dnspython>=1.16.0'
+                      'dnspython>=1.16.0',
+                      'html2text>=2019.9.26'
                       ],
 
 )

@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.5.0
+-----
+
+- Add ``body_markdown`` to ``parse_email()`` results
+
 1.4.0
 -----
 

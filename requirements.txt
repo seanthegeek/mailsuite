@@ -1,5 +1,6 @@
 imapclient>=2.1.0
 mail-parser>=3.9.3
+html2text>=2019.9.26
 dnspython>=1.16.0
 nose
 pygments
