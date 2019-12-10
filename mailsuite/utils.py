@@ -247,7 +247,8 @@ def parse_email(data, strip_attachment_payloads=False):
         parsed_email["body"] = None
         parsed_email["body_markdown"] = None
     else:
-        parsed_email["body_markdown"] = html_parser.handle(parsed_email["body"])
+        parsed_email["body_markdown"] = html_parser.handle(
+            parsed_email["body"])
     return parsed_email
 
 
