@@ -1,5 +1,5 @@
 imapclient>=2.1.0
-mail-parser>=3.9.3
+mail-parser>=3.11.0
 html2text>=2019.9.26
 dnspython>=1.16.0
 nose
@@ -17,4 +17,3 @@ sphinx
 sphinx_rtd_theme
 wheel
 codecov
-

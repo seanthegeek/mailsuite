@@ -14,7 +14,7 @@ from setuptools import setup
 from codecs import open
 from os import path
 
-__version__ = "1.5.0"
+__version__ = "1.5.1"
 
 description = "A Python package to make receiving, parsing, and sending " \
               "email easier"
@@ -91,8 +91,8 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['imapclient>=2.1.0',
-                      'mail-parser>=3.9.3',
+    install_requires=['IMAPClient>=2.1.0',
+                      'mail-parser>=3.11.0',
                       'dnspython>=1.16.0',
                       'html2text>=2019.9.26'
                       ],

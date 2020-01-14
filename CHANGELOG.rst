@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.5.1
+-----
+
+- Require ``mail-parser>=3.11.0`` ro avoid dependency problems
+
 1.5.0
 -----
 
