@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.5.3
+------
+
+- Fix version numbering
+
 1.5.2
 -----
 
