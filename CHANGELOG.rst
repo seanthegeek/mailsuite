@@ -1,6 +1,14 @@
 Changelog
 =========
 
+1.5.2
+-----
+
+- Pin some dependency versions to avoid conflicts
+
+  - ``six==1.13.0``
+  - ``mail-parser==3.11.0``
+
 1.5.1
 -----
 
