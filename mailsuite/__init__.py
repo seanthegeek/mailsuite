@@ -1,3 +1,3 @@
 """A Python package to simplify receiving, parsing, and sending email"""
 
-__version__ = "1.5.3"
+__version__ = "1.5.4"

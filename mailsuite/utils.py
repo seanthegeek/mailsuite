@@ -70,22 +70,29 @@ def parse_email_address(original_address):
                         ("domain", domain)])
 
 
-def get_filename_safe_string(string):
+def get_filename_safe_string(string, max_length=146):
     """
     Converts a string to a string that is safe for a filename
     Args:
         string (str): A string to make safe for a filename
+        max_length (int): Truncate strings longer than this length
+
+    Warning:
+        Windows has a 260 character length limit on file paths
 
     Returns:
         str: A string safe for a filename
     """
-    invalid_filename_chars = ['\\', '/', ':', '"', '*', '?', '|', '\n',
-                              '\r']
+    invalid_filename_chars = ['\\', '/', ':', '"', '*', '?',
+                              '<', '>', '|', '\n', '\r']
     if string is None:
         string = "None"
+
     for char in invalid_filename_chars:
         string = string.replace(char, "")
     string = string.rstrip(".")
+
+    string = (string[:max_length]) if len(string) > max_length else string
 
     return string
 

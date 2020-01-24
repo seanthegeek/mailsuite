@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.5.4
+-----
+
+- Improve ``get_filename_safe_string()``
+
 1.5.3
 ------
 
