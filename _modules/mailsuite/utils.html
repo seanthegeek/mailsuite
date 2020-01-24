@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>mailsuite.utils &mdash; mailsuite 1.5.3 documentation</title>
+  <title>mailsuite.utils &mdash; mailsuite 1.5.4 documentation</title>
   
 
   
@@ -58,7 +58,7 @@
             
             
               <div class="version">
-                1.5.3
+                1.5.4
               </div>
             
           
@@ -217,22 +217,29 @@
                         <span class="p">(</span><span class="s2">&quot;domain&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="p">)])</span>
 
 
-<div class="viewcode-block" id="get_filename_safe_string"><a class="viewcode-back" href="../../index.html#mailsuite.utils.get_filename_safe_string">[docs]</a><span class="k">def</span> <span class="nf">get_filename_safe_string</span><span class="p">(</span><span class="n">string</span><span class="p">):</span>
+<div class="viewcode-block" id="get_filename_safe_string"><a class="viewcode-back" href="../../index.html#mailsuite.utils.get_filename_safe_string">[docs]</a><span class="k">def</span> <span class="nf">get_filename_safe_string</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">146</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Converts a string to a string that is safe for a filename</span>
 <span class="sd">    Args:</span>
 <span class="sd">        string (str): A string to make safe for a filename</span>
+<span class="sd">        max_length (int): Truncate strings longer than this length</span>
+
+<span class="sd">    Warning:</span>
+<span class="sd">        Windows has a 260 character length limit on file paths</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        str: A string safe for a filename</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">invalid_filename_chars</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="s1">&#39;?&#39;</span><span class="p">,</span> <span class="s1">&#39;|&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
-                              <span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">]</span>
+    <span class="n">invalid_filename_chars</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="s1">&#39;?&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;&lt;&#39;</span><span class="p">,</span> <span class="s1">&#39;&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;|&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">string</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">string</span> <span class="o">=</span> <span class="s2">&quot;None&quot;</span>
+
     <span class="k">for</span> <span class="n">char</span> <span class="ow">in</span> <span class="n">invalid_filename_chars</span><span class="p">:</span>
         <span class="n">string</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">char</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
     <span class="n">string</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+
+    <span class="n">string</span> <span class="o">=</span> <span class="p">(</span><span class="n">string</span><span class="p">[:</span><span class="n">max_length</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">string</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_length</span> <span class="k">else</span> <span class="n">string</span>
 
     <span class="k">return</span> <span class="n">string</span></div>
 

@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>mailsuite &mdash; mailsuite 1.5.3 documentation</title>
+  <title>mailsuite &mdash; mailsuite 1.5.4 documentation</title>
   
 
   
@@ -58,7 +58,7 @@
             
             
               <div class="version">
-                1.5.3
+                1.5.4
               </div>
             
           
@@ -393,10 +393,16 @@ standard RFC 822 format</p>
 
 <dl class="function">
 <dt id="mailsuite.utils.get_filename_safe_string">
-<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">get_filename_safe_string</code><span class="sig-paren">(</span><em class="sig-param">string</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#get_filename_safe_string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.get_filename_safe_string" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">get_filename_safe_string</code><span class="sig-paren">(</span><em class="sig-param">string</em>, <em class="sig-param">max_length=146</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#get_filename_safe_string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.get_filename_safe_string" title="Permalink to this definition">¶</a></dt>
 <dd><p>Converts a string to a string that is safe for a filename
 :param string: A string to make safe for a filename
-:type string: str</p>
+:type string: str
+:param max_length: Truncate strings longer than this length
+:type max_length: int</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Windows has a 260 character length limit on file paths</p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
 <dd class="field-odd"><p>A string safe for a filename</p>
