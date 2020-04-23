@@ -160,15 +160,26 @@ def parse_email(data, strip_attachment_payloads=False):
         if is_outlook_msg(data):
             data = convert_outlook_msg(data)
         data = data.decode("utf-8", errors="replace")
-    parsed_email = mailparser.parse_from_string(data)
-    headers = json.loads(parsed_email.headers_json).copy()
-    parsed_email = json.loads(parsed_email.mail_json).copy()
+    _parsed_email = mailparser.parse_from_string(data)
+    headers = _parsed_email.headers
+    parsed_email = _parsed_email.mail_partial
     parsed_email["headers"] = headers
     headers_str = ""
     for header in headers:
         headers_str += "{0}: {1}\n".format(header, headers[header])
     headers_str = headers_str.rstrip()
     parsed_email["headers_string"] = headers_str
+    if "body" not in parsed_email or parsed_email["body"] is None:
+        parsed_email["body"] = ""
+    parsed_email["raw_body"] = parsed_email["body"]
+    parsed_email["text_plain"] = _parsed_email.text_plain.copy()
+    parsed_email["text_html"] = _parsed_email.text_html.copy()
+    if len(parsed_email["text_plain"]) > 0:
+        parsed_email["body"] = "\n\n".join(parsed_email["text_plain"])
+    if len(parsed_email["text_html"]) > 0:
+        parsed_email["body"] = "\n\n".join(parsed_email["text_html"])
+    parsed_email["body_markdown"] = html_parser.handle(
+        parsed_email["body"])
 
     if "received" in parsed_email:
         for received in parsed_email["received"]:
