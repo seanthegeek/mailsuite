@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>mailsuite &mdash; mailsuite 1.5.4 documentation</title>
+  <title>mailsuite &mdash; mailsuite 1.6.0 documentation</title>
   
 
   
@@ -21,10 +21,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -58,7 +58,7 @@
             
             
               <div class="version">
-                1.5.4
+                1.6.0
               </div>
             
           
@@ -199,13 +199,13 @@ DavMail</p></li>
 <h2>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="module-mailsuite.imap">
 <span id="mailsuite-imap"></span><h3>mailsuite.imap<a class="headerlink" href="#module-mailsuite.imap" title="Permalink to this headline">¶</a></h3>
-<dl class="class">
+<dl class="py class">
 <dt id="mailsuite.imap.IMAPClient">
-<em class="property">class </em><code class="sig-prename descclassname">mailsuite.imap.</code><code class="sig-name descname">IMAPClient</code><span class="sig-paren">(</span><em class="sig-param">host</em>, <em class="sig-param">username</em>, <em class="sig-param">password</em>, <em class="sig-param">port=None</em>, <em class="sig-param">ssl=True</em>, <em class="sig-param">verify=True</em>, <em class="sig-param">timeout=30</em>, <em class="sig-param">max_retries=4</em>, <em class="sig-param">initial_folder='INBOX'</em>, <em class="sig-param">idle_callback=None</em>, <em class="sig-param">idle_timeout=30</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">mailsuite.imap.</code><code class="sig-name descname">IMAPClient</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">host</span></em>, <em class="sig-param"><span class="n">username</span></em>, <em class="sig-param"><span class="n">password</span></em>, <em class="sig-param"><span class="n">port</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ssl</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">verify</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">timeout</span><span class="o">=</span><span class="default_value">30</span></em>, <em class="sig-param"><span class="n">max_retries</span><span class="o">=</span><span class="default_value">4</span></em>, <em class="sig-param"><span class="n">initial_folder</span><span class="o">=</span><span class="default_value">'INBOX'</span></em>, <em class="sig-param"><span class="n">idle_callback</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">idle_timeout</span><span class="o">=</span><span class="default_value">30</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient" title="Permalink to this definition">¶</a></dt>
 <dd><p>A simplified IMAP client</p>
-<dl class="method">
+<dl class="py method">
 <dt id="mailsuite.imap.IMAPClient.create_folder">
-<code class="sig-name descname">create_folder</code><span class="sig-paren">(</span><em class="sig-param">folder_path</em>, <em class="sig-param">_attempt=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.create_folder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.create_folder" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">create_folder</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">folder_path</span></em>, <em class="sig-param"><span class="n">_attempt</span><span class="o">=</span><span class="default_value">1</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.create_folder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.create_folder" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates an IMAP folder at the given path</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -217,9 +217,9 @@ DavMail</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="mailsuite.imap.IMAPClient.delete_messages">
-<code class="sig-name descname">delete_messages</code><span class="sig-paren">(</span><em class="sig-param">msg_uids</em>, <em class="sig-param">silent=True</em>, <em class="sig-param">_attempt=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.delete_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.delete_messages" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">delete_messages</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">msg_uids</span></em>, <em class="sig-param"><span class="n">silent</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">_attempt</span><span class="o">=</span><span class="default_value">1</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.delete_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.delete_messages" title="Permalink to this definition">¶</a></dt>
 <dd><p>Deletes the given messages by Message UIDs</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -232,9 +232,9 @@ DavMail</p></li>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="mailsuite.imap.IMAPClient.fetch_message">
-<code class="sig-name descname">fetch_message</code><span class="sig-paren">(</span><em class="sig-param">msg_uid</em>, <em class="sig-param">parse=False</em>, <em class="sig-param">_attempt=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.fetch_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.fetch_message" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">fetch_message</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">msg_uid</span></em>, <em class="sig-param"><span class="n">parse</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">_attempt</span><span class="o">=</span><span class="default_value">1</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.fetch_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.fetch_message" title="Permalink to this definition">¶</a></dt>
 <dd><p>Fetch a message by UID, and optionally parse it</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -254,9 +254,9 @@ dict: A parsed email message</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="mailsuite.imap.IMAPClient.move_messages">
-<code class="sig-name descname">move_messages</code><span class="sig-paren">(</span><em class="sig-param">msg_uids</em>, <em class="sig-param">folder_path</em>, <em class="sig-param">_attempt=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.move_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.move_messages" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">move_messages</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">msg_uids</span></em>, <em class="sig-param"><span class="n">folder_path</span></em>, <em class="sig-param"><span class="n">_attempt</span><span class="o">=</span><span class="default_value">1</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.move_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.move_messages" title="Permalink to this definition">¶</a></dt>
 <dd><p>Move the emails with the given UIDs to the given folder</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -269,7 +269,7 @@ dict: A parsed email message</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="mailsuite.imap.IMAPClient.reset_connection">
 <code class="sig-name descname">reset_connection</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.reset_connection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.reset_connection" title="Permalink to this definition">¶</a></dt>
 <dd><p>Resets the connection to the IMAP server</p>
@@ -277,7 +277,7 @@ dict: A parsed email message</p>
 
 </dd></dl>
 
-<dl class="exception">
+<dl class="py exception">
 <dt id="mailsuite.imap.MaxRetriesExceeded">
 <em class="property">exception </em><code class="sig-prename descclassname">mailsuite.imap.</code><code class="sig-name descname">MaxRetriesExceeded</code><a class="reference internal" href="_modules/mailsuite/imap.html#MaxRetriesExceeded"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.imap.MaxRetriesExceeded" title="Permalink to this definition">¶</a></dt>
 <dd><p>Raised when the maximum number of retries in exceeded</p>
@@ -288,15 +288,15 @@ dict: A parsed email message</p>
 </div>
 <div class="section" id="module-mailsuite.smtp">
 <span id="mailsuite-smtp"></span><h3>mailsuite.smtp<a class="headerlink" href="#module-mailsuite.smtp" title="Permalink to this headline">¶</a></h3>
-<dl class="exception">
+<dl class="py exception">
 <dt id="mailsuite.smtp.SMTPError">
 <em class="property">exception </em><code class="sig-prename descclassname">mailsuite.smtp.</code><code class="sig-name descname">SMTPError</code><a class="reference internal" href="_modules/mailsuite/smtp.html#SMTPError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.smtp.SMTPError" title="Permalink to this definition">¶</a></dt>
 <dd><p>Raised when a SMTP error occurs</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="mailsuite.smtp.send_email">
-<code class="sig-prename descclassname">mailsuite.smtp.</code><code class="sig-name descname">send_email</code><span class="sig-paren">(</span><em class="sig-param">host</em>, <em class="sig-param">message_from</em>, <em class="sig-param">message_to=None</em>, <em class="sig-param">message_cc=None</em>, <em class="sig-param">message_bcc=None</em>, <em class="sig-param">port=0</em>, <em class="sig-param">require_encryption=False</em>, <em class="sig-param">verify=True</em>, <em class="sig-param">username=None</em>, <em class="sig-param">password=None</em>, <em class="sig-param">envelope_from=None</em>, <em class="sig-param">subject=None</em>, <em class="sig-param">message_headers=None</em>, <em class="sig-param">attachments=None</em>, <em class="sig-param">plain_message=None</em>, <em class="sig-param">html_message=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/smtp.html#send_email"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.smtp.send_email" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mailsuite.smtp.</code><code class="sig-name descname">send_email</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">host</span></em>, <em class="sig-param"><span class="n">message_from</span></em>, <em class="sig-param"><span class="n">message_to</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">message_cc</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">message_bcc</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">port</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">require_encryption</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">verify</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">username</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">password</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">envelope_from</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">subject</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">message_headers</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">attachments</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">plain_message</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">html_message</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/smtp.html#send_email"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.smtp.send_email" title="Permalink to this definition">¶</a></dt>
 <dd><p>ESend an email using a SMTP relay</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -327,15 +327,15 @@ dict: A parsed email message</p>
 </div>
 <div class="section" id="module-mailsuite.utils">
 <span id="mailsuite-utils"></span><h3>mailsuite.utils<a class="headerlink" href="#module-mailsuite.utils" title="Permalink to this headline">¶</a></h3>
-<dl class="exception">
+<dl class="py exception">
 <dt id="mailsuite.utils.EmailParserError">
 <em class="property">exception </em><code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">EmailParserError</code><a class="reference internal" href="_modules/mailsuite/utils.html#EmailParserError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.EmailParserError" title="Permalink to this definition">¶</a></dt>
 <dd><p>Raised when an error parsing the email occurs</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="mailsuite.utils.convert_outlook_msg">
-<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">convert_outlook_msg</code><span class="sig-paren">(</span><em class="sig-param">msg_bytes</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#convert_outlook_msg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.convert_outlook_msg" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">convert_outlook_msg</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">msg_bytes</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#convert_outlook_msg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.convert_outlook_msg" title="Permalink to this definition">¶</a></dt>
 <dd><p>Uses the <code class="docutils literal notranslate"><span class="pre">msgconvert</span></code> Perl utility to convert an Outlook MS file to
 standard RFC 822 format</p>
 <dl class="field-list simple">
@@ -348,9 +348,9 @@ standard RFC 822 format</p>
 </dl>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="mailsuite.utils.create_email">
-<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">create_email</code><span class="sig-paren">(</span><em class="sig-param">message_from</em>, <em class="sig-param">message_to=None</em>, <em class="sig-param">message_cc=None</em>, <em class="sig-param">subject=None</em>, <em class="sig-param">message_headers=None</em>, <em class="sig-param">attachments=None</em>, <em class="sig-param">plain_message=None</em>, <em class="sig-param">html_message=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#create_email"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.create_email" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">create_email</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">message_from</span></em>, <em class="sig-param"><span class="n">message_to</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">message_cc</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">subject</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">message_headers</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">attachments</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">plain_message</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">html_message</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#create_email"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.create_email" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates an RFC 822 email message and returns it as a string</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -374,9 +374,9 @@ standard RFC 822 format</p>
 </dl>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="mailsuite.utils.decode_base64">
-<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">decode_base64</code><span class="sig-paren">(</span><em class="sig-param">data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#decode_base64"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.decode_base64" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">decode_base64</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#decode_base64"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.decode_base64" title="Permalink to this definition">¶</a></dt>
 <dd><p>Decodes a base64 string, with padding being optional</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -391,9 +391,9 @@ standard RFC 822 format</p>
 </dl>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="mailsuite.utils.get_filename_safe_string">
-<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">get_filename_safe_string</code><span class="sig-paren">(</span><em class="sig-param">string</em>, <em class="sig-param">max_length=146</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#get_filename_safe_string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.get_filename_safe_string" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">get_filename_safe_string</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">string</span></em>, <em class="sig-param"><span class="n">max_length</span><span class="o">=</span><span class="default_value">146</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#get_filename_safe_string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.get_filename_safe_string" title="Permalink to this definition">¶</a></dt>
 <dd><p>Converts a string to a string that is safe for a filename
 :param string: A string to make safe for a filename
 :type string: str
@@ -413,9 +413,9 @@ standard RFC 822 format</p>
 </dl>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="mailsuite.utils.get_reverse_dns">
-<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">get_reverse_dns</code><span class="sig-paren">(</span><em class="sig-param">ip_address</em>, <em class="sig-param">cache=None</em>, <em class="sig-param">nameservers=None</em>, <em class="sig-param">timeout=2.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#get_reverse_dns"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.get_reverse_dns" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">get_reverse_dns</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">ip_address</span></em>, <em class="sig-param"><span class="n">cache</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">nameservers</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">timeout</span><span class="o">=</span><span class="default_value">2.0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#get_reverse_dns"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.get_reverse_dns" title="Permalink to this definition">¶</a></dt>
 <dd><p>Resolves an IP address to a hostname using a reverse DNS query</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -436,9 +436,9 @@ standard RFC 822 format</p>
 </dl>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="mailsuite.utils.is_outlook_msg">
-<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">is_outlook_msg</code><span class="sig-paren">(</span><em class="sig-param">content</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#is_outlook_msg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.is_outlook_msg" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">is_outlook_msg</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">content</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#is_outlook_msg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.is_outlook_msg" title="Permalink to this definition">¶</a></dt>
 <dd><p>Checks if the given content is a Outlook msg OLE file</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -453,9 +453,9 @@ standard RFC 822 format</p>
 </dl>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="mailsuite.utils.parse_email">
-<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">parse_email</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">strip_attachment_payloads=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#parse_email"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.parse_email" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">parse_email</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span></em>, <em class="sig-param"><span class="n">strip_attachment_payloads</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#parse_email"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.parse_email" title="Permalink to this definition">¶</a></dt>
 <dd><p>A simplified email parser</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -468,9 +468,9 @@ standard RFC 822 format</p>
 <p>Returns (dict): Parsed email data</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="mailsuite.utils.query_dns">
-<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">query_dns</code><span class="sig-paren">(</span><em class="sig-param">domain</em>, <em class="sig-param">record_type</em>, <em class="sig-param">cache=None</em>, <em class="sig-param">nameservers=None</em>, <em class="sig-param">timeout=2.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#query_dns"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.query_dns" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">mailsuite.utils.</code><code class="sig-name descname">query_dns</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">domain</span></em>, <em class="sig-param"><span class="n">record_type</span></em>, <em class="sig-param"><span class="n">cache</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">nameservers</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">timeout</span><span class="o">=</span><span class="default_value">2.0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/utils.html#query_dns"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#mailsuite.utils.query_dns" title="Permalink to this definition">¶</a></dt>
 <dd><p>Queries DNS</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
