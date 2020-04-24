@@ -14,7 +14,7 @@ from setuptools import setup
 from codecs import open
 from os import path
 
-__version__ = "1.5.4"
+from mailsuite import  __version__
 
 description = "A Python package to make receiving, parsing, and sending " \
               "email easier"

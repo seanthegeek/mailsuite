@@ -1,6 +1,15 @@
 Changelog
 =========
 
+1.6.0
+-----
+
+- Remove copies of email headers from the root of the returned dictionary (still available under `headers`
+- Store the HTML body in body in `body`, or the text body if an HTML body does not exist
+- Store all body parts as a string in `raw_body`
+- Only run `html2text` on HTML bodies
+- Disable wrapping on markdown to make searching strings with Yara or other tools easier
+
 1.5.4
 -----
 

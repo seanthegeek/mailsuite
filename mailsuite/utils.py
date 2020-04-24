@@ -1,10 +1,10 @@
 import logging
+from datetime import datetime
 import os
 from collections import OrderedDict
 import tempfile
 import subprocess
 import shutil
-import json
 import hashlib
 import base64
 import email
@@ -24,9 +24,10 @@ logger = logging.getLogger(__name__)
 
 null_file = open(os.devnull, "w")
 
-html_parser = html2text.HTML2Text()
-html_parser.unicode_snob = True
-html_parser.decode_errors = "replace"
+markdown_maker = html2text.HTML2Text()
+markdown_maker.unicode_snob = True
+markdown_maker.decode_errors = "replace"
+markdown_maker.body_width = 0
 
 
 class EmailParserError(RuntimeError):
@@ -176,10 +177,11 @@ def parse_email(data, strip_attachment_payloads=False):
     parsed_email["text_html"] = _parsed_email.text_html.copy()
     if len(parsed_email["text_plain"]) > 0:
         parsed_email["body"] = "\n\n".join(parsed_email["text_plain"])
+        parsed_email["body_markdown"] = "\n\n".join(parsed_email["text_plain"])
     if len(parsed_email["text_html"]) > 0:
         parsed_email["body"] = "\n\n".join(parsed_email["text_html"])
-    parsed_email["body_markdown"] = html_parser.handle(
-        parsed_email["body"])
+        parsed_email["body_markdown"] = markdown_maker.handle(
+            parsed_email["body"])
 
     if "received" in parsed_email:
         for received in parsed_email["received"]:
@@ -200,7 +202,11 @@ def parse_email(data, strip_attachment_payloads=False):
         parsed_email["from"] = parse_email_address(parsed_email["from"][0])
 
     if "date" in parsed_email:
-        parsed_email["date"] = parsed_email["date"].replace("T", " ")
+        if type(parsed_email["date"] == datetime):
+            parsed_email["date"] = parsed_email["date"].replace(microsecond=0).isoformat()
+        else:
+            parsed_email["date"] = parsed_email["date"].replace("T", " ")
+
     else:
         parsed_email["date"] = None
     if "reply_to" in parsed_email:
@@ -265,7 +271,7 @@ def parse_email(data, strip_attachment_payloads=False):
         parsed_email["body"] = None
         parsed_email["body_markdown"] = None
     else:
-        parsed_email["body_markdown"] = html_parser.handle(
+        parsed_email["body_markdown"] = markdown_maker.handle(
             parsed_email["body"])
     return parsed_email
 
