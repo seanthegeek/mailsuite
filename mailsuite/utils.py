@@ -203,7 +203,8 @@ def parse_email(data, strip_attachment_payloads=False):
 
     if "date" in parsed_email:
         if type(parsed_email["date"] == datetime):
-            parsed_email["date"] = parsed_email["date"].replace(microsecond=0).isoformat()
+            parsed_email["date"] = parsed_email["date"].replace(
+                microsecond=0).isoformat()
         else:
             parsed_email["date"] = parsed_email["date"].replace("T", " ")
 
