@@ -147,6 +147,9 @@ class IMAPClient(imapclient.IMAPClient):
                                        use_uid=True,
                                        timeout=timeout)
         try:
+            if not ssl and b"STARTTLS" in self.capabilities():
+                logger.info("IMAP server supports STARTTLS ... activating now")
+                self.starttls(ssl_context=ssl_context)
             self.login(username, password)
             self.server_capabilities = self.capabilities()
             self._move_supported = b"MOVE" in self.server_capabilities

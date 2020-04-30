@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.6.1
+-----
+
+- Use STARTTLS in IMAPClient before login if server supports it
+
 1.6.0
 -----
 
