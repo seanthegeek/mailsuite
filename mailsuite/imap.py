@@ -15,10 +15,10 @@ class MaxRetriesExceeded(RuntimeError):
     """Raised when the maximum number of retries in exceeded"""
 
 
-def _chunks(l, n):
+def _chunks(list_like_object, n):
     """Yield successive n-sized chunks from l."""
-    for i in range(0, len(l), n):
-        yield l[i:i + n]
+    for i in range(0, len(list_like_object), n):
+        yield list_like_object[i:i + n]
 
 
 class IMAPClient(imapclient.IMAPClient):
@@ -117,7 +117,7 @@ class IMAPClient(imapclient.IMAPClient):
             max_retries (int): The maximum number of retries after a timeout
             initial_folder (str): The initial folder to select
             idle_callback: The function to call when new messages are detected
-            idle_timeout (float): Number of seconds to wait for an IDLE
+            idle_timeout (int): Number of seconds to wait for an IDLE
                                   response
         """
         ssl_context = create_default_context()
