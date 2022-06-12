@@ -101,7 +101,7 @@ class IMAPClient(imapclient.IMAPClient):
             pass
 
     def __init__(self, host, username, password, port=None, ssl=True,
-                 verify=True, timeout=30, max_retries=4,
+                 ssl_context=None, verify=True, timeout=30, max_retries=4,
                  initial_folder="INBOX", idle_callback=None, idle_timeout=30):
         """
         Connects to an IMAP server
@@ -112,6 +112,7 @@ class IMAPClient(imapclient.IMAPClient):
             password (str): The password
             port (int): The port
             ssl (bool): Use SSL or TLS
+            ssl_context (SSLContext): For more advanced TLS options
             verify (bool): Verify the SSL/TLS certificate
             timeout (float): Number of seconds to wait for an operation
             max_retries (int): The maximum number of retries after a timeout
@@ -120,13 +121,15 @@ class IMAPClient(imapclient.IMAPClient):
             idle_timeout (int): Number of seconds to wait for an IDLE
                                   response
         """
-        ssl_context = create_default_context()
+
+        if ssl_context is None:
+            ssl_context = create_default_context()
         if verify is False:
             ssl_context.check_hostname = False
             ssl_context.verify_mode = CERT_NONE
         self._init_args = dict(host=host, username=username,
                                password=password, port=port, ssl=ssl,
-                               verify=verify,
+                               ssl_context=ssl_context, verify=verify,
                                timeout=timeout,
                                max_retries=max_retries,
                                initial_folder=initial_folder,
@@ -204,6 +207,7 @@ class IMAPClient(imapclient.IMAPClient):
                       self._init_args["password"],
                       port=self._init_args["port"],
                       ssl=self._init_args["ssl"],
+                      ssl_context=self._init_args["ssl_context"],
                       verify=self._init_args["verify"],
                       timeout=self._init_args["timeout"],
                       max_retries=self._init_args["max_retries"],
