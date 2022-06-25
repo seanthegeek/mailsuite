@@ -4,6 +4,7 @@ Changelog
 1.6.1
 -----
 
+- Use STARTTLS in IMAPClient before login if server supports it
 - Remove ``six`` requirement
 - Set required ``mail-parser`` version to ``>=1.14.0``
 - Set required ``dnspython`` version to ``>=2.0.0``

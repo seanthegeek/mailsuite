@@ -21,7 +21,7 @@ Features
   - Prepend the namespace to the folder path when required
 
   - Automatically reconnect when needed
-  - Work around quirks in Gmail/G-suite, Office 365, Exchange, Dovcot, and
+  - Work around quirks in Gmail/G-suite, Office 365, Exchange, Dovecot, and
     DavMail
 
 - Consistent email parsing
