@@ -5,6 +5,7 @@ from ssl import CERT_NONE, SSLError, CertificateError, create_default_context
 
 import imapclient
 import imapclient.exceptions
+import imaplib
 
 import mailsuite.utils
 
@@ -232,7 +233,7 @@ class IMAPClient(imapclient.IMAPClient):
         """
         try:
             raw_msg = self.fetch(msg_uid, ["RFC822"])[msg_uid]
-        except socket.timeout:
+        except (socket.timeout, imaplib.IMAP4.abort):
             _attempt = _attempt + 1
             if _attempt > self.max_retries:
                 raise MaxRetriesExceeded("Maximum retries exceeded")
@@ -269,7 +270,7 @@ class IMAPClient(imapclient.IMAPClient):
             imapclient.IMAPClient.delete_messages(self, msg_uids,
                                                   silent=silent)
             imapclient.IMAPClient.expunge(self, msg_uids)
-        except socket.timeout:
+        except (socket.timeout, imaplib.IMAP4.abort):
             _attempt = _attempt + 1
             if _attempt > self.max_retries:
                 raise MaxRetriesExceeded("Maximum retries exceeded")
@@ -291,7 +292,7 @@ class IMAPClient(imapclient.IMAPClient):
             logger.info("Creating folder: {0}".format(folder_path))
             try:
                 imapclient.IMAPClient.create_folder(self, folder_path)
-            except socket.timeout:
+            except (socket.timeout, imaplib.IMAP4.abort):
                 _attempt = _attempt + 1
                 if _attempt > self.max_retries:
                     raise MaxRetriesExceeded("Maximum retries exceeded")
@@ -349,7 +350,7 @@ class IMAPClient(imapclient.IMAPClient):
         """
         try:
             self._move_messages(msg_uids, folder_path)
-        except socket.timeout:
+        except (socket.timeout, imaplib.IMAP4.abort):
             _attempt = _attempt + 1
             if _attempt > self.max_retries:
                 raise MaxRetriesExceeded("Maximum retries exceeded")
