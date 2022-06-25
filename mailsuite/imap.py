@@ -156,7 +156,9 @@ class IMAPClient(imapclient.IMAPClient):
             self._idle_supported = b"IDLE" in self.server_capabilities
             self._namespace = b"NAMESPACE" in self.server_capabilities
             self._hierarchy_separator = self.list_folders()[0][1]
-            if type(self._hierarchy_separator == bytes):
+            if not self._hierarchy_separator:
+                self._hierarchy_separator = ""
+            if type(self._hierarchy_separator) == bytes:
                 self._hierarchy_separator = self._hierarchy_separator.decode(
                     "utf-8")
             if self._namespace:
