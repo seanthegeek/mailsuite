@@ -5,14 +5,17 @@ Changelog
 -----
 
 - Use STARTTLS in IMAPClient before login if server supports it
+- Remove ``six`` requirement
+- Set required ``mail-parser`` version to ``>=1.14.0``
+- Set required ``dnspython`` version to ``>=2.0.0``
 
 1.6.0
 -----
 
-- Remove copies of email headers from the root of the returned dictionary (still available under `headers`
-- Store the HTML body in body in `body`, or the text body if an HTML body does not exist
-- Store all body parts as a string in `raw_body`
-- Only run `html2text` on HTML bodies
+- Remove copies of email headers from the root of the returned dictionary (still available under ``headers``
+- Store the HTML body in body in ``body``, or the text body if an HTML body does not exist
+- Store all body parts as a string in ``raw_body``
+- Only run ``html2text`` on HTML bodies
 - Disable wrapping on markdown to make searching strings with Yara or other tools easier
 
 1.5.4

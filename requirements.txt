@@ -1,8 +1,7 @@
-six==1.13.0
-mail-parser==3.11.0
+mail-parser>=3.14.0
 imapclient>=2.1.0
 html2text>=2020.1.16
-dnspython>=1.16.0
+dnspython>=2.0.0
 nose
 pygments
 flake8

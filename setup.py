@@ -92,9 +92,8 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=['IMAPClient>=2.1.0',
-                      'six==1.13.0',
-                      'mail-parser==3.11.0',
-                      'dnspython>=1.16.0',
+                      'mail-parser>=3.14.0',
+                      'dnspython>=2.0.0',
                       'html2text>=2020.1.16'
                       ],
 
