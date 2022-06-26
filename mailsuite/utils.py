@@ -7,6 +7,7 @@ import subprocess
 import shutil
 import hashlib
 import base64
+import re
 import email
 import email.utils
 from email.mime.application import MIMEApplication
@@ -146,6 +147,38 @@ def convert_outlook_msg(msg_bytes):
     return rfc822
 
 
+def parse_authentication_results(authentication_results):
+    """
+    Parses an Authentication-Results header
+
+    Args:
+        authentication_results (str): The value of the header
+
+    Returns (dict): A parsed header value
+    """
+    authentication_results = authentication_results.lower()
+    parts = authentication_results.split(";")
+    parsed_parts = {}
+    for part in parts:
+        parsed_part = re.findall(r"([a-z.]+)=([a-z0-9\.\-_@+]+)", part)
+        if len(parsed_part) == 0:
+            parsed_parts["mta"] = part
+        else:
+            parsed_parts[parsed_part[0][0]] = {}
+            parsed_parts[parsed_part[0][0]]["result"] = parsed_part[0][1]
+            for i in range(1, len(parsed_part)):
+                key = parsed_part[i][0]
+                value = parsed_part[i][1]
+                parsed_parts[parsed_part[0][0]][key] = value
+    if "dkim" in parsed_parts:
+        dkim = parsed_parts["dkim"]
+        if "header.i" in dkim and "header.d" not in dkim:
+            domain = dkim["header.i"].split("@")[1]
+            dkim["header.d"] = domain
+
+    return parsed_parts
+
+
 def parse_email(data, strip_attachment_payloads=False):
     """
     A simplified email parser
@@ -163,12 +196,36 @@ def parse_email(data, strip_attachment_payloads=False):
         data = data.decode("utf-8", errors="replace")
     _parsed_email = mailparser.parse_from_string(data)
     headers = _parsed_email.headers
-    parsed_email = _parsed_email.mail_partial
+    parsed_email = _parsed_email.mail
     parsed_email["headers"] = headers
-    headers_str = ""
-    for header in headers:
-        headers_str += "{0}: {1}\n".format(header, headers[header])
-    headers_str = headers_str.rstrip()
+    headers_str = data.split("\n\n")[0]
+    headers_str = re.sub(r"\n\s+", " ", headers_str)
+    if "authentication-results" in parsed_email:
+        authentication_results = parsed_email["authentication-results"]
+        if type(authentication_results) == str:
+            authentication_results = re.sub(r"\n\s+", " ",
+                                            authentication_results)
+            parsed_auth = parse_authentication_results(authentication_results)
+            parsed_email["authentication-results"] = parsed_auth
+        elif type(authentication_results) == list:
+            auth_list = []
+            for result in authentication_results:
+                result = headers_str = re.sub(r"\n\s+", " ", result)
+                auth_list.append(parse_authentication_results(result))
+            parsed_email["authentication-results"] = auth_list
+    if "authentication-results-original" in parsed_email:
+        authentication_results = parsed_email["authentication-results-original"]
+        if type(authentication_results) == str:
+            authentication_results = re.sub(r"\n\s+", " ",
+                                            authentication_results)
+            parsed_auth = parse_authentication_results(authentication_results)
+            parsed_email["authentication-results-original"] = parsed_auth
+        elif type(authentication_results) == list:
+            auth_list = []
+            for result in authentication_results:
+                result = headers_str = re.sub(r"\n\s+", " ", result)
+                auth_list.append(parse_authentication_results(result))
+            parsed_email["authentication-results-original"] = auth_list
     parsed_email["headers_string"] = headers_str
     if "body" not in parsed_email or parsed_email["body"] is None:
         parsed_email["body"] = ""
