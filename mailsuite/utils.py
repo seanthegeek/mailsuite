@@ -63,6 +63,7 @@ def parse_email_address(original_address):
     address_parts = address.split("@")
     local = None
     domain = None
+    base_domain = None
     if len(address_parts) > 1:
         local = address_parts[0].lower()
         domain = address_parts[-1].lower()
@@ -105,13 +106,13 @@ def get_filename_safe_string(string, max_length=146):
 
 def is_outlook_msg(content):
     """
-    Checks if the given content is a Outlook msg OLE file
+    Checks if the given content is an Outlook msg OLE file
 
     Args:
         content: Content to check
 
     Returns:
-        bool: A flag the indicates if a file is a Outlook MSG file
+        bool: A flag the indicates if a file is an Outlook MSG file
     """
     return type(content) == bytes and content.startswith(
         b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1")
@@ -165,7 +166,7 @@ def parse_authentication_results(authentication_results, from_domain=None):
     parts = authentication_results.split(";")
     parsed_parts = {}
     for part in parts:
-        parsed_part = re.findall(r"([a-z.]+)=([a-z0-9\.\-_@+]+)", part)
+        parsed_part = re.findall(r"([a-z.]+)=([a-z\d.\-_@+]+)", part)
         if len(parsed_part) == 0:
             parsed_parts["mta"] = part
         else:
@@ -271,7 +272,8 @@ def parse_email(data, strip_attachment_payloads=False):
                                                               from_domain))
             parsed_email["authentication-results"] = auth_list
     if "authentication-results-original" in parsed_email:
-        authentication_results = parsed_email["authentication-results-original"]
+        authentication_results = parsed_email[
+            "authentication-results-original"]
         if type(authentication_results) == str:
             authentication_results = re.sub(r"\n\s+", " ",
                                             authentication_results)
@@ -425,7 +427,7 @@ def query_dns(domain, record_type, cache=None, nameservers=None, timeout=2.0):
     if record_type == "TXT":
         resource_records = list(map(
             lambda r: r.strings,
-            resolver.query(domain, record_type, tcp=True, lifetime=timeout)))
+            resolver.resolve(domain, record_type, tcp=True, lifetime=timeout)))
         _resource_record = [
             resource_record[0][:0].join(resource_record)
             for resource_record in resource_records if resource_record]
@@ -433,7 +435,7 @@ def query_dns(domain, record_type, cache=None, nameservers=None, timeout=2.0):
     else:
         records = list(map(
             lambda r: r.to_text().replace('"', '').rstrip("."),
-            resolver.query(domain, record_type, tcp=True, lifetime=timeout)))
+            resolver.resolve(domain, record_type, tcp=True, lifetime=timeout)))
     if cache:
         cache[cache_key] = records
 
@@ -456,7 +458,7 @@ def get_reverse_dns(ip_address, cache=None, nameservers=None, timeout=2.0):
     """
     hostname = None
     try:
-        address = dns.reversename.from_address(ip_address)
+        address = str(dns.reversename.from_address(ip_address))
         hostname = query_dns(address, "PTR", cache=cache,
                              nameservers=nameservers,
                              timeout=timeout)[0]
