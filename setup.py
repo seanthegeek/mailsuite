@@ -14,8 +14,6 @@ from setuptools import setup
 from codecs import open
 from os import path
 
-from mailsuite import  __version__
-
 description = "A Python package to make receiving, parsing, and sending " \
               "email easier"
 here = path.abspath(path.dirname(__file__))
@@ -30,7 +28,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version=__version__,
+    version="1.7.0",
 
     description=description,
     long_description=long_description,
@@ -94,7 +92,8 @@ setup(
     install_requires=['IMAPClient>=2.1.0',
                       'mail-parser>=3.14.0',
                       'dnspython>=2.0.0',
-                      'html2text>=2020.1.16'
+                      'html2text>=2020.1.16',
+                      'publicsuffix2>=2.20190812'
                       ],
 
 )

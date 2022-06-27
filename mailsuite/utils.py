@@ -19,6 +19,7 @@ import html2text
 import dns.reversename
 import dns.resolver
 import dns.exception
+from publicsuffix2 import get_public_suffix
 
 
 logger = logging.getLogger(__name__)
@@ -65,11 +66,14 @@ def parse_email_address(original_address):
     if len(address_parts) > 1:
         local = address_parts[0].lower()
         domain = address_parts[-1].lower()
+        base_domain = get_public_suffix(domain)
 
     return OrderedDict([("display_name", display_name),
                         ("address", address),
                         ("local", local),
-                        ("domain", domain)])
+                        ("domain", domain),
+                        ("base_domain", base_domain)]
+                       )
 
 
 def get_filename_safe_string(string, max_length=146):
@@ -147,12 +151,13 @@ def convert_outlook_msg(msg_bytes):
     return rfc822
 
 
-def parse_authentication_results(authentication_results):
+def parse_authentication_results(authentication_results, from_domain=None):
     """
-    Parses an Authentication-Results header
+    Parses and normalizes an Authentication-Results header
 
     Args:
         authentication_results (str): The value of the header
+        from_domain (str): The message From domain
 
     Returns (dict): A parsed header value
     """
@@ -173,10 +178,47 @@ def parse_authentication_results(authentication_results):
     if "dkim" in parsed_parts:
         dkim = parsed_parts["dkim"]
         if "header.i" in dkim and "header.d" not in dkim:
-            domain = dkim["header.i"].split("@")[1]
+            domain = dkim["header.i"].split("@")[-1]
             dkim["header.d"] = domain
+        elif "from" in dkim and "header.d" not in dkim:
+            dkim["header.d"] = dkim["from"]
+            del dkim["from"]
+    if "dmarc" in parsed_parts:
+        dmarc = parsed_parts["dmarc"]
+        if "action" in dmarc and "disp" not in dmarc:
+            dmarc["disp"] = dmarc["action"]
+            del dmarc["action"]
+        if "header.from" not in dmarc and from_domain is not None:
+            dmarc["header.from"] = from_domain
+        if "d" in dmarc:
+            # Some email providers add the ``d`` value from DKIM
+            del dmarc["d"]
 
     return parsed_parts
+
+
+def parse_dkim_signature(dkim_signature):
+    """
+    Parses a DKIM-Signature header value
+
+    Args:
+        dkim_signature (str): A DKIM-Signature header value
+
+    Returns  (dict): A parsed DKIM-Signature header value
+    """
+    parsed_signature = {}
+    dkim_signature = re.sub(r"\n\s+", " ", dkim_signature)
+    parts = dkim_signature.split(";")
+    for part in parts:
+        key_value = part.split("=")
+        key = key_value[0].strip()
+        value = key_value[1].strip()
+        parsed_signature[key] = value
+
+    if "h" in parsed_signature:
+        parsed_signature["h"] = parsed_signature["h"].split(":")
+
+    return parsed_signature
 
 
 def parse_email(data, strip_attachment_payloads=False):
@@ -195,36 +237,53 @@ def parse_email(data, strip_attachment_payloads=False):
             data = convert_outlook_msg(data)
         data = data.decode("utf-8", errors="replace")
     _parsed_email = mailparser.parse_from_string(data)
-    headers = _parsed_email.headers
     parsed_email = _parsed_email.mail
-    parsed_email["headers"] = headers
     headers_str = data.split("\n\n")[0]
+    parsed_email["raw_headers"] = headers_str
     headers_str = re.sub(r"\n\s+", " ", headers_str)
+    from_domain = None
+    if parsed_email["from"] is not None:
+        parsed_email["from"] = parse_email_address(parsed_email["from"][0])
+        from_domain = parsed_email["from"]["domain"]
+    if "dkim-signature" in parsed_email:
+        if type(parsed_email["dkim-signature"]) == str:
+            parsed_email["dkim-signature"] = parse_dkim_signature(
+                parsed_email["dkim-signature"])
+        elif type(parsed_email["dkim-signature"]) == list:
+            dkim_list = []
+            for sig in parsed_email["dkim-signature"]:
+                dkim_list.append(parse_dkim_signature(sig))
+            parsed_email["dkim-signature"] = dkim_list
     if "authentication-results" in parsed_email:
         authentication_results = parsed_email["authentication-results"]
         if type(authentication_results) == str:
             authentication_results = re.sub(r"\n\s+", " ",
                                             authentication_results)
-            parsed_auth = parse_authentication_results(authentication_results)
+            parsed_auth = parse_authentication_results(authentication_results,
+                                                       from_domain)
             parsed_email["authentication-results"] = parsed_auth
         elif type(authentication_results) == list:
             auth_list = []
             for result in authentication_results:
                 result = headers_str = re.sub(r"\n\s+", " ", result)
-                auth_list.append(parse_authentication_results(result))
+
+                auth_list.append(parse_authentication_results(result,
+                                                              from_domain))
             parsed_email["authentication-results"] = auth_list
     if "authentication-results-original" in parsed_email:
         authentication_results = parsed_email["authentication-results-original"]
         if type(authentication_results) == str:
             authentication_results = re.sub(r"\n\s+", " ",
                                             authentication_results)
-            parsed_auth = parse_authentication_results(authentication_results)
+            parsed_auth = parse_authentication_results(authentication_results,
+                                                       from_domain)
             parsed_email["authentication-results-original"] = parsed_auth
         elif type(authentication_results) == list:
             auth_list = []
             for result in authentication_results:
                 result = headers_str = re.sub(r"\n\s+", " ", result)
-                auth_list.append(parse_authentication_results(result))
+                auth_list.append(parse_authentication_results(result,
+                                                              from_domain))
             parsed_email["authentication-results-original"] = auth_list
     parsed_email["headers_string"] = headers_str
     if "body" not in parsed_email or parsed_email["body"] is None:
@@ -254,9 +313,6 @@ def parse_email(data, strip_attachment_payloads=False):
             parsed_email["from"] = parsed_email["Headers"]["From"]
         else:
             parsed_email["from"] = None
-
-    if parsed_email["from"] is not None:
-        parsed_email["from"] = parse_email_address(parsed_email["from"][0])
 
     if "date" in parsed_email:
         if type(parsed_email["date"] == datetime):

@@ -1,13 +1,20 @@
 Changelog
 =========
 
-1.6.1
+1.7.0
 -----
 
 - Use `STARTTLS` in `IMAPClient` before login if the server supports it (PR #2)
 - Properly handle cases where the IMAP separator is `None` (PR #4)
 - Retry operations when disconnected from the server (PR #5)
 - Add support for certificate authentication in IMAP (PR # 7)
+- Changes to email parsing
+  - Every header is now included as its own dictionary entry
+  - Remove redundant `headers` subdictionary
+  - Parse and normalize `Authentication-Results`, `Authentication-Results-Original`. amd `DKIM-Signature` headers
+  - `headers_str` now contains the full headers with indentations removed
+  - `raw_headers` includes the full headers without any modifications
+  - Add `base_domain` entry to `parse_email_address()` output
 - Remove `six` requirement
 - Set required `mail-parser` version to `>=1.14.0`
 - Set required `dnspython` version to `>=2.0.0`

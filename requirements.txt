@@ -2,6 +2,7 @@ mail-parser>=3.14.0
 imapclient>=2.1.0
 html2text>=2020.1.16
 dnspython>=2.0.0
+publicsuffix2>=2.20190812
 nose
 pygments
 flake8
