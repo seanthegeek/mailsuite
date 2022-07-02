@@ -242,6 +242,7 @@ def parse_email(data, strip_attachment_payloads=False):
     headers_str = data.split("\n\n")[0]
     parsed_email["raw_headers"] = headers_str
     headers_str = re.sub(r"\n\s+", " ", headers_str)
+    parsed_email["headers_string"] = headers_str
     from_domain = None
     if parsed_email["from"] is not None:
         parsed_email["from"] = parse_email_address(parsed_email["from"][0])
@@ -266,7 +267,7 @@ def parse_email(data, strip_attachment_payloads=False):
         elif type(authentication_results) == list:
             auth_list = []
             for result in authentication_results:
-                result = headers_str = re.sub(r"\n\s+", " ", result)
+                result = re.sub(r"\n\s+", " ", result)
 
                 auth_list.append(parse_authentication_results(result,
                                                               from_domain))
@@ -283,11 +284,10 @@ def parse_email(data, strip_attachment_payloads=False):
         elif type(authentication_results) == list:
             auth_list = []
             for result in authentication_results:
-                result = headers_str = re.sub(r"\n\s+", " ", result)
+                result = re.sub(r"\n\s+", " ", result)
                 auth_list.append(parse_authentication_results(result,
                                                               from_domain))
             parsed_email["authentication-results-original"] = auth_list
-    parsed_email["headers_string"] = headers_str
     if "body" not in parsed_email or parsed_email["body"] is None:
         parsed_email["body"] = ""
     parsed_email["raw_body"] = parsed_email["body"]

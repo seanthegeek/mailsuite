@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.7.1
+-----
+
+- Fix `headers_string` value in parsed emails
+
 1.7.0
 -----
 
