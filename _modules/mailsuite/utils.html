@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mailsuite.utils &mdash; mailsuite 1.7.1 documentation</title>
+  <title>mailsuite.utils &mdash; mailsuite 1.7.3 documentation</title>
       <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -28,7 +28,7 @@
             <a href="../../index.html" class="icon icon-home"> mailsuite
           </a>
               <div class="version">
-                1.7.1
+                1.7.3
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
@@ -86,7 +86,7 @@
 <span class="kn">import</span> <span class="nn">dns.reversename</span>
 <span class="kn">import</span> <span class="nn">dns.resolver</span>
 <span class="kn">import</span> <span class="nn">dns.exception</span>
-<span class="kn">from</span> <span class="nn">publicsuffix2</span> <span class="kn">import</span> <span class="n">get_public_suffix</span>
+<span class="kn">from</span> <span class="nn">publicsuffix2</span> <span class="kn">import</span> <span class="n">get_sld</span>
 
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -134,7 +134,7 @@
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">address_parts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
         <span class="n">local</span> <span class="o">=</span> <span class="n">address_parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
         <span class="n">domain</span> <span class="o">=</span> <span class="n">address_parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-        <span class="n">base_domain</span> <span class="o">=</span> <span class="n">get_public_suffix</span><span class="p">(</span><span class="n">domain</span><span class="p">)</span>
+        <span class="n">base_domain</span> <span class="o">=</span> <span class="n">get_sld</span><span class="p">(</span><span class="n">domain</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">OrderedDict</span><span class="p">([(</span><span class="s2">&quot;display_name&quot;</span><span class="p">,</span> <span class="n">display_name</span><span class="p">),</span>
                         <span class="p">(</span><span class="s2">&quot;address&quot;</span><span class="p">,</span> <span class="n">address</span><span class="p">),</span>
@@ -429,8 +429,8 @@
             <span class="k">if</span> <span class="s2">&quot;payload&quot;</span> <span class="ow">in</span> <span class="n">attachment</span><span class="p">:</span>
                 <span class="n">payload</span> <span class="o">=</span> <span class="n">attachment</span><span class="p">[</span><span class="s2">&quot;payload&quot;</span><span class="p">]</span>
                 <span class="k">try</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="s2">&quot;content_transfer_encoding&quot;</span> <span class="ow">in</span> <span class="n">attachment</span><span class="p">:</span>
-                        <span class="k">if</span> <span class="n">attachment</span><span class="p">[</span><span class="s2">&quot;content_transfer_encoding&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;base64&quot;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="s2">&quot;binary&quot;</span> <span class="ow">in</span> <span class="n">attachment</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">attachment</span><span class="p">[</span><span class="s2">&quot;binary&quot;</span><span class="p">]:</span>
                             <span class="n">payload</span> <span class="o">=</span> <span class="n">decode_base64</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
                         <span class="k">else</span><span class="p">:</span>
                             <span class="n">payload</span> <span class="o">=</span> <span class="nb">str</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
