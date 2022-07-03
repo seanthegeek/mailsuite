@@ -19,7 +19,7 @@ import html2text
 import dns.reversename
 import dns.resolver
 import dns.exception
-from publicsuffix2 import get_public_suffix
+from publicsuffix2 import get_sld
 
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ def parse_email_address(original_address):
     if len(address_parts) > 1:
         local = address_parts[0].lower()
         domain = address_parts[-1].lower()
-        base_domain = get_public_suffix(domain)
+        base_domain = get_sld(domain)
 
     return OrderedDict([("display_name", display_name),
                         ("address", address),

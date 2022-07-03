@@ -1,6 +1,11 @@
 Changelog
 =========
 
+7.1.3
+-----
+
+- Fix `publicsuffix2` warning
+
 1.7.2
 -----
 
