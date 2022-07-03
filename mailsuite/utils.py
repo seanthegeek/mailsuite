@@ -362,8 +362,8 @@ def parse_email(data, strip_attachment_payloads=False):
             if "payload" in attachment:
                 payload = attachment["payload"]
                 try:
-                    if "content_transfer_encoding" in attachment:
-                        if attachment["content_transfer_encoding"] == "base64":
+                    if "binary" in attachment:
+                        if attachment["binary"]:
                             payload = decode_base64(payload)
                         else:
                             payload = str.encode(payload)

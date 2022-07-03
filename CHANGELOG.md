@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.7.2
+-----
+
+- Properly hash binary attachments
+
 1.7.1
 -----
 
