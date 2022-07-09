@@ -28,7 +28,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version="1.7.3",
+    version="1.8.0",
 
     description=description,
     long_description=long_description,
@@ -93,7 +93,9 @@ setup(
                       'mail-parser>=3.14.0',
                       'dnspython>=2.0.0',
                       'html2text>=2020.1.16',
-                      'publicsuffix2>=2.20190812'
+                      'publicsuffix2>=2.20190812',
+                      'expiringdict==1.2.2',
+                      'yara-python>=4.2.0'
                       ],
 
 )

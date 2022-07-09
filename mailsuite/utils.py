@@ -1,4 +1,5 @@
 import logging
+from typing import Union
 from datetime import datetime
 import os
 from collections import OrderedDict
@@ -20,6 +21,7 @@ import dns.reversename
 import dns.resolver
 import dns.exception
 from publicsuffix2 import get_sld
+from expiringdict import ExpiringDict
 
 
 logger = logging.getLogger(__name__)
@@ -36,15 +38,14 @@ class EmailParserError(RuntimeError):
     """Raised when an error parsing the email occurs"""
 
 
-def decode_base64(data):
+def decode_base64(data: str) -> bytes:
     """
     Decodes a base64 string, with padding being optional
 
     Args:
         data: A base64 encoded string
 
-    Returns:
-        bytes: The decoded bytes
+    Returns: The decoded bytes
 
     """
     data = bytes(data, encoding="ascii")
@@ -54,7 +55,7 @@ def decode_base64(data):
     return base64.b64decode(data)
 
 
-def parse_email_address(original_address):
+def parse_email_address(original_address: str) -> dict:
     if original_address[0] == "":
         display_name = None
     else:
@@ -77,18 +78,18 @@ def parse_email_address(original_address):
                        )
 
 
-def get_filename_safe_string(string, max_length=146):
+def get_filename_safe_string(string: str, max_length: int = 146) -> str:
     """
     Converts a string to a string that is safe for a filename
+
     Args:
-        string (str): A string to make safe for a filename
-        max_length (int): Truncate strings longer than this length
+        string: A string to make safe for a filename
+        max_length : Truncate strings longer than this length
 
     Warning:
         Windows has a 260 character length limit on file paths
 
-    Returns:
-        str: A string safe for a filename
+    Returns: A string safe for a filename
     """
     invalid_filename_chars = ['\\', '/', ':', '"', '*', '?',
                               '<', '>', '|', '\n', '\r']
@@ -104,30 +105,28 @@ def get_filename_safe_string(string, max_length=146):
     return string
 
 
-def is_outlook_msg(content):
+def is_outlook_msg(content: bytes) -> bool:
     """
     Checks if the given content is an Outlook msg OLE file
 
     Args:
         content: Content to check
 
-    Returns:
-        bool: A flag the indicates if a file is an Outlook MSG file
+    Returns: A flag the indicates if a file is an Outlook MSG file
     """
     return type(content) == bytes and content.startswith(
         b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1")
 
 
-def convert_outlook_msg(msg_bytes):
+def convert_outlook_msg(msg_bytes: bytes) -> str:
     """
     Uses the ``msgconvert`` Perl utility to convert an Outlook MS file to
     standard RFC 822 format
 
     Args:
-        msg_bytes (bytes): the content of the .msg file
+        msg_bytes: the content of the .msg file
 
-    Returns:
-        A RFC 822 string
+    Returns: A RFC 822 string
     """
     if not is_outlook_msg(msg_bytes):
         raise ValueError("The supplied bytes are not an Outlook MSG file")
@@ -140,7 +139,7 @@ def convert_outlook_msg(msg_bytes):
         subprocess.check_call(["msgconvert", "sample.msg"],
                               stdout=null_file, stderr=null_file)
         eml_path = "sample.eml"
-        with open(eml_path, "rb") as eml_file:
+        with open(eml_path, "r") as eml_file:
             rfc822 = eml_file.read()
     except FileNotFoundError:
         raise EmailParserError(
@@ -152,85 +151,128 @@ def convert_outlook_msg(msg_bytes):
     return rfc822
 
 
-def parse_authentication_results(authentication_results, from_domain=None):
+def parse_authentication_results(authentication_results: Union[str, list],
+                                 from_domain: str = None) -> Union[dict,
+                                                                   list[dict]]:
     """
-    Parses and normalizes an Authentication-Results header
+    Parses and normalizes an Authentication-Results header value or list of \
+    values
 
     Args:
-        authentication_results (str): The value of the header
-        from_domain (str): The message From domain
+        authentication_results: The value of the header or list of values
+        from_domain: The message From domain
 
-    Returns (dict): A parsed header value
+    Returns: A parsed header value or list of parsed values
     """
-    authentication_results = authentication_results.lower()
-    parts = authentication_results.split(";")
-    parsed_parts = {}
-    for part in parts:
-        parsed_part = re.findall(r"([a-z.]+)=([a-z\d.\-_@+]+)", part)
-        if len(parsed_part) == 0:
-            parsed_parts["mta"] = part
-        else:
-            parsed_parts[parsed_part[0][0]] = {}
-            parsed_parts[parsed_part[0][0]]["result"] = parsed_part[0][1]
-            for i in range(1, len(parsed_part)):
-                key = parsed_part[i][0]
-                value = parsed_part[i][1]
-                parsed_parts[parsed_part[0][0]][key] = value
-    if "dkim" in parsed_parts:
-        dkim = parsed_parts["dkim"]
-        if "header.i" in dkim and "header.d" not in dkim:
-            domain = dkim["header.i"].split("@")[-1]
-            dkim["header.d"] = domain
-        elif "from" in dkim and "header.d" not in dkim:
-            dkim["header.d"] = dkim["from"]
-            del dkim["from"]
-    if "dmarc" in parsed_parts:
-        dmarc = parsed_parts["dmarc"]
-        if "action" in dmarc and "disp" not in dmarc:
-            dmarc["disp"] = dmarc["action"]
-            del dmarc["action"]
-        if "header.from" not in dmarc and from_domain is not None:
-            dmarc["header.from"] = from_domain
-        if "d" in dmarc:
-            # Some email providers add the ``d`` value from DKIM
-            del dmarc["d"]
+    def parse_result(authentication_results_, from_domain_):
+        authentication_results_ = authentication_results_.lower()
+        authentication_results_ = re.sub(r"\n\s+", " ",
+                                         authentication_results_)
+        parts = authentication_results_.split(";")
+        parsed_parts = {}
+        for part in parts:
+            parsed_part = re.findall(r"([a-z.]+)=([a-z\d.\-_@+]+)", part)
+            if len(parsed_part) == 0:
+                parsed_parts["mta"] = part
+            else:
+                parsed_parts[parsed_part[0][0]] = {}
+                parsed_parts[parsed_part[0][0]]["result"] = parsed_part[0][1]
+                for i in range(1, len(parsed_part)):
+                    key = parsed_part[i][0]
+                    value = parsed_part[i][1]
+                    parsed_parts[parsed_part[0][0]][key] = value
+        if "dkim" in parsed_parts:
+            dkim = parsed_parts["dkim"]
+            if "header.i" in dkim and "header.d" not in dkim:
+                domain = dkim["header.i"].split("@")[-1]
+                dkim["header.d"] = domain
+            elif "from" in dkim and "header.d" not in dkim:
+                dkim["header.d"] = dkim["from"]
+                del dkim["from"]
+        if "dmarc" in parsed_parts:
+            dmarc = parsed_parts["dmarc"]
+            if "action" in dmarc and "disp" not in dmarc:
+                dmarc["disp"] = dmarc["action"]
+                del dmarc["action"]
+            if "header.from" not in dmarc and from_domain_ is not None:
+                dmarc["header.from"] = from_domain_
+            if "d" in dmarc:
+                # Some email providers add the ``d`` value from DKIM
+                del dmarc["d"]
 
-    return parsed_parts
+        return parsed_parts
+
+    if isinstance(authentication_results, str):
+        try:
+            return parse_result(authentication_results_=authentication_results,
+                                from_domain_=from_domain)
+        except Exception as e:
+            raise ValueError(f"Unable to parse authentication header: {e}")
+    elif isinstance(authentication_results, list):
+        results = authentication_results.copy()
+        for i in range(len(results)):
+            try:
+                results[i] = parse_result(results[i],
+                                          from_domain_=from_domain)
+            except Exception as e:
+                logger.warning(f"Unable to parse authentication header: {e}")
+        return results
+    else:
+        raise ValueError("Must be a string or list")
 
 
-def parse_dkim_signature(dkim_signature):
+def parse_dkim_signature(dkim_signature: Union[str, list]) -> Union[dict,
+                                                                    list]:
     """
-    Parses a DKIM-Signature header value
+    Parses a DKIM-Signature header value or list of values
 
     Args:
-        dkim_signature (str): A DKIM-Signature header value
+        dkim_signature: A DKIM-Signature header value or list of values
 
-    Returns  (dict): A parsed DKIM-Signature header value
+    Returns: A parsed DKIM-Signature header value or parsed values
     """
-    parsed_signature = {}
-    dkim_signature = re.sub(r"\n\s+", " ", dkim_signature)
-    parts = dkim_signature.split(";")
-    for part in parts:
-        key_value = part.split("=")
-        key = key_value[0].strip()
-        value = key_value[1].strip()
-        parsed_signature[key] = value
+    def parse_header(dkim_signature_: str) -> dict:
+        parsed_signature = {}
+        dkim_signature_ = re.sub(r"\n\s+", " ", dkim_signature_)
+        parts = dkim_signature_.split(";")
+        for part in parts:
+            key_value = part.split("=")
+            key = key_value[0].strip()
+            value = key_value[1].strip()
+            parsed_signature[key] = value
 
-    if "h" in parsed_signature:
-        parsed_signature["h"] = parsed_signature["h"].split(":")
+        if "h" in parsed_signature:
+            parsed_signature["h"] = parsed_signature["h"].split(":")
 
-    return parsed_signature
+        return parsed_signature
+
+    if isinstance(dkim_signature, str):
+        try:
+            return parse_header(dkim_signature_=dkim_signature)
+        except Exception as e:
+            raise ValueError(f"Unable to parse DKIM-Signature header: {e}")
+    elif isinstance(dkim_signature, list):
+        signatures = dkim_signature.copy()
+        for i in range(len(signatures)):
+            try:
+                signatures[i] = parse_header(signatures[i])
+            except Exception as e:
+                logger.warning(f"Unable to DKIM-Signature header: {e}")
+        return signatures
+    else:
+        raise ValueError("Must be a string or list")
 
 
-def parse_email(data, strip_attachment_payloads=False):
+def parse_email(data: Union[str, bytes],
+                strip_attachment_payloads: bool = False) -> dict:
     """
     A simplified email parser
 
     Args:
-        data: The RFC 822 message string, or MSG binary
-        strip_attachment_payloads (bool): Remove attachment payloads
+        data: An RFC 822 message string, or Microsoft msg bytes
+        strip_attachment_payloads: Remove attachment payloads
 
-    Returns (dict): Parsed email data
+    Returns: Parsed email data
     """
 
     if type(data) == bytes:
@@ -248,46 +290,31 @@ def parse_email(data, strip_attachment_payloads=False):
         parsed_email["from"] = parse_email_address(parsed_email["from"][0])
         from_domain = parsed_email["from"]["domain"]
     if "dkim-signature" in parsed_email:
-        if type(parsed_email["dkim-signature"]) == str:
-            parsed_email["dkim-signature"] = parse_dkim_signature(
-                parsed_email["dkim-signature"])
-        elif type(parsed_email["dkim-signature"]) == list:
-            dkim_list = []
-            for sig in parsed_email["dkim-signature"]:
-                dkim_list.append(parse_dkim_signature(sig))
+        try:
+            dkim_list = parse_dkim_signature(parsed_email["dkim-signature"])
             parsed_email["dkim-signature"] = dkim_list
+        except Exception as e:
+            raise ValueError(f"Unable to parse DKIM-Signature header: {e}")
     if "authentication-results" in parsed_email:
         authentication_results = parsed_email["authentication-results"]
-        if type(authentication_results) == str:
-            authentication_results = re.sub(r"\n\s+", " ",
-                                            authentication_results)
-            parsed_auth = parse_authentication_results(authentication_results,
-                                                       from_domain)
-            parsed_email["authentication-results"] = parsed_auth
-        elif type(authentication_results) == list:
-            auth_list = []
-            for result in authentication_results:
-                result = re.sub(r"\n\s+", " ", result)
-
-                auth_list.append(parse_authentication_results(result,
-                                                              from_domain))
-            parsed_email["authentication-results"] = auth_list
+        try:
+            authentication_results = parse_authentication_results(
+                authentication_results, from_domain=from_domain)
+            parsed_email["authentication-results"] = authentication_results
+        except Exception as e:
+            logger.warning(
+                f"Failed to parse authentication header: {e}")
     if "authentication-results-original" in parsed_email:
         authentication_results = parsed_email[
             "authentication-results-original"]
-        if type(authentication_results) == str:
-            authentication_results = re.sub(r"\n\s+", " ",
-                                            authentication_results)
-            parsed_auth = parse_authentication_results(authentication_results,
-                                                       from_domain)
-            parsed_email["authentication-results-original"] = parsed_auth
-        elif type(authentication_results) == list:
-            auth_list = []
-            for result in authentication_results:
-                result = re.sub(r"\n\s+", " ", result)
-                auth_list.append(parse_authentication_results(result,
-                                                              from_domain))
-            parsed_email["authentication-results-original"] = auth_list
+        try:
+            authentication_results = parse_authentication_results(
+                authentication_results, from_domain=from_domain)
+            parsed_email[
+                "authentication-results-original"] = authentication_results
+        except Exception as e:
+            logger.warning(
+                f"Failed to parse authentication header: {e}")
     if "body" not in parsed_email or parsed_email["body"] is None:
         parsed_email["body"] = ""
     parsed_email["raw_body"] = parsed_email["body"]
@@ -392,17 +419,20 @@ def parse_email(data, strip_attachment_payloads=False):
     return parsed_email
 
 
-def query_dns(domain, record_type, cache=None, nameservers=None, timeout=2.0):
+def query_dns(domain: str,
+              record_type: str,
+              cache: ExpiringDict = None,
+              nameservers: list[str] = None,
+              timeout: Union[float, int] = 2.0):
     """
     Queries DNS
 
     Args:
-        domain (str): The domain or subdomain to query about
-        record_type (str): The record type to query for
-        cache (ExpiringDict): Cache storage
-        nameservers (list): A list of one or more nameservers to use
-        (Cloudflare's public DNS resolvers by default)
-        timeout (float): Sets the DNS timeout in seconds
+        domain: The domain or subdomain to query about
+        record_type: The record type to query for
+        cache: Cache storage
+        nameservers: A list of one or more nameservers to use
+        timeout: DNS timeout in seconds
 
     Returns:
         list: A list of answers
@@ -417,11 +447,8 @@ def query_dns(domain, record_type, cache=None, nameservers=None, timeout=2.0):
 
     resolver = dns.resolver.Resolver()
     timeout = float(timeout)
-    if nameservers is None:
-        nameservers = ["1.1.1.1", "1.0.0.1",
-                       "2606:4700:4700::1111", "2606:4700:4700::1001",
-                       ]
-    resolver.nameservers = nameservers
+    if nameservers:
+        resolver.nameservers = nameservers
     resolver.timeout = timeout
     resolver.lifetime = timeout
     if record_type == "TXT":
@@ -442,19 +469,20 @@ def query_dns(domain, record_type, cache=None, nameservers=None, timeout=2.0):
     return records
 
 
-def get_reverse_dns(ip_address, cache=None, nameservers=None, timeout=2.0):
+def get_reverse_dns(ip_address: str,
+                    cache: ExpiringDict = None,
+                    nameservers: list[str] = None,
+                    timeout: Union[float, int] = 2.0) -> Union[str, None]:
     """
     Resolves an IP address to a hostname using a reverse DNS query
 
     Args:
-        ip_address (str): The IP address to resolve
-        cache (ExpiringDict): Cache storage
-        nameservers (list): A list of one or more nameservers to use
-        (Cloudflare's public DNS resolvers by default)
-        timeout (float): Sets the DNS query timeout in seconds
+        ip_address: The IP address to resolve
+        cache: Cache storage
+        nameservers: A list of one or more nameservers to use
+        timeout: Sets the DNS query timeout in seconds
 
-    Returns:
-        str: The reverse DNS hostname (if any)
+    Returns: The reverse DNS hostname (if any)
     """
     hostname = None
     try:
@@ -469,24 +497,25 @@ def get_reverse_dns(ip_address, cache=None, nameservers=None, timeout=2.0):
     return hostname
 
 
-def create_email(message_from, message_to=None, message_cc=None,
-                 subject=None, message_headers=None, attachments=None,
-                 plain_message=None, html_message=None):
+def create_email(message_from: str, message_to: list[str] = None,
+                 message_cc: list[str] = None, subject: str = None,
+                 message_headers: dict = None,
+                 attachments: list[tuple[str, bytes]] = None,
+                 plain_message: str = None, html_message: str = None) -> str:
     """
     Creates an RFC 822 email message and returns it as a string
 
     Args:
-        message_from (str): The value of the message from header
-        message_to (list): A list of addresses to send mail to
-        message_cc (list): A List of addresses to Carbon Copy (CC)
-        subject (str): The message subject
-        message_headers (dict): Custom message headers
-        attachments (list): A list of tuples, containing filenames as bytes
-        plain_message (str): The plain text message body
-        html_message (str): The HTML message body
+        message_from: The value of the message from header
+        message_to: A list of addresses to send mail to
+        message_cc: A List of addresses to Carbon Copy (CC)
+        subject: The message subject
+        message_headers: Custom message headers
+        attachments: A list of tuples, containing a filename and bytes
+        plain_message: The plain text message body
+        html_message: The HTML message body
 
-    Returns:
-        str: A RFC 822 email message
+    Returns: A RFC 822 email message
     """
     msg = MIMEMultipart()
     msg['From'] = message_from

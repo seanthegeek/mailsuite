@@ -12,31 +12,34 @@ class SMTPError(RuntimeError):
     """Raised when a SMTP error occurs"""
 
 
-def send_email(host, message_from, message_to=None, message_cc=None,
-               message_bcc=None, port=0, require_encryption=False,
-               verify=True, username=None, password=None, envelope_from=None,
-               subject=None, message_headers=None, attachments=None,
-               plain_message=None, html_message=None):
+def send_email(host: str, message_from: str, message_to: list[str] = None,
+               message_cc: list = None, message_bcc: list = None,
+               port: int = 0, require_encryption: bool = False,
+               verify: bool = True, username: str = None, password: str = None,
+               envelope_from:str = None, subject: str = None,
+               message_headers: dict = None,
+               attachments: tuple[str, bytes] = None,
+               plain_message: str = None, html_message: str = None):
     """
-    ESend an email using a SMTP relay
+    Send an email using a SMTP relay
 
     Args:
-        host (str): Mail server hostname or IP address
-        message_from (str): The value of the message from header
-        message_to (list): A list of addresses to send mail to
-        message_cc (list): A List of addresses to Carbon Copy (CC)
-        message_bcc (list:  A list of addresses to Blind Carbon Copy (BCC)
-        port (int): Port to use
-        require_encryption (bool): Require a SSL/TLS connection from the start
-        verify (bool): Verify the SSL/TLS certificate
-        username (str): An optional username
-        password (str): An optional password
-        envelope_from (str): Overrides the SMTP envelope "mail from" header
-        subject (str): The message subject
-        message_headers (dict): Custom message headers
-        attachments (list): A list of tuples, containing filenames as bytes
-        plain_message (str): The plain text message body
-        html_message (str): The HTML message body
+        host: Mail server hostname or IP address
+        message_from: The value of the message from header
+        message_to: A list of addresses to send mail to
+        message_cc: A List of addresses to Carbon Copy (CC)
+        message_bcc:  A list of addresses to Blind Carbon Copy (BCC)
+        port: Port to use
+        require_encryption: Require a SSL/TLS connection from the start
+        verify: Verify the SSL/TLS certificate
+        username: An optional username
+        password: An optional password
+        envelope_from: Overrides the SMTP envelope "mail from" header
+        subject: The message subject
+        message_headers: Custom message headers
+        attachments: A list of tuples, containing filenames as bytes
+        plain_message: The plain text message body
+        html_message: The HTML message body
     """
     msg = create_email(message_from=message_from, message_to=message_to,
                        message_cc=message_cc, subject=subject,

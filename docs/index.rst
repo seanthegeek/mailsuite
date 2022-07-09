@@ -33,40 +33,13 @@ Features
   - Uses opportunistic encryption (``STARTTLS``) by default
   - Easily add attachments, plain text, and HTML
 
-API
----
 
-mailsuite.imap
-~~~~~~~~~~~~~~
-
-.. automodule:: mailsuite.imap
-   :members:
+Documentation
+-------------
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
 
-mailsuite.smtp
-~~~~~~~~~~~~~~
-
-.. automodule:: mailsuite.smtp
-   :members:
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-mailsuite.utils
-~~~~~~~~~~~~~~~
-
-.. automodule:: mailsuite.utils
-   :members:
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-Indices and tables
-------------------
+   api
+   phishing
 
 * :ref:`genindex`
