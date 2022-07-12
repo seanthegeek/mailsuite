@@ -56,11 +56,11 @@ def _pdf_to_markdown(pdf_bytes: bytes) -> str:
     if not _is_pdf(pdf_bytes):
         raise ValueError("Not a PDF file")
     tmp_dir = mkdtemp()
-    sample_path = path.join(tmp_dir, "sample.pdf")
+    sample_path = path.join(tmp_dir, "sample.payload")
     with open(sample_path, "wb") as sample_file:
         sample_file.write(pdf_bytes)
     try:
-        markdown = run(["pdf2text", "sample.pdf", "-"],
+        markdown = run(["pdf2text", "sample.payload", "-"],
                        stdout=PIPE).stdout.decode("utf-8", errors="ignore")
         if markdown is None:
             markdown = ""
@@ -107,22 +107,119 @@ class MailScanner(object):
             attachment_rules: Rules that match file
             attachment contents
         """
-        self.header_rules = header_rules
-        self.body_rules = body_rules
-        self.header_body_rules = header_body_rules
-        self.attachment_rules = attachment_rules
+        self._header_rules = header_rules
+        self._body_rules = body_rules
+        self._header_body_rules = header_body_rules
+        self._attachment_rules = attachment_rules
         if header_rules:
-            self.header_rules = _compile_rules(header_rules)
+            self._header_rules = _compile_rules(header_rules)
         if body_rules:
-            self.body_rules = _compile_rules(body_rules)
+            self._body_rules = _compile_rules(body_rules)
         if header_body_rules:
-            self.header_body_rules = _compile_rules(header_body_rules)
+            self._header_body_rules = _compile_rules(header_body_rules)
         if attachment_rules:
-            self.attachment_rules = _compile_rules(attachment_rules)
+            self._attachment_rules = _compile_rules(attachment_rules)
+
+    def _scan_pdf_text(self, payload: Union[bytes, BytesIO]) -> list[dict]:
+        if isinstance(payload, BytesIO):
+            payload = payload.read()
+        if not _is_pdf(payload):
+            raise ValueError("Payload is not a PDF file")
+        pdf_markdown = _pdf_to_markdown(payload)
+        markdown_matches = _match_to_dict(
+            self._attachment_rules.match(pdf_markdown))
+        for match in markdown_matches:
+            tags = match["tags"].copy()
+            tags.append("pdf2text")
+            match["tags"] = list(set(tags))
+
+        return markdown_matches
+
+    def _scan_zip(self, filename: str, payload: Union[bytes, BytesIO],
+                  _current_depth: int = 0, max_depth: int = 4):
+        if isinstance(payload, bytes):
+            if not _is_zip(payload):
+                raise ValueError("Payload is not a ZIP file")
+            _current_depth += 1
+            zip_matches = []
+            payload = BytesIO(payload)
+            with zipfile.ZipFile(payload) as zip_file:
+                for name in zip_file.namelist():
+                    with zip_file.open(name) as member:
+                        tags = ["zip"]
+                        location = "{}:{}".format(filename, name)
+                        member_content = member.read()
+                        matches = _match_to_dict(
+                            self._attachment_rules.match(
+                                data=member_content))
+                        for match in matches:
+                            if "location" in match:
+                                existing_location = match["location"]
+                                location = f"{existing_location}:{location}"
+                            match["location"] = location
+                        zip_matches += matches
+                        if _is_pdf(member_content):
+                            try:
+                                zip_matches += self._scan_pdf_text(
+                                    member_content)
+                            except Exception as e:
+                                logger.warning(
+                                    "Unable to convert PDF to markdown. "
+                                    f"{e} Scanning raw file content only"
+                                    ".")
+                        elif _is_zip(member_content):
+                            if not _current_depth > max_depth:
+                                cd = _current_depth
+                                md = max_depth
+                                zip_matches += self._scan_zip(name,
+                                                              member_content,
+                                                              _current_depth=cd,
+                                                              max_depth=md)
+                        for match in zip_matches:
+                            match["tags"] = list(set(match["tags"] + tags))
+
+                        return zip_matches
+
+    def _scan_attachments(self, attachments: Union[list, dict],
+                          max_zip_depth: int = 4) -> list[dict]:
+        attachment_matches = []
+        if isinstance(attachments, dict):
+            attachments = [attachments]
+        for attachment in attachments:
+            filename = attachment["filename"]
+            payload = attachment["payload"]
+            if "binary" in attachment:
+                if attachment["binary"]:
+                    try:
+                        payload = base64.b64decode(attachment["payload"])
+                    except binascii.Error:
+                        pass
+            attachment_matches += _match_to_dict(
+                self._attachment_rules.match(data=payload))
+            if _is_pdf(payload):
+                try:
+                    attachment_matches += self._scan_pdf_text(payload)
+                except Exception as e:
+                    logger.warning("Unable to convert PDF to markdown. "
+                                   f"{e} Scanning raw file content only"
+                                   ".")
+            elif _is_zip(payload):
+                attachment_matches += self._scan_zip(filename, payload,
+                                                     max_depth=max_zip_depth)
+            for match in attachment_matches:
+                base_location = f"attachment:{filename}"
+                if "location" in match:
+                    og_location = match["location"]
+                    match["location"] = f"{base_location}:{og_location}"
+                else:
+                    match["location"] = base_location
+
+        return attachment_matches
 
     def scan_email(self, email: Union[str, IOBase, dict],
-                   use_raw_headers=False,
-                   use_raw_body=False) -> list[yara.Match]:
+                   use_raw_headers: bool = False,
+                   use_raw_body: bool = False,
+                   max_zip_depth: int = 4) -> list[dict]:
         """
         Sans an email using YARA rules
 
@@ -133,6 +230,7 @@ class MailScanner(object):
             use_raw_headers: Scan headers with indentations included
             use_raw_body: Scan the raw email body instead of converting it to \
             Markdown first
+            max_zip_depth: Number of times to recurse into nested ZIP files
 
         Returns: A list of rule matches
         """
@@ -159,72 +257,26 @@ class MailScanner(object):
         attachments = parsed_email["attachments"]
 
         matches = []
-        if self.header_rules:
-            header_matches = _match_to_dict(self.header_rules.match(
+        if self._header_rules:
+            header_matches = _match_to_dict(self._header_rules.match(
                 data=headers))
             for header_match in header_matches:
                 header_match["location"] = "headers"
                 matches.append(header_match)
-        if self.body_rules:
-            body_matches = _match_to_dict(self.body_rules.match(
+        if self._body_rules:
+            body_matches = _match_to_dict(self._body_rules.match(
                 data=body))
             for body_match in body_matches:
                 body_match["location"] = "body"
                 matches.append(body_match)
-        if self.header_body_rules:
+        if self._header_body_rules:
             header_body_matches = _match_to_dict(
-                self.header_body_rules.match(data=f"{headers}\n\n{body}"))
+                self._header_body_rules.match(data=f"{headers}\n\n{body}"))
             for header_body_match in header_body_matches:
                 header_body_match["location"] = "header_body"
                 matches.append(header_body_match)
-        if self.attachment_rules:
-            for attachment in attachments:
-                tags = []
-                payload = attachment["payload"]
-                if "binary" in attachment:
-                    if attachment["binary"]:
-                        try:
-                            payload = base64.b64decode(attachment["payload"])
-                        except binascii.Error:
-                            pass
-                attachment_matches = _match_to_dict(
-                    self.attachment_rules.match(data=payload))
-                if _is_pdf(payload):
-                    try:
-                        pdf_markdown = _pdf_to_markdown(payload)
-                        attachment_matches += _match_to_dict(
-                            self.attachment_rules.match(pdf_markdown))
-                        tags.append("pdf2text")
-                    except Exception as e:
-                        logger.warning("Unable to convert PDF to markdown. "
-                                       f"{e} Scanning raw file content only"
-                                       ".")
-                for match in attachment_matches:
-                    filename = attachment["filename"]
-                    match["location"] = f"attachment:{filename}"
-                    match["tags"] = list(set(match["tags"] + tags))
-                    matches.append(match)
-                if _is_zip(payload):
-                    try:
-                        with zipfile.ZipFile(BytesIO(payload)) as zip_file:
-                            for name in zip_file.namelist():
-                                with zip_file.open(name) as member:
-                                    tags = ["zip"]
-                                    location = "attachment:{}:{}".format(
-                                        attachment["filename"],
-                                        name
-                                    )
-                                    member_content = member.read()
-                                    zip_matches = _match_to_dict(
-                                        self.attachment_rules.match(
-                                            data=member_content))
-                                    for match in zip_matches:
-                                        match["location"] = location
-                                        match["tags"] = list(set(
-                                            match["tags"] + tags))
-                                        matches.append(match)
-
-                    except Exception as e:
-                        logger.warning(f"Unable to read ZIP: {e}")
+        if self._attachment_rules:
+            matches += self._scan_attachments(attachments,
+                                              max_zip_depth=max_zip_depth)
 
         return matches
