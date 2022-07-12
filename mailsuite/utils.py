@@ -173,7 +173,7 @@ def parse_authentication_results(authentication_results: Union[str, list],
         for part in parts:
             parsed_part = re.findall(r"([a-z.]+)=([a-z\d.\-_@+]+)", part)
             if len(parsed_part) == 0:
-                parsed_parts["mta"] = part
+                parsed_parts["server"] = part
             else:
                 parsed_parts[parsed_part[0][0]] = {}
                 parsed_parts[parsed_part[0][0]]["result"] = parsed_part[0][1]
