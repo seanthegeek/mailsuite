@@ -154,7 +154,7 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
 
 def parse_authentication_results(authentication_results: Union[str, list],
                                  from_domain: str = None) -> Union[dict,
-                                                                   list]:
+                                                                   list[dict]]:
     """
     Parses and normalizes an Authentication-Results header value or list of \
     values
@@ -427,7 +427,7 @@ def parse_email(data: Union[str, bytes],
 
 
 def from_trusted_domain(message: Union[str, IOBase, dict],
-                        trusted_domains: Union[list, str],
+                        trusted_domains: Union[list[str], str],
                         allow_multiple_authentication_results: bool = False,
                         use_authentication_results_original: bool = False,
                         ) -> bool:
