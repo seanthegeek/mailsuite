@@ -16,7 +16,7 @@ def send_email(host: str, message_from: str, message_to: list[str] = None,
                message_cc: list = None, message_bcc: list = None,
                port: int = 0, require_encryption: bool = False,
                verify: bool = True, username: str = None, password: str = None,
-               envelope_from:str = None, subject: str = None,
+               envelope_from: str = None, subject: str = None,
                message_headers: dict = None,
                attachments: tuple[str, bytes] = None,
                plain_message: str = None, html_message: str = None):
