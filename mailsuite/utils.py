@@ -274,6 +274,11 @@ def parse_email(data: Union[str, bytes],
         strip_attachment_payloads: Remove attachment payloads
 
     Returns: Parsed email data
+
+    .. note::
+      Attachment dictionaries with binary payloads contain the value
+      ``binary: True`` use ``mailsuite.utils.decode_base64`` to convert the
+      payload to bytes.
     """
 
     if type(data) == bytes:
@@ -422,8 +427,9 @@ def parse_email(data: Union[str, bytes],
 
 
 def from_trusted_domain(message: Union[str, IOBase, dict],
-                        trusted_domains: Union[list, str],
-                        allow_multiple_authentication_results: bool = False
+                        trusted_domains: Union[list[str], str],
+                        allow_multiple_authentication_results: bool = False,
+                        use_authentication_results_original: bool = False,
                         ) -> bool:
     """
     Checks if an email is from a trusted domain based on the contents of the
@@ -435,15 +441,27 @@ def from_trusted_domain(message: Union[str, IOBase, dict],
       third-party emails.
 
     .. warning::
-      Only set ``allow_multiple_authentication_results`` to ``True`` if the
-      receiving mail service splits the results of each authentication method
-      in separate ``Authentication-Results`` headers **and always** includes
-      DKIM results, even when a DKIM signature is not present.
+      Set ``allow_multiple_authentication_results`` to ``True``
+      **if and only if** the receiving mail service splits the results of each
+      authentication method in separate ``Authentication-Results`` headers
+      **and always** includes DKIM results, even when a DKIM signature is not
+      present.
+
+    .. warning::
+      Set ``use_authentication_results_original`` to ``True``
+      **if and only if** you use an email security gateway that adds an
+      ``Authentication-Results-Original`` header, such as Proofpoint or Cisco
+      IronPort. This **does not** include API-based email security solutions,
+      such as Abnormal Security.
 
     Args:
         message: An email
         trusted_domains: A list of trusted domains
-        allow_multiple_authentication_results: Allow multiple auth headers
+        allow_multiple_authentication_results: Allow multiple
+         ``Authentication-Results-Original`` headers
+        use_authentication_results_original: Use the
+         ``Authentication-Results-Original`` header instead of the
+         ``Authentication-Results`` header
 
     Returns:
         Results of the check
@@ -460,15 +478,26 @@ def from_trusted_domain(message: Union[str, IOBase, dict],
     if isinstance(trusted_domains, str):
         trusted_domains.split("\n")
 
-    if "Authentication-Results" not in parsed_email:
+    for i in range(len(trusted_domains)):
+        trusted_domains[i] = trusted_domains.lower().strip()
+    trusted_domains = set(trusted_domains)
+    if "" in trusted_domains:
+        trusted_domains.remove("")
+    trusted_domains = list(trusted_domains)
+
+    header_name = "Authentication-Results"
+    if use_authentication_results_original:
+        header_name = "Authentication-Results-Original"
+
+    if header_name not in parsed_email:
         return False
-    results = parsed_email["Authentication-Results"]
+    results = parsed_email[header_name]
 
     if isinstance(results, dict):
         if "dkim" in results:
             dkim = results["dkim"]
             dkim_result = dkim["result"]
-            domain = dkim["header.d"]
+            domain = dkim["header.d"].lower().strip()
 
             if dkim_result == "pass" and domain in trusted_domains:
                 return True
@@ -476,7 +505,7 @@ def from_trusted_domain(message: Union[str, IOBase, dict],
             if "dmarc" in results:
                 dmarc = results["dkim"]
                 dmarc_result = dmarc["result"]
-                domain = dmarc["header.d"]
+                domain = dmarc["header.d"].lower().strip()
                 if dmarc_result == "pass" and domain in trusted_domains:
                     return True
         return False

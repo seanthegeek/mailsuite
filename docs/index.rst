@@ -2,12 +2,13 @@
 mailsuite
 =========
 
-A Python package to simplify receiving, parsing, and sending email
+A Python package for retrieving, parsing, scanning, and sending emails.
+It is particularly useful for triaging potential phishing emails.
 
 Features
 --------
 
-- Receive emails via IMAP
+- Simplified IMAP client
 
   - Retrieve email from any folder
   - Create new folders
@@ -19,19 +20,28 @@ Features
   - Always remove folder name characters that conflict with the server's
     hierarchy separators
   - Prepend the namespace to the folder path when required
-
   - Automatically reconnect when needed
-  - Work around quirks in Gmail/G-suite, Office 365, Exchange, Dovcot, and
+  - Work around quirks in Gmail, Microsoft 365, Exchange, Dovecot, and
     DavMail
 
 - Consistent email parsing
 
   - SHA256 hashes of attachments
+  - Parsed ``Authentication-Results`` and ``DKIM-Signature`` headers
 
-- Simplified email sending via SMTP
+- YARA scanning engine for emails
 
-  - Uses opportunistic encryption (``STARTTLS``) by default
+  - Headers
+  - Body
+  - Attachments
+
+    - ZIP and nested ZIP content
+    - Nested attached email and their attachments
+
+- Simplified email creation and sending
+
   - Easily add attachments, plain text, and HTML
+  - Uses opportunistic encryption (``STARTTLS``) with SMTP by default
 
 
 Documentation

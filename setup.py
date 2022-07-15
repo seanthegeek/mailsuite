@@ -14,8 +14,8 @@ from setuptools import setup
 from codecs import open
 from os import path
 
-description = "A Python package to make receiving, parsing, and sending " \
-              "email easier"
+description = "A Python package for retrieving, parsing, scanning, and " \
+              "sending emails"
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
@@ -74,7 +74,7 @@ setup(
     ],
 
     # What does your project relate to?
-    keywords='email,SMTP,IMAP',
+    keywords='email,SMTP,IMAP, YARA',
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().

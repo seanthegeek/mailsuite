@@ -1,6 +1,15 @@
 Changelog
 =========
 
+1.8.0
+-----
+
+- Parse `Authentication-Results` and `DKIM-Signature` headers
+- Add Yara scanner for emails, `scanner.MailScanner`
+- Add `utils.from_trusted_domain()`
+- Parsed header keys and values are now stored at the root of the parsed email dictionary, instead of in a `headers` dictionary 
+- Add `raw_headers` to parsed email output
+
 7.1.3
 -----
 
