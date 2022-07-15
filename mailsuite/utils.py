@@ -427,7 +427,7 @@ def parse_email(data: Union[str, bytes],
 
 
 def from_trusted_domain(message: Union[str, IOBase, dict],
-                        trusted_domains: Union[list[str], str],
+                        trusted_domains: Union[list, str],
                         allow_multiple_authentication_results: bool = False,
                         use_authentication_results_original: bool = False,
                         ) -> bool:
