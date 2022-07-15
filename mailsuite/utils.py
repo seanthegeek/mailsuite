@@ -11,6 +11,7 @@ import base64
 import re
 import email
 import email.utils
+from io import IOBase
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -64,17 +65,17 @@ def parse_email_address(original_address: str) -> dict:
     address_parts = address.split("@")
     local = None
     domain = None
-    base_domain = None
+    sld = None
     if len(address_parts) > 1:
         local = address_parts[0].lower()
         domain = address_parts[-1].lower()
-        base_domain = get_sld(domain)
+        sld = get_sld(domain)
 
     return OrderedDict([("display_name", display_name),
                         ("address", address),
                         ("local", local),
                         ("domain", domain),
-                        ("base_domain", base_domain)]
+                        ("sld", sld)]
                        )
 
 
@@ -177,9 +178,9 @@ def parse_authentication_results(authentication_results: Union[str, list],
             else:
                 parsed_parts[parsed_part[0][0]] = {}
                 parsed_parts[parsed_part[0][0]]["result"] = parsed_part[0][1]
-                for i in range(1, len(parsed_part)):
-                    key = parsed_part[i][0]
-                    value = parsed_part[i][1]
+                for i_ in range(1, len(parsed_part)):
+                    key = parsed_part[i_][0]
+                    value = parsed_part[i_][1]
                     parsed_parts[parsed_part[0][0]][key] = value
         if "dkim" in parsed_parts:
             dkim = parsed_parts["dkim"]
@@ -416,7 +417,81 @@ def parse_email(data: Union[str, bytes],
     else:
         parsed_email["body_markdown"] = markdown_maker.handle(
             parsed_email["body"])
+
     return parsed_email
+
+
+def from_trusted_domain(message: Union[str, IOBase, dict],
+                        trusted_domains: Union[list, str],
+                        allow_multiple_authentication_results: bool = False
+                        ) -> bool:
+    """
+    Checks if an email is from a trusted domain based on the contents of the
+    ``Authentication-Results`` header
+
+    .. warning ::
+      Authentication results are not verified by this function, so only use it
+      on emails that have been received by trusted mail servers, and not on
+      third-party emails.
+
+    .. warning::
+      Only set ``allow_multiple_authentication_results`` to ``True`` if the
+      receiving mail service splits the results of each authentication method
+      in separate ``Authentication-Results`` headers **and always** includes
+      DKIM results, even when a DKIM signature is not present.
+
+    Args:
+        message: An email
+        trusted_domains: A list of trusted domains
+        allow_multiple_authentication_results: Allow multiple auth headers
+
+    Returns:
+        Results of the check
+    """
+    if isinstance(message, str):
+        if os.path.exists(message):
+            with open(message, "rb") as email_file:
+                message = email_file.read()
+    if isinstance(email, dict):
+        parsed_email = email
+    else:
+        parsed_email = parse_email(message)
+
+    if isinstance(trusted_domains, str):
+        trusted_domains.split("\n")
+
+    if "Authentication-Results" not in parsed_email:
+        return False
+    results = parsed_email["Authentication-Results"]
+
+    if isinstance(results, dict):
+        if "dkim" in results:
+            dkim = results["dkim"]
+            dkim_result = dkim["result"]
+            domain = dkim["header.d"]
+
+            if dkim_result == "pass" and domain in trusted_domains:
+                return True
+        if "dmarc" in results:
+            if "dmarc" in results:
+                dmarc = results["dkim"]
+                dmarc_result = dmarc["result"]
+                domain = dmarc["header.d"]
+                if dmarc_result == "pass" and domain in trusted_domains:
+                    return True
+        return False
+    if isinstance(results, list) and allow_multiple_authentication_results:
+        dkim = None
+        for header in results:
+            if dkim in header:
+                if dkim is not None:
+                    return False
+                dkim = header["dkim"]
+                dkim_result = dkim["result"]
+                domain = dkim["domain"]
+                if dkim_result == "pass" and domain in trusted_domains:
+                    return True
+    return False
 
 
 def query_dns(domain: str,
@@ -435,7 +510,7 @@ def query_dns(domain: str,
         timeout: DNS timeout in seconds
 
     Returns:
-        list: A list of answers
+        A list of answers
     """
     domain = str(domain).lower()
     record_type = record_type.upper()

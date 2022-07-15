@@ -1,6 +1,5 @@
 import logging
 from typing import Union
-import base64
 import binascii
 import os
 from os import path
@@ -12,10 +11,10 @@ import zipfile
 
 import yara
 
-import mailsuite.utils
+from mailsuite.utils import parse_email, decode_base64
 
 formatter = logging.Formatter(
-    fmt='%(levelname)8s:%(filename)s:%(lineno)d:%(message)s',
+    fmt='%(levelname)8s:%(message)s',
     datefmt='%Y-%m-%d:%H:%M:%S')
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
@@ -136,7 +135,7 @@ class MailScanner(object):
         return markdown_matches
 
     def _scan_zip(self, filename: str, payload: Union[bytes, BytesIO],
-                  _current_depth: int = 0, max_depth: int = 4):
+                  _current_depth: int = 0, max_depth: int = None):
         if isinstance(payload, bytes):
             if not _is_zip(payload):
                 raise ValueError("Payload is not a ZIP file")
@@ -168,30 +167,30 @@ class MailScanner(object):
                                     f"{e} Scanning raw file content only"
                                     ".")
                         elif _is_zip(member_content):
-                            if not _current_depth > max_depth:
-                                cd = _current_depth
-                                md = max_depth
-                                zip_matches += self._scan_zip(name,
-                                                              member_content,
-                                                              _current_depth=cd,
-                                                              max_depth=md)
+                            if max_depth is None or _current_depth > max_depth:
+                                zip_matches += self._scan_zip(
+                                    name,
+                                    member_content,
+                                    _current_depth=_current_depth,
+                                    max_depth=max_depth)
                         for match in zip_matches:
                             match["tags"] = list(set(match["tags"] + tags))
 
                         return zip_matches
 
     def _scan_attachments(self, attachments: Union[list, dict],
-                          max_zip_depth: int = 4) -> list[dict]:
+                          max_zip_depth: int = None) -> list[dict]:
         attachment_matches = []
         if isinstance(attachments, dict):
             attachments = [attachments]
         for attachment in attachments:
             filename = attachment["filename"]
+            file_extension = filename.lower().split(".")[-1]
             payload = attachment["payload"]
             if "binary" in attachment:
                 if attachment["binary"]:
                     try:
-                        payload = base64.b64decode(attachment["payload"])
+                        payload = decode_base64(attachment["payload"])
                     except binascii.Error:
                         pass
             attachment_matches += _match_to_dict(
@@ -200,12 +199,24 @@ class MailScanner(object):
                 try:
                     attachment_matches += self._scan_pdf_text(payload)
                 except Exception as e:
-                    logger.warning("Unable to convert PDF to markdown. "
-                                   f"{e} Scanning raw file content only"
-                                   ".")
+                    logger.warning(
+                        f"Unable to convert {filename} to markdown. {e}. "
+                        f"Scanning raw file content only.")
             elif _is_zip(payload):
-                attachment_matches += self._scan_zip(filename, payload,
-                                                     max_depth=max_zip_depth)
+                try:
+                    attachment_matches += self._scan_zip(
+                        filename,
+                        payload,
+                        max_depth=max_zip_depth)
+                except Exception as e:
+                    logger.warning(f"Unable to scan {filename}. {e}.")
+            elif file_extension in ["eml", "msg"]:
+                try:
+                    matches = self.scan_email(parse_email(payload))
+                    attachment_matches += matches
+                except Exception as e:
+                    logger.warning(f"Unable to scan {filename}. {e}.")
+
             for match in attachment_matches:
                 base_location = f"attachment:{filename}"
                 if "location" in match:
@@ -241,7 +252,7 @@ class MailScanner(object):
         if isinstance(email, dict):
             parsed_email = email
         else:
-            parsed_email = mailsuite.utils.parse_email(email)
+            parsed_email = parse_email(email)
         if use_raw_headers:
             headers = parsed_email["raw_headers"]
         else:
@@ -261,7 +272,7 @@ class MailScanner(object):
             header_matches = _match_to_dict(self._header_rules.match(
                 data=headers))
             for header_match in header_matches:
-                header_match["location"] = "headers"
+                header_match["location"] = "header"
                 matches.append(header_match)
         if self._body_rules:
             body_matches = _match_to_dict(self._body_rules.match(
