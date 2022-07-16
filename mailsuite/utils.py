@@ -575,7 +575,7 @@ def query_dns(domain: str,
 
 def get_reverse_dns(ip_address: str,
                     cache: ExpiringDict = None,
-                    nameservers: Lists[str] = None,
+                    nameservers: List[str] = None,
                     timeout: Union[float, int] = 2.0) -> Union[str, None]:
     """
     Resolves an IP address to a hostname using a reverse DNS query
