@@ -1,5 +1,5 @@
 import logging
-from typing import Union
+from typing import Union, List, Dict
 import binascii
 import os
 from os import path
@@ -24,9 +24,9 @@ logger.addHandler(handler)
 
 
 def _match_to_dict(match: Union[yara.Match,
-                                list[yara.Match]]) -> Union[list[dict],
-                                                            dict]:
-    def match_to_dict_(_match: yara.Match) -> dict:
+                                List[yara.Match]]) -> Union[List[Dict],
+                                                            Dict]:
+    def match_to_dict_(_match: yara.Match) -> Dict:
         return dict(rule=_match.rule,
                     namespace=_match.namespace,
                     tags=_match.tags,
@@ -119,7 +119,7 @@ class MailScanner(object):
         if attachment_rules:
             self._attachment_rules = _compile_rules(attachment_rules)
 
-    def _scan_pdf_text(self, payload: Union[bytes, BytesIO]) -> list[dict]:
+    def _scan_pdf_text(self, payload: Union[bytes, BytesIO]) -> List[Dict]:
         if isinstance(payload, BytesIO):
             payload = payload.read()
         if not _is_pdf(payload):
@@ -178,8 +178,8 @@ class MailScanner(object):
 
                         return zip_matches
 
-    def _scan_attachments(self, attachments: Union[list, dict],
-                          max_zip_depth: int = None) -> list[dict]:
+    def _scan_attachments(self, attachments: Union[List, Dict],
+                          max_zip_depth: int = None) -> List[Dict]:
         attachment_matches = []
         if isinstance(attachments, dict):
             attachments = [attachments]
@@ -227,10 +227,10 @@ class MailScanner(object):
 
         return attachment_matches
 
-    def scan_email(self, email: Union[str, IOBase, dict],
+    def scan_email(self, email: Union[str, IOBase, Dict],
                    use_raw_headers: bool = False,
                    use_raw_body: bool = False,
-                   max_zip_depth: int = 4) -> list[dict]:
+                   max_zip_depth: int = 4) -> List[Dict]:
         """
         Sans an email using YARA rules
 

@@ -1,7 +1,9 @@
 import logging
+from typing import Union, List, Dict
 import time
 import socket
-from ssl import CERT_NONE, SSLError, CertificateError, create_default_context
+from ssl import (CERT_NONE, SSLError, CertificateError, SSLContext,
+                 create_default_context)
 
 import imapclient
 import imapclient.exceptions
@@ -16,7 +18,7 @@ class MaxRetriesExceeded(RuntimeError):
     """Raised when the maximum number of retries in exceeded"""
 
 
-def _chunks(list_like_object, n):
+def _chunks(list_like_object, n: int):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(list_like_object), n):
         yield list_like_object[i:i + n]
@@ -25,16 +27,16 @@ def _chunks(list_like_object, n):
 class IMAPClient(imapclient.IMAPClient):
     """A simplified IMAP client"""
 
-    def _normalise_folder(self, folder_name):
+    def _normalise_folder(self, folder_name: str) -> str:
         """
         Returns an appropriate path based on the namespace (if any) and
         hierarchy separator
 
         Args:
-            folder_name (str): The path to correct
+            folder_name: The path to correct
 
         Returns:
-            str: A corrected path
+            A corrected path
         """
         if folder_name in ["", "*", "INBOX"]:
             return imapclient.IMAPClient._normalise_folder(self, folder_name)
@@ -47,13 +49,13 @@ class IMAPClient(imapclient.IMAPClient):
 
         return imapclient.IMAPClient._normalise_folder(self, folder_name)
 
-    def _start_idle(self, idle_callback, idle_timeout=30):
+    def _start_idle(self, idle_callback, idle_timeout: int = 30):
         """
         Starts an IMAP IDLE session
 
         Args:
-            idle_callback (function: A callback function
-            idle_timeout (int): Number of seconds to wait for an IDLE response
+            idle_callback: A callback function
+            idle_timeout: Number of seconds to wait for an IDLE response
         """
         if self._idle_supported is False:
             raise imapclient.exceptions.IMAPClientError(
@@ -91,7 +93,7 @@ class IMAPClient(imapclient.IMAPClient):
                 self.reset_connection()
             except imapclient.exceptions.IMAPClientError as error:
                 error = error.__str__().lstrip("b'").rstrip("'").rstrip(".")
-                # Workaround for random Exchange/Office365 IMAP errors
+                # Workaround for random Exchange/Microsoft 365 IMAP errors
                 if "unexpected response" in error or "BAD" in error:
                     self.reset_connection()
             except KeyboardInterrupt:
@@ -101,25 +103,28 @@ class IMAPClient(imapclient.IMAPClient):
         except BrokenPipeError:
             pass
 
-    def __init__(self, host, username, password, port=None, ssl=True,
-                 ssl_context=None, verify=True, timeout=30, max_retries=4,
-                 initial_folder="INBOX", idle_callback=None, idle_timeout=30):
+    def __init__(self, host: str, username: str, password: str,
+                 port: int = None, ssl: bool = True,
+                 ssl_context: SSLContext = None, verify: bool = True,
+                 timeout: int = 30, max_retries: int = 4,
+                 initial_folder: str = "INBOX", idle_callback=None,
+                 idle_timeout: int = 30):
         """
         Connects to an IMAP server
 
         Args:
-            host (str): The server hostname or IP address
-            username (str): The username
-            password (str): The password
-            port (int): The port
-            ssl (bool): Use SSL or TLS
-            ssl_context (SSLContext): For more advanced TLS options
-            verify (bool): Verify the SSL/TLS certificate
-            timeout (float): Number of seconds to wait for an operation
-            max_retries (int): The maximum number of retries after a timeout
-            initial_folder (str): The initial folder to select
+            host: The server hostname or IP address
+            username: The username
+            password: The password
+            port: The port
+            ssl: Use SSL or TLS
+            ssl_context: For more advanced TLS options
+            verify: Verify the SSL/TLS certificate
+            timeout: Number of seconds to wait for an operation
+            max_retries: The maximum number of retries after a timeout
+            initial_folder: The initial folder to select
             idle_callback: The function to call when new messages are detected
-            idle_timeout (int): Number of seconds to wait for an IDLE
+            idle_timeout: Number of seconds to wait for an IDLE
                                   response
         """
 
@@ -163,8 +168,8 @@ class IMAPClient(imapclient.IMAPClient):
             if not self._hierarchy_separator:
                 self._hierarchy_separator = ""
             if type(self._hierarchy_separator) == bytes:
-                self._hierarchy_separator = self._hierarchy_separator.decode(
-                    "utf-8")
+                self._hierarchy_separator = bytes(
+                    self._hierarchy_separator).decode("utf-8")
             if self._namespace:
                 self._namespace = self.namespace()
                 personal_namespace = self._namespace.personal
@@ -222,14 +227,15 @@ class IMAPClient(imapclient.IMAPClient):
                       idle_timeout=self._init_args["idle_timeout"],
                       )
 
-    def fetch_message(self, msg_uid, parse=False, _attempt=1):
+    def fetch_message(self, msg_uid: int, parse: bool = False,
+                      _attempt: int = 1) -> Union[str, Dict]:
         """
         Fetch a message by UID, and optionally parse it
 
         Args:
-            msg_uid (int): The message UID
-            parse (bool): Return parsed results from mailparser
-            _attempt (int): The attempt number
+            msg_uid: The message UID
+            parse: Return parsed results from mailparser
+            _attempt: The attempt number
 
         Returns:
             str: The raw mail message, including headers
@@ -257,14 +263,15 @@ class IMAPClient(imapclient.IMAPClient):
             message = mailsuite.utils.parse_email(message)
         return message
 
-    def delete_messages(self, msg_uids, silent=True, _attempt=1):
+    def delete_messages(self, msg_uids: Union[List[int], List[str], str, int],
+                        silent: bool = True, _attempt: int = 1):
         """
         Deletes the given messages by Message UIDs
 
         Args:
-            msg_uids (list): A list of UIDs of messages to delete
-            silent (bool): Do it silently
-            _attempt (int): The attempt number
+            msg_uids: A list of UIDs of messages to delete
+            silent: Do it silently
+            _attempt: The attempt number
         """
         logger.info("Deleting message UID(s) {0}".format(",".join(
             str(uid) for uid in msg_uids)))
@@ -284,13 +291,13 @@ class IMAPClient(imapclient.IMAPClient):
             self.reset_connection()
             self.delete_messages(msg_uids, silent=silent, _attempt=_attempt)
 
-    def create_folder(self, folder_path, _attempt=1):
+    def create_folder(self, folder_path: str, _attempt: int = 1):
         """
         Creates an IMAP folder at the given path
 
         Args:
-            folder_path (str): The path of the folder to create
-            _attempt (int): The attempt number
+            folder_path: The path of the folder to create
+            _attempt: The attempt number
         """
         if not self.folder_exists(folder_path):
             logger.info("Creating folder: {0}".format(folder_path))
@@ -306,13 +313,14 @@ class IMAPClient(imapclient.IMAPClient):
                 self.reset_connection()
                 self.create_folder(folder_path, _attempt=_attempt)
 
-    def _move_messages(self, msg_uids, folder_path):
+    def _move_messages(self, msg_uids: Union[int, List[int]],
+                       folder_path: str):
         """
         Move the emails with the given UIDs to the given folder
 
         Args:
             msg_uids: A UID or list of UIDs of messages to move
-            folder_path (str): The path of the destination folder
+            folder_path: The path of the destination folder
         """
         folder_path = folder_path.replace("\\", "/").rstrip("/")
         if type(msg_uids) == str or type(msg_uids) == int:
@@ -343,14 +351,15 @@ class IMAPClient(imapclient.IMAPClient):
                 self.copy(msg_uids, folder_path)
                 self.delete_messages(msg_uids)
 
-    def move_messages(self, msg_uids, folder_path, _attempt=1):
+    def move_messages(self, msg_uids: Union[int, List[int]], folder_path: str, 
+                      _attempt: int = 1):
         """
         Move the emails with the given UIDs to the given folder
 
         Args:
             msg_uids: A UID or list of UIDs of messages to move
-            folder_path (str): The path of the destination folder
-            _attempt (int): The attempt number
+            folder_path: The path of the destination folder
+            _attempt: The attempt number
         """
         try:
             self._move_messages(msg_uids, folder_path)

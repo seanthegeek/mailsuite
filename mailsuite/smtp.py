@@ -2,6 +2,7 @@ import logging
 import socket
 import smtplib
 from ssl import SSLError, CertificateError, create_default_context, CERT_NONE
+from typing import List, Dict, Tuple
 
 from mailsuite.utils import create_email
 
@@ -12,13 +13,13 @@ class SMTPError(RuntimeError):
     """Raised when a SMTP error occurs"""
 
 
-def send_email(host: str, message_from: str, message_to: list[str] = None,
-               message_cc: list = None, message_bcc: list = None,
+def send_email(host: str, message_from: str, message_to: List[str] = None,
+               message_cc: List = None, message_bcc: List = None,
                port: int = 0, require_encryption: bool = False,
                verify: bool = True, username: str = None, password: str = None,
                envelope_from: str = None, subject: str = None,
-               message_headers: dict = None,
-               attachments: tuple[str, bytes] = None,
+               message_headers: Dict = None,
+               attachments: Tuple[str, bytes] = None,
                plain_message: str = None, html_message: str = None):
     """
     Send an email using a SMTP relay

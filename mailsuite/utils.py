@@ -1,5 +1,5 @@
 import logging
-from typing import Union
+from typing import Union, List, Dict, Tuple
 from datetime import datetime
 import os
 from collections import OrderedDict
@@ -152,9 +152,9 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
     return rfc822
 
 
-def parse_authentication_results(authentication_results: Union[str, list],
-                                 from_domain: str = None) -> Union[dict,
-                                                                   list[dict]]:
+def parse_authentication_results(authentication_results: Union[str, List],
+                                 from_domain: str = None) -> Union[Dict,
+                                                                   List[Dict]]:
     """
     Parses and normalizes an Authentication-Results header value or list of \
     values
@@ -222,8 +222,8 @@ def parse_authentication_results(authentication_results: Union[str, list],
         raise ValueError("Must be a string or list")
 
 
-def parse_dkim_signature(dkim_signature: Union[str, list]) -> Union[dict,
-                                                                    list]:
+def parse_dkim_signature(dkim_signature: Union[str, List]) -> Union[Dict,
+                                                                    List]:
     """
     Parses a DKIM-Signature header value or list of values
 
@@ -232,7 +232,7 @@ def parse_dkim_signature(dkim_signature: Union[str, list]) -> Union[dict,
 
     Returns: A parsed DKIM-Signature header value or parsed values
     """
-    def parse_header(dkim_signature_: str) -> dict:
+    def parse_header(dkim_signature_: str) -> Dict:
         parsed_signature = {}
         dkim_signature_ = re.sub(r"\n\s+", " ", dkim_signature_)
         parts = dkim_signature_.split(";")
@@ -265,7 +265,7 @@ def parse_dkim_signature(dkim_signature: Union[str, list]) -> Union[dict,
 
 
 def parse_email(data: Union[str, bytes],
-                strip_attachment_payloads: bool = False) -> dict:
+                strip_attachment_payloads: bool = False) -> Dict:
     """
     A simplified email parser
 
@@ -426,8 +426,8 @@ def parse_email(data: Union[str, bytes],
     return parsed_email
 
 
-def from_trusted_domain(message: Union[str, IOBase, dict],
-                        trusted_domains: Union[list[str], str],
+def from_trusted_domain(message: Union[str, IOBase, Dict],
+                        trusted_domains: Union[List[str], str],
                         allow_multiple_authentication_results: bool = False,
                         use_authentication_results_original: bool = False,
                         ) -> bool:
@@ -575,7 +575,7 @@ def query_dns(domain: str,
 
 def get_reverse_dns(ip_address: str,
                     cache: ExpiringDict = None,
-                    nameservers: list[str] = None,
+                    nameservers: List[str] = None,
                     timeout: Union[float, int] = 2.0) -> Union[str, None]:
     """
     Resolves an IP address to a hostname using a reverse DNS query
@@ -601,10 +601,10 @@ def get_reverse_dns(ip_address: str,
     return hostname
 
 
-def create_email(message_from: str, message_to: list[str] = None,
-                 message_cc: list[str] = None, subject: str = None,
+def create_email(message_from: str, message_to: List[str] = None,
+                 message_cc: List[str] = None, subject: str = None,
                  message_headers: dict = None,
-                 attachments: list[tuple[str, bytes]] = None,
+                 attachments: List[Tuple[str, bytes]] = None,
                  plain_message: str = None, html_message: str = None) -> str:
     """
     Creates an RFC 822 email message and returns it as a string
