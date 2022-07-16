@@ -351,7 +351,7 @@ class IMAPClient(imapclient.IMAPClient):
                 self.copy(msg_uids, folder_path)
                 self.delete_messages(msg_uids)
 
-    def move_messages(self, msg_uids: Union[int, List[int]], folder_path: str, 
+    def move_messages(self, msg_uids: Union[int, List[int]], folder_path: str,
                       _attempt: int = 1):
         """
         Move the emails with the given UIDs to the given folder
