@@ -62,15 +62,7 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.0',
-        'Programming Language :: Python :: 3.1',
-        'Programming Language :: Python :: 3.2',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
     ],
 
     # What does your project relate to?
@@ -95,7 +87,7 @@ setup(
                       'html2text>=2020.1.16',
                       'publicsuffix2>=2.20190812',
                       'expiringdict==1.2.2',
-                      'yara-python>=4.2.0'
+                      'yara-python>=4.2.0',
                       ],
 
 )

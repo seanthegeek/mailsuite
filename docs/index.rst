@@ -28,15 +28,7 @@ Features
 
   - SHA256 hashes of attachments
   - Parsed ``Authentication-Results`` and ``DKIM-Signature`` headers
-
-- YARA scanning engine for emails
-
-  - Headers
-  - Body
-  - Attachments
-
-    - ZIP and nested ZIP content
-    - Nested attached email and their attachments
+  - Can parse Microsoft Outlook ``.msg`` files if ``msgconvert`` (included in the ``libemail-outlook-message-perl`` Debian/Ubuntu package) is installed
 
 - Simplified email creation and sending
 
@@ -50,6 +42,6 @@ Documentation
 .. toctree::
 
    api
-   phishing
+
 
 * :ref:`genindex`

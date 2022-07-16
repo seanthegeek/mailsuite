@@ -29,15 +29,6 @@ Features
   - SHA256 hashes of attachments
   - Parsed ``Authentication-Results`` and ``DKIM-Signature`` headers
 
-- YARA scanning engine for emails
-
-  - Headers
-  - Body
-  - Attachments
-
-    - ZIP and nested ZIP content
-    - Nested attached email and their attachments
-
 - Simplified email creation and sending
 
   - Easily add attachments, plain text, and HTML
