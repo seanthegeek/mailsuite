@@ -2,8 +2,7 @@
 mailsuite
 =========
 
-A Python package for retrieving, parsing, scanning, and sending emails.
-It is particularly useful for triaging potential phishing emails.
+A Python package for retrieving, parsing, and sending emails.
 
 Features
 --------
