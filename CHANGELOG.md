@@ -6,6 +6,7 @@ Changelog
 
 - Fix error when calling `utils.from_trusted_domain()`
 - Fix outdated package version number
+- Accept a file path as possible input for the `data` argument in `utils.parse_email()`
 
 
 1.8.0

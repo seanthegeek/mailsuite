@@ -270,7 +270,7 @@ def parse_email(data: Union[str, bytes],
     A simplified email parser
 
     Args:
-        data: An RFC 822 message string, or Microsoft msg bytes
+        data: A file path, RFC 822 message string, or Microsoft .msg bytes
         strip_attachment_payloads: Remove attachment payloads
 
     Returns: Parsed email data
@@ -280,7 +280,10 @@ def parse_email(data: Union[str, bytes],
       ``binary: True`` use ``mailsuite.utils.decode_base64`` to convert the
       payload to bytes.
     """
-
+    if type(data) == str:
+        if os.path.exists(data):
+            with open(data, "rb") as f:
+                data = f.read()
     if type(data) == bytes:
         if is_outlook_msg(data):
             data = convert_outlook_msg(data)
