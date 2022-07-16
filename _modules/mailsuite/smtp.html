@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mailsuite.smtp &mdash; mailsuite 1.7.0 documentation</title>
+  <title>mailsuite.smtp &mdash; mailsuite 1.7.3 documentation</title>
       <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -28,7 +28,7 @@
             <a href="../../index.html" class="icon icon-home"> mailsuite
           </a>
               <div class="version">
-                1.7.0
+                1.7.3
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
@@ -38,8 +38,11 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <!-- Local TOC -->
-              <div class="local-toc"></div>
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../phishing.html">Automating phishing report inbox triage</a></li>
+</ul>
+
         </div>
       </div>
     </nav>
@@ -69,41 +72,45 @@
 <span class="kn">import</span> <span class="nn">socket</span>
 <span class="kn">import</span> <span class="nn">smtplib</span>
 <span class="kn">from</span> <span class="nn">ssl</span> <span class="kn">import</span> <span class="n">SSLError</span><span class="p">,</span> <span class="n">CertificateError</span><span class="p">,</span> <span class="n">create_default_context</span><span class="p">,</span> <span class="n">CERT_NONE</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span>
 
 <span class="kn">from</span> <span class="nn">mailsuite.utils</span> <span class="kn">import</span> <span class="n">create_email</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="SMTPError"><a class="viewcode-back" href="../../index.html#mailsuite.smtp.SMTPError">[docs]</a><span class="k">class</span> <span class="nc">SMTPError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+<div class="viewcode-block" id="SMTPError"><a class="viewcode-back" href="../../api.html#mailsuite.smtp.SMTPError">[docs]</a><span class="k">class</span> <span class="nc">SMTPError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Raised when a SMTP error occurs&quot;&quot;&quot;</span></div>
 
 
-<div class="viewcode-block" id="send_email"><a class="viewcode-back" href="../../index.html#mailsuite.smtp.send_email">[docs]</a><span class="k">def</span> <span class="nf">send_email</span><span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">message_from</span><span class="p">,</span> <span class="n">message_to</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">message_cc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-               <span class="n">message_bcc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">require_encryption</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-               <span class="n">verify</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">envelope_from</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-               <span class="n">subject</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">message_headers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">attachments</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-               <span class="n">plain_message</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">html_message</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="send_email"><a class="viewcode-back" href="../../api.html#mailsuite.smtp.send_email">[docs]</a><span class="k">def</span> <span class="nf">send_email</span><span class="p">(</span><span class="n">host</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">message_from</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">message_to</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">message_cc</span><span class="p">:</span> <span class="n">List</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">message_bcc</span><span class="p">:</span> <span class="n">List</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">require_encryption</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+               <span class="n">verify</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">password</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">envelope_from</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">subject</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">message_headers</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">attachments</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">plain_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">html_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    ESend an email using a SMTP relay</span>
+<span class="sd">    Send an email using a SMTP relay</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        host (str): Mail server hostname or IP address</span>
-<span class="sd">        message_from (str): The value of the message from header</span>
-<span class="sd">        message_to (list): A list of addresses to send mail to</span>
-<span class="sd">        message_cc (list): A List of addresses to Carbon Copy (CC)</span>
-<span class="sd">        message_bcc (list:  A list of addresses to Blind Carbon Copy (BCC)</span>
-<span class="sd">        port (int): Port to use</span>
-<span class="sd">        require_encryption (bool): Require a SSL/TLS connection from the start</span>
-<span class="sd">        verify (bool): Verify the SSL/TLS certificate</span>
-<span class="sd">        username (str): An optional username</span>
-<span class="sd">        password (str): An optional password</span>
-<span class="sd">        envelope_from (str): Overrides the SMTP envelope &quot;mail from&quot; header</span>
-<span class="sd">        subject (str): The message subject</span>
-<span class="sd">        message_headers (dict): Custom message headers</span>
-<span class="sd">        attachments (list): A list of tuples, containing filenames as bytes</span>
-<span class="sd">        plain_message (str): The plain text message body</span>
-<span class="sd">        html_message (str): The HTML message body</span>
+<span class="sd">        host: Mail server hostname or IP address</span>
+<span class="sd">        message_from: The value of the message from header</span>
+<span class="sd">        message_to: A list of addresses to send mail to</span>
+<span class="sd">        message_cc: A List of addresses to Carbon Copy (CC)</span>
+<span class="sd">        message_bcc:  A list of addresses to Blind Carbon Copy (BCC)</span>
+<span class="sd">        port: Port to use</span>
+<span class="sd">        require_encryption: Require a SSL/TLS connection from the start</span>
+<span class="sd">        verify: Verify the SSL/TLS certificate</span>
+<span class="sd">        username: An optional username</span>
+<span class="sd">        password: An optional password</span>
+<span class="sd">        envelope_from: Overrides the SMTP envelope &quot;mail from&quot; header</span>
+<span class="sd">        subject: The message subject</span>
+<span class="sd">        message_headers: Custom message headers</span>
+<span class="sd">        attachments: A list of tuples, containing filenames as bytes</span>
+<span class="sd">        plain_message: The plain text message body</span>
+<span class="sd">        html_message: The HTML message body</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">msg</span> <span class="o">=</span> <span class="n">create_email</span><span class="p">(</span><span class="n">message_from</span><span class="o">=</span><span class="n">message_from</span><span class="p">,</span> <span class="n">message_to</span><span class="o">=</span><span class="n">message_to</span><span class="p">,</span>
                        <span class="n">message_cc</span><span class="o">=</span><span class="n">message_cc</span><span class="p">,</span> <span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">,</span>
