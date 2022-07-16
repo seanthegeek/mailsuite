@@ -470,8 +470,8 @@ def from_trusted_domain(message: Union[str, IOBase, Dict],
         if os.path.exists(message):
             with open(message, "rb") as email_file:
                 message = email_file.read()
-    if isinstance(email, dict):
-        parsed_email = email
+    if isinstance(message, dict):
+        parsed_email = message
     else:
         parsed_email = parse_email(message)
 

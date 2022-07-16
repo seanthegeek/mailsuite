@@ -1,6 +1,13 @@
 Changelog
 =========
 
+1.8.1
+-----
+
+- Fix error when calling `utils.from_trusted_domain()`
+- Fix outdated package version number
+
+
 1.8.0
 -----
 
