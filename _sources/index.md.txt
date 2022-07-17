@@ -1,7 +1,8 @@
 # mailsuite
 
-![PyPI](https://img.shields.io/pypi/v/mailsuite)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/mailsuite?color=blue)
+[![PyPI](https://img.shields.io/pypi/v/mailsuite)](https://github.com/seanthegeek/mailsuite/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/mailsuite?color=blue)](https://pypistats.org/packages/mailsuite)
+
 
 A Python package for retrieving, parsing, and sending emails.
 
