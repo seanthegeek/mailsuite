@@ -290,6 +290,8 @@ def parse_email(data: Union[str, bytes],
         data = data.decode("utf-8", errors="replace")
     _parsed_email = mailparser.parse_from_string(data)
     parsed_email = _parsed_email.mail
+    if isinstance(parsed_email, str):
+        raise ValueError("Not an email")
     headers_str = data.split("\n\n")[0]
     parsed_email["raw_headers"] = headers_str
     headers_str = re.sub(r"\n\s+", " ", headers_str)

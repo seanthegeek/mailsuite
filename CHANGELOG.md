@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.8.2
+-----
+
+- Raise `ValueError` when trying to parse something that isn't an email
+
 1.8.1
 -----
 
