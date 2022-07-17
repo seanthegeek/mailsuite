@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mailsuite.utils &mdash; mailsuite 1.8.2 documentation</title>
+  <title>mailsuite.utils &mdash; mailsuite 1.9.0 documentation</title>
       <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -28,7 +28,7 @@
             <a href="../../index.html" class="icon icon-home"> mailsuite
           </a>
               <div class="version">
-                1.8.2
+                1.9.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
@@ -90,6 +90,7 @@
 <span class="kn">import</span> <span class="nn">dns.reversename</span>
 <span class="kn">import</span> <span class="nn">dns.resolver</span>
 <span class="kn">import</span> <span class="nn">dns.exception</span>
+<span class="kn">import</span> <span class="nn">publicsuffix2</span>
 <span class="kn">from</span> <span class="nn">publicsuffix2</span> <span class="kn">import</span> <span class="n">get_sld</span>
 <span class="kn">from</span> <span class="nn">expiringdict</span> <span class="kn">import</span> <span class="n">ExpiringDict</span>
 
@@ -502,6 +503,7 @@
 
 <div class="viewcode-block" id="from_trusted_domain"><a class="viewcode-back" href="../../api.html#mailsuite.utils.from_trusted_domain">[docs]</a><span class="k">def</span> <span class="nf">from_trusted_domain</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">IOBase</span><span class="p">,</span> <span class="n">Dict</span><span class="p">],</span>
                         <span class="n">trusted_domains</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">],</span>
+                        <span class="n">include_sld</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
                         <span class="n">allow_multiple_authentication_results</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                         <span class="n">use_authentication_results_original</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                         <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -518,8 +520,7 @@
 <span class="sd">      Set ``allow_multiple_authentication_results`` to ``True``</span>
 <span class="sd">      **if and only if** the receiving mail service splits the results of each</span>
 <span class="sd">      authentication method in separate ``Authentication-Results`` headers</span>
-<span class="sd">      **and always** includes DKIM results, even when a DKIM signature is not</span>
-<span class="sd">      present.</span>
+<span class="sd">      **and always** includes DMARC results.</span>
 
 <span class="sd">    .. warning::</span>
 <span class="sd">      Set ``use_authentication_results_original`` to ``True``</span>
@@ -531,6 +532,8 @@
 <span class="sd">    Args:</span>
 <span class="sd">        message: An email</span>
 <span class="sd">        trusted_domains: A list of trusted domains</span>
+<span class="sd">        include_sld: Also return ``True`` if the Second-Level Domain (SLD) \</span>
+<span class="sd">        of an authenticated domain is in ``trusted_domains``</span>
 <span class="sd">        allow_multiple_authentication_results: Allow multiple</span>
 <span class="sd">         ``Authentication-Results-Original`` headers</span>
 <span class="sd">        use_authentication_results_original: Use the</span>
@@ -553,15 +556,15 @@
         <span class="n">trusted_domains</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">trusted_domains</span><span class="p">)):</span>
-        <span class="n">trusted_domains</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">trusted_domains</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">trusted_domains</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">trusted_domains</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
     <span class="n">trusted_domains</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">trusted_domains</span><span class="p">)</span>
     <span class="k">if</span> <span class="s2">&quot;&quot;</span> <span class="ow">in</span> <span class="n">trusted_domains</span><span class="p">:</span>
         <span class="n">trusted_domains</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
     <span class="n">trusted_domains</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">trusted_domains</span><span class="p">)</span>
 
-    <span class="n">header_name</span> <span class="o">=</span> <span class="s2">&quot;Authentication-Results&quot;</span>
+    <span class="n">header_name</span> <span class="o">=</span> <span class="s2">&quot;authentication-results&quot;</span>
     <span class="k">if</span> <span class="n">use_authentication_results_original</span><span class="p">:</span>
-        <span class="n">header_name</span> <span class="o">=</span> <span class="s2">&quot;Authentication-Results-Original&quot;</span>
+        <span class="n">header_name</span> <span class="o">=</span> <span class="s2">&quot;authentication-results-original&quot;</span>
 
     <span class="k">if</span> <span class="n">header_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">parsed_email</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">False</span>
@@ -572,28 +575,40 @@
             <span class="n">dkim</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s2">&quot;dkim&quot;</span><span class="p">]</span>
             <span class="n">dkim_result</span> <span class="o">=</span> <span class="n">dkim</span><span class="p">[</span><span class="s2">&quot;result&quot;</span><span class="p">]</span>
             <span class="n">domain</span> <span class="o">=</span> <span class="n">dkim</span><span class="p">[</span><span class="s2">&quot;header.d&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">sld</span> <span class="o">=</span> <span class="n">publicsuffix2</span><span class="o">.</span><span class="n">get_sld</span><span class="p">(</span><span class="n">domain</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">dkim_result</span> <span class="o">==</span> <span class="s2">&quot;pass&quot;</span> <span class="ow">and</span> <span class="n">domain</span> <span class="ow">in</span> <span class="n">trusted_domains</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="n">include_sld</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">dkim_result</span> <span class="o">==</span> <span class="s2">&quot;pass&quot;</span> <span class="ow">and</span> <span class="n">sld</span> <span class="ow">in</span> <span class="n">trusted_domains</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">True</span>
         <span class="k">if</span> <span class="s2">&quot;dmarc&quot;</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
             <span class="k">if</span> <span class="s2">&quot;dmarc&quot;</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
                 <span class="n">dmarc</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s2">&quot;dkim&quot;</span><span class="p">]</span>
                 <span class="n">dmarc_result</span> <span class="o">=</span> <span class="n">dmarc</span><span class="p">[</span><span class="s2">&quot;result&quot;</span><span class="p">]</span>
-                <span class="n">domain</span> <span class="o">=</span> <span class="n">dmarc</span><span class="p">[</span><span class="s2">&quot;header.d&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="n">domain</span> <span class="o">=</span> <span class="n">dmarc</span><span class="p">[</span><span class="s2">&quot;header.from&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="n">sld</span> <span class="o">=</span> <span class="n">publicsuffix2</span><span class="o">.</span><span class="n">get_sld</span><span class="p">(</span><span class="n">domain</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">dmarc_result</span> <span class="o">==</span> <span class="s2">&quot;pass&quot;</span> <span class="ow">and</span> <span class="n">domain</span> <span class="ow">in</span> <span class="n">trusted_domains</span><span class="p">:</span>
                     <span class="k">return</span> <span class="kc">True</span>
+                <span class="k">if</span> <span class="n">include_sld</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">dmarc_result</span> <span class="o">==</span> <span class="s2">&quot;pass&quot;</span> <span class="ow">and</span> <span class="n">sld</span> <span class="ow">in</span> <span class="n">trusted_domains</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="kc">True</span>
         <span class="k">return</span> <span class="kc">False</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="n">allow_multiple_authentication_results</span><span class="p">:</span>
-        <span class="n">dkim</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">dmarc</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">for</span> <span class="n">header</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">dkim</span> <span class="ow">in</span> <span class="n">header</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">dkim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;dmarc&quot;</span> <span class="ow">in</span> <span class="n">header</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">dmarc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="k">return</span> <span class="kc">False</span>
-                <span class="n">dkim</span> <span class="o">=</span> <span class="n">header</span><span class="p">[</span><span class="s2">&quot;dkim&quot;</span><span class="p">]</span>
-                <span class="n">dkim_result</span> <span class="o">=</span> <span class="n">dkim</span><span class="p">[</span><span class="s2">&quot;result&quot;</span><span class="p">]</span>
-                <span class="n">domain</span> <span class="o">=</span> <span class="n">dkim</span><span class="p">[</span><span class="s2">&quot;domain&quot;</span><span class="p">]</span>
-                <span class="k">if</span> <span class="n">dkim_result</span> <span class="o">==</span> <span class="s2">&quot;pass&quot;</span> <span class="ow">and</span> <span class="n">domain</span> <span class="ow">in</span> <span class="n">trusted_domains</span><span class="p">:</span>
+                <span class="n">dmarc</span> <span class="o">=</span> <span class="n">header</span><span class="p">[</span><span class="s2">&quot;dmarc&quot;</span><span class="p">]</span>
+                <span class="n">dmarc_result</span> <span class="o">=</span> <span class="n">dmarc</span><span class="p">[</span><span class="s2">&quot;result&quot;</span><span class="p">]</span>
+                <span class="n">domain</span> <span class="o">=</span> <span class="n">dmarc</span><span class="p">[</span><span class="s2">&quot;header.from&quot;</span><span class="p">]</span>
+                <span class="n">sld</span> <span class="o">=</span> <span class="n">publicsuffix2</span><span class="o">.</span><span class="n">get_sld</span><span class="p">(</span><span class="n">domain</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">dmarc_result</span> <span class="o">==</span> <span class="s2">&quot;pass&quot;</span> <span class="ow">and</span> <span class="n">domain</span> <span class="ow">in</span> <span class="n">trusted_domains</span><span class="p">:</span>
                     <span class="k">return</span> <span class="kc">True</span>
+                <span class="k">if</span> <span class="n">include_sld</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">dmarc_result</span> <span class="o">==</span> <span class="s2">&quot;pass&quot;</span> <span class="ow">and</span> <span class="n">sld</span> <span class="ow">in</span> <span class="n">trusted_domains</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="kc">True</span>
     <span class="k">return</span> <span class="kc">False</span></div>
 
 

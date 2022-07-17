@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mailsuite &mdash; mailsuite 1.8.2 documentation</title>
+  <title>mailsuite &mdash; mailsuite 1.9.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -30,7 +30,7 @@
             <a href="#" class="icon icon-home"> mailsuite
           </a>
               <div class="version">
-                1.8.2
+                1.9.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -60,7 +60,7 @@
       <li><a href="#" class="icon icon-home"></a> &raquo;</li>
       <li>mailsuite</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/index.md.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -70,8 +70,9 @@
              
   <section id="mailsuite">
 <h1>mailsuite<a class="headerlink" href="#mailsuite" title="Permalink to this heading"></a></h1>
-<p>A Python package for retrieving, parsing, scanning, and sending emails.
-It is particularly useful for triaging potential phishing emails.</p>
+<p><img alt="PyPI" src="https://img.shields.io/pypi/v/mailsuite" />
+<img alt="PyPI - Downloads" src="https://img.shields.io/pypi/dm/mailsuite?color=blue" /></p>
+<p>A Python package for retrieving, parsing, and sending emails.</p>
 <section id="features">
 <h2>Features<a class="headerlink" href="#features" title="Permalink to this heading"></a></h2>
 <ul class="simple">
@@ -96,7 +97,7 @@ DavMail</p></li>
 <ul>
 <li><p>SHA256 hashes of attachments</p></li>
 <li><p>Parsed <code class="docutils literal notranslate"><span class="pre">Authentication-Results</span></code> and <code class="docutils literal notranslate"><span class="pre">DKIM-Signature</span></code> headers</p></li>
-<li><p>Can parse Microsoft Outlook <code class="docutils literal notranslate"><span class="pre">.msg</span></code> files if <code class="docutils literal notranslate"><span class="pre">msgconvert</span></code> (included in the <code class="docutils literal notranslate"><span class="pre">libemail-outlook-message-perl</span></code> Debian/Ubuntu package) is installed</p></li>
+<li><p>Can parse Microsoft Outlook <code class="docutils literal notranslate"><span class="pre">.msg</span></code> files</p></li>
 </ul>
 </li>
 <li><p>Simplified email creation and sending</p>
@@ -106,28 +107,42 @@ DavMail</p></li>
 </ul>
 </li>
 </ul>
+<section id="working-with-msg-files">
+<h3>Working with .msg files<a class="headerlink" href="#working-with-msg-files" title="Permalink to this heading"></a></h3>
+<p>If you would like to be able to parse Microsoft Outlook <code class="docutils literal notranslate"><span class="pre">.msg</span></code>
+emails, you’ll need to install the <code class="docutils literal notranslate"><span class="pre">Email::Outlook::Message</span></code> Perl module, which
+includes the <code class="docutils literal notranslate"><span class="pre">msgconvert</span></code> utility that is used to convert <code class="docutils literal notranslate"><span class="pre">.msg</span></code> files into the
+standard RFC 822 format. Ubuntu and Debian make this easy because they have a
+package for it, <code class="docutils literal notranslate"><span class="pre">libemail-outlook-message-perl</span></code>. On
+Fedora/RHEL/CentOS based distributions and macOS, you’ll need to install
+<a class="reference external" href="https://perlbrew.pl/">Perlbrew</a>.</p>
+<p>Perlbrew installs a local copy of Perl within the user’s home directory,
+similar to how Homebrew works (which is why the initial installation can take
+a while). That way, you don’t need to use <code class="docutils literal notranslate"><span class="pre">sudo</span></code> to  install Perl modules, and
+risk breaking your system’s Perl installation in the process.</p>
+<p>Once Perlbrew is installed, use <code class="docutils literal notranslate"><span class="pre">cpan</span></code> to install <code class="docutils literal notranslate"><span class="pre">Email::Outlook::Message</span></code>.</p>
+</section>
 </section>
 <section id="documentation">
 <h2>Documentation<a class="headerlink" href="#documentation" title="Permalink to this heading"></a></h2>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="api.html">API</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="api.html#module-mailsuite.imap">mailsuite.imap</a><ul class="simple">
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="api.html#module-mailsuite.smtp">mailsuite.smtp</a><ul class="simple">
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="api.html#module-mailsuite.utils">mailsuite.utils</a><ul class="simple">
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#module-mailsuite.imap">mailsuite.imap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#module-mailsuite.smtp">mailsuite.smtp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#module-mailsuite.utils">mailsuite.utils</a></li>
 </ul>
 </li>
 </ul>
 </div>
+<section id="indices-and-tables">
+<h3>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this heading"></a></h3>
 <ul class="simple">
 <li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
 </ul>
+</section>
 </section>
 </section>
 
