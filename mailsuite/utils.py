@@ -21,6 +21,7 @@ import html2text
 import dns.reversename
 import dns.resolver
 import dns.exception
+import publicsuffix2
 from publicsuffix2 import get_sld
 from expiringdict import ExpiringDict
 
@@ -433,6 +434,7 @@ def parse_email(data: Union[str, bytes],
 
 def from_trusted_domain(message: Union[str, IOBase, Dict],
                         trusted_domains: Union[List[str], str],
+                        include_sld: bool = True,
                         allow_multiple_authentication_results: bool = False,
                         use_authentication_results_original: bool = False,
                         ) -> bool:
@@ -449,8 +451,7 @@ def from_trusted_domain(message: Union[str, IOBase, Dict],
       Set ``allow_multiple_authentication_results`` to ``True``
       **if and only if** the receiving mail service splits the results of each
       authentication method in separate ``Authentication-Results`` headers
-      **and always** includes DKIM results, even when a DKIM signature is not
-      present.
+      **and always** includes DMARC results.
 
     .. warning::
       Set ``use_authentication_results_original`` to ``True``
@@ -462,6 +463,8 @@ def from_trusted_domain(message: Union[str, IOBase, Dict],
     Args:
         message: An email
         trusted_domains: A list of trusted domains
+        include_sld: Also return ``True`` if the Second-Level Domain (SLD) \
+        of an authenticated domain is in ``trusted_domains``
         allow_multiple_authentication_results: Allow multiple
          ``Authentication-Results-Original`` headers
         use_authentication_results_original: Use the
@@ -484,15 +487,15 @@ def from_trusted_domain(message: Union[str, IOBase, Dict],
         trusted_domains.split("\n")
 
     for i in range(len(trusted_domains)):
-        trusted_domains[i] = trusted_domains.lower().strip()
+        trusted_domains[i] = trusted_domains[i].lower().strip()
     trusted_domains = set(trusted_domains)
     if "" in trusted_domains:
         trusted_domains.remove("")
     trusted_domains = list(trusted_domains)
 
-    header_name = "Authentication-Results"
+    header_name = "authentication-results"
     if use_authentication_results_original:
-        header_name = "Authentication-Results-Original"
+        header_name = "authentication-results-original"
 
     if header_name not in parsed_email:
         return False
@@ -503,28 +506,40 @@ def from_trusted_domain(message: Union[str, IOBase, Dict],
             dkim = results["dkim"]
             dkim_result = dkim["result"]
             domain = dkim["header.d"].lower().strip()
+            sld = publicsuffix2.get_sld(domain)
 
             if dkim_result == "pass" and domain in trusted_domains:
                 return True
+            if include_sld:
+                if dkim_result == "pass" and sld in trusted_domains:
+                    return True
         if "dmarc" in results:
             if "dmarc" in results:
                 dmarc = results["dkim"]
                 dmarc_result = dmarc["result"]
-                domain = dmarc["header.d"].lower().strip()
+                domain = dmarc["header.from"].lower().strip()
+                sld = publicsuffix2.get_sld(domain)
                 if dmarc_result == "pass" and domain in trusted_domains:
                     return True
+                if include_sld:
+                    if dmarc_result == "pass" and sld in trusted_domains:
+                        return True
         return False
     if isinstance(results, list) and allow_multiple_authentication_results:
-        dkim = None
+        dmarc = None
         for header in results:
-            if dkim in header:
-                if dkim is not None:
+            if "dmarc" in header:
+                if dmarc is not None:
                     return False
-                dkim = header["dkim"]
-                dkim_result = dkim["result"]
-                domain = dkim["domain"]
-                if dkim_result == "pass" and domain in trusted_domains:
+                dmarc = header["dmarc"]
+                dmarc_result = dmarc["result"]
+                domain = dmarc["header.from"]
+                sld = publicsuffix2.get_sld(domain)
+                if dmarc_result == "pass" and domain in trusted_domains:
                     return True
+                if include_sld:
+                    if dmarc_result == "pass" and sld in trusted_domains:
+                        return True
     return False
 
 

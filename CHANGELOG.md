@@ -1,6 +1,14 @@
 Changelog
 =========
 
+1.9.0
+-----
+
+- Fix multiple bugs in `mailsuite.utils.from_trusted_domain()`
+- By default, `mailsuite.utils.from_trusted_domain()` will now return `True` if the SLD or FQDN of an authenticated domain is in `trusted_domains`
+- Convert documentation to markdown
+- Convert build backend from `setuptools` to `hatch`
+
 1.8.2
 -----
 

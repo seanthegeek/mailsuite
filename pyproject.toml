@@ -1,0 +1,53 @@
+[build-system]
+requires = [
+    "hatchling>=1.5.0",
+]
+build-backend = "hatchling.build"
+
+[project]
+name = "mailsuite"
+description = "A Python package for retrieving, parsing, and sending emails"
+readme = "README.md"
+license = "Apache-2.0"
+authors = [
+    { name = "Sean Whalen", email = "whalenster@gmail.com" },
+]
+keywords = [
+    "IMAP",
+    "SMTP",
+    "email",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "dnspython>=2.0.0",
+    "expiringdict==1.2.2",
+    "html2text>=2020.1.16",
+    "IMAPClient>=2.1.0",
+    "mail-parser>=3.14.0",
+    "publicsuffix2>=2.20190812",
+]
+dynamic = [
+    "version",
+]
+
+[project.urls]
+Homepage = "https://github.com/seanthegeek/mailsuite/"
+Documentation = "https://seanthegeek.github.io/mailsuite/"
+
+[tool.hatch.version]
+path = "mailsuite/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/mailsuite",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["mailsuite"]

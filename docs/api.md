@@ -4,29 +4,24 @@ API
 mailsuite.imap
 --------------
 
+```{eval-rst}
 .. automodule:: mailsuite.imap
    :members:
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+```
 
 mailsuite.smtp
 --------------
 
+```{eval-rst}
 .. automodule:: mailsuite.smtp
    :members:
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+```
 
 mailsuite.utils
 ---------------
 
+```{eval-rst}
 .. automodule:: mailsuite.utils
    :members:
+```
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
