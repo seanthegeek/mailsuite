@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mailsuite.utils &mdash; mailsuite 1.8.1 documentation</title>
+  <title>mailsuite.utils &mdash; mailsuite 1.8.2 documentation</title>
       <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -28,7 +28,7 @@
             <a href="../../index.html" class="icon icon-home"> mailsuite
           </a>
               <div class="version">
-                1.8.1
+                1.8.2
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
@@ -339,7 +339,7 @@
 <span class="sd">    A simplified email parser</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        data: An RFC 822 message string, or Microsoft msg bytes</span>
+<span class="sd">        data: A file path, RFC 822 message string, or Microsoft .msg bytes</span>
 <span class="sd">        strip_attachment_payloads: Remove attachment payloads</span>
 
 <span class="sd">    Returns: Parsed email data</span>
@@ -349,13 +349,18 @@
 <span class="sd">      ``binary: True`` use ``mailsuite.utils.decode_base64`` to convert the</span>
 <span class="sd">      payload to bytes.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
     <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="nb">bytes</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">is_outlook_msg</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
             <span class="n">data</span> <span class="o">=</span> <span class="n">convert_outlook_msg</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">&quot;replace&quot;</span><span class="p">)</span>
     <span class="n">_parsed_email</span> <span class="o">=</span> <span class="n">mailparser</span><span class="o">.</span><span class="n">parse_from_string</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
     <span class="n">parsed_email</span> <span class="o">=</span> <span class="n">_parsed_email</span><span class="o">.</span><span class="n">mail</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parsed_email</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Not an email&quot;</span><span class="p">)</span>
     <span class="n">headers_str</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
     <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;raw_headers&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">headers_str</span>
     <span class="n">headers_str</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\n\s+&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">headers_str</span><span class="p">)</span>
