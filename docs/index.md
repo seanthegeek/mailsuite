@@ -30,26 +30,35 @@ A Python package for retrieving, parsing, and sending emails.
   - Easily add attachments, plain text, and HTML
   - Uses opportunistic encryption (``STARTTLS``) with SMTP by default
 
-### Working with .msg files
+## Email samples and Outlook clients
 
-If you would like to be able to parse Microsoft Outlook `.msg`
-emails, you'll need to install the `Email::Outlook::Message` Perl module, which
-includes the `msgconvert` utility that is used to convert `.msg` files into the
-standard RFC 822 format. Ubuntu and Debian make this easy because they have a
-package for it, `libemail-outlook-message-perl`. On 
-Fedora/RHEL/CentOS based distributions and macOS, you'll need to install
-[Perlbrew][perlbrew].
+### Microsoft Outlook for Windows
 
-Perlbrew installs a local copy of Perl within the user's home directory,
-similar to how Homebrew works (which is why the initial installation can take
-a while). That way, you don't need to use `sudo` to  install Perl modules, and 
-risk breaking your system's Perl installation in the process.
+If you save an email to a file using Microsoft Outlook on Windows, it will
+save the file in a proprietary Microsoft OLE format with a `.msg` extension.
+There are tools like `msgconvert` that make an attempt to convert a `.msg`
+file to a standard RFC 822 `.eml` file, and `mailsuite` will attempt to use
+this tool when encountering a `.msg` file if it is installed on the system.
+However, anomalies are introduced during conversion that make the results
+unsuitable for forensic analysis.
 
-Once Perlbrew is installed, use `cpan` to install `Email::Outlook::Message`.
+Instead of using `msgconvert`, use one of these other Outlook clients.
 
-[perlbrew]: https://perlbrew.pl/
+### Microsoft Outlook for macOS
 
-## Documentation
+Drag the email from the inbox or other folder and drop it on the desktop.
+Attached emails can be saved to a file like any other attachment.
+
+### Outlook Web Access (OWA)
+
+1. Create a new email and leave it open a separate window.
+2. Drag from the inbox or other folder and drop it in the message of the draft.
+3. Download the attachment that was created in step 2
+
+Emails that are already attached to an email can be downloaded from OWA like
+any other attachment.
+
+## Further reading
 
 
 ```{toctree}
