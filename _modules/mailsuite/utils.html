@@ -203,10 +203,12 @@
 
 <span class="sd">    Returns: A RFC 822 string</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;https://seanthegeek.github.io/mailsuite/&quot;</span> \
+          <span class="s2">&quot;#email-samples-and-outlook-clients&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">is_outlook_msg</span><span class="p">(</span><span class="n">msg_bytes</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The supplied bytes are not an Outlook .msg file&quot;</span><span class="p">)</span>
-    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Converting Outlook .msg file for parsing. Results are not&quot;</span>
-                   <span class="s2">&quot;suitable for forensics.&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Converting Outlook .msg file for parsing. Results are not&quot;</span>
+                   <span class="sa">f</span><span class="s2">&quot;suitable for forensics  See </span><span class="si">{</span><span class="n">url</span><span class="si">}</span><span class="s2"> for more details.&quot;</span><span class="p">)</span>
     <span class="n">orig_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
     <span class="n">tmp_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
     <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">tmp_dir</span><span class="p">)</span>
