@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.9.2
+-----
+
+- Remove some documentation from `README.md`, so the PyPI listing won't have outdated info
+- Add `Issues` and `Changelog` URLs to the PyPI listing
+
 1.9.1
 -----
 

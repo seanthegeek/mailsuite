@@ -25,7 +25,7 @@ A Python package for retrieving, parsing, and sending emails.
 - Consistent email parsing
   - SHA256 hashes of attachments
   - Parsed ``Authentication-Results`` and ``DKIM-Signature`` headers
-  - Can parse Microsoft Outlook ``.msg`` files
+  - Parse Microsoft Outlook ``.msg`` files using `msgconvert`
 - Simplified email creation and sending
   - Easily add attachments, plain text, and HTML
   - Uses opportunistic encryption (``STARTTLS``) with SMTP by default
@@ -43,6 +43,12 @@ However, anomalies are introduced during conversion that make the results
 unsuitable for forensic analysis.
 
 Instead of using `msgconvert`, use one of these other Outlook clients.
+
+```{note}
+If a `.msg` file is attached to an email and sent from a Windows Outlook
+client, the email will actually be sent as a `.eml` file. So, users can send 
+email samples without needing to worry about the file format.
+```
 
 ### Microsoft Outlook for macOS
 

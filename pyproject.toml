@@ -41,6 +41,8 @@ dynamic = [
 [project.urls]
 Homepage = "https://github.com/seanthegeek/mailsuite/"
 Documentation = "https://seanthegeek.github.io/mailsuite/"
+Issues = "https://github.com/seanthegeek/mailsuite/issues"
+Changelog = "https://github.com/seanthegeek/mailsuite/blob/master/CHANGELOG.md"
 
 [tool.hatch.version]
 path = "mailsuite/__init__.py"
