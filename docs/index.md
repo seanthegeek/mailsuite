@@ -1,6 +1,6 @@
 # mailsuite
 
-[![PyPI](https://img.shields.io/pypi/v/mailsuite)](https://github.com/seanthegeek/mailsuite/)
+[![PyPI](https://img.shields.io/pypi/v/mailsuite)](https://pypi.org/project/mailsuite/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/mailsuite?color=blue)](https://pypistats.org/packages/mailsuite)
 
 
