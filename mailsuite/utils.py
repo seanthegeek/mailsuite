@@ -134,10 +134,12 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
 
     Returns: A RFC 822 string
     """
+    url = "https://seanthegeek.github.io/mailsuite/" \
+          "#email-samples-and-outlook-clients"
     if not is_outlook_msg(msg_bytes):
         raise ValueError("The supplied bytes are not an Outlook .msg file")
-    logger.warning("Converting Outlook .msg file for parsing. Results are not"
-                   "suitable for forensics.")
+    logger.warning(f"Converting Outlook .msg file for parsing. Results are not"
+                   f"suitable for forensics  See {url} for more details.")
     orig_dir = os.getcwd()
     tmp_dir = tempfile.mkdtemp()
     os.chdir(tmp_dir)
