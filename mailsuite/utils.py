@@ -37,7 +37,7 @@ markdown_maker.body_width = 0
 
 
 class EmailParserError(RuntimeError):
-    """Raised when an error parsing the email occurs"""
+    """Raised when an email parsing error occurs"""
 
 
 def decode_base64(data: str) -> bytes:
@@ -122,8 +122,12 @@ def is_outlook_msg(content: bytes) -> bool:
 
 def convert_outlook_msg(msg_bytes: bytes) -> str:
     """
-    Uses the ``msgconvert`` Perl utility to convert an Outlook MS file to
+    Uses the ``msgconvert`` Perl utility to convert an Outlook .msg file to
     standard RFC 822 format
+
+    .. warning::
+      Anomalies are introduced during conversion that make the results
+      unsuitable for forensic analysis.
 
     Args:
         msg_bytes: the content of the .msg file
@@ -131,7 +135,9 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
     Returns: A RFC 822 string
     """
     if not is_outlook_msg(msg_bytes):
-        raise ValueError("The supplied bytes are not an Outlook MSG file")
+        raise ValueError("The supplied bytes are not an Outlook .msg file")
+    logger.warning("Converting Outlook .msg file for parsing. Results are not"
+                   "suitable for forensics.")
     orig_dir = os.getcwd()
     tmp_dir = tempfile.mkdtemp()
     os.chdir(tmp_dir)
@@ -144,8 +150,8 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
         with open(eml_path, "r") as eml_file:
             rfc822 = eml_file.read()
     except FileNotFoundError:
-        raise EmailParserError(
-            "Failed to convert Outlook MSG: msgconvert utility not found")
+        raise EmailParserError("Failed to convert Outlook .msg file: "
+                               "msgconvert utility not found")
     finally:
         os.chdir(orig_dir)
         shutil.rmtree(tmp_dir)

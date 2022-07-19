@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.9.1
+-----
+
+- Add warnings about `msgconvert` not being suitable for forensics
+
 1.9.0
 -----
 
