@@ -60,7 +60,6 @@ any other attachment.
 
 ## Further reading
 
-
 ```{toctree}
 ---
 maxdepth: 2

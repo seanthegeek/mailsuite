@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>API &mdash; mailsuite 1.9.0 documentation</title>
+  <title>API &mdash; mailsuite 1.9.1 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -30,7 +30,7 @@
             <a href="index.html" class="icon icon-home"> mailsuite
           </a>
               <div class="version">
-                1.9.0
+                1.9.1
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -204,14 +204,19 @@ dict: A parsed email message</p>
 <dl class="py exception">
 <dt class="sig sig-object py" id="mailsuite.utils.EmailParserError">
 <em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mailsuite.utils.</span></span><span class="sig-name descname"><span class="pre">EmailParserError</span></span><a class="reference internal" href="_modules/mailsuite/utils.html#EmailParserError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mailsuite.utils.EmailParserError" title="Permalink to this definition"></a></dt>
-<dd><p>Raised when an error parsing the email occurs</p>
+<dd><p>Raised when an email parsing error occurs</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="mailsuite.utils.convert_outlook_msg">
 <span class="sig-prename descclassname"><span class="pre">mailsuite.utils.</span></span><span class="sig-name descname"><span class="pre">convert_outlook_msg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg_bytes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bytes</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/mailsuite/utils.html#convert_outlook_msg"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mailsuite.utils.convert_outlook_msg" title="Permalink to this definition"></a></dt>
-<dd><p>Uses the <code class="docutils literal notranslate"><span class="pre">msgconvert</span></code> Perl utility to convert an Outlook MS file to
+<dd><p>Uses the <code class="docutils literal notranslate"><span class="pre">msgconvert</span></code> Perl utility to convert an Outlook .msg file to
 standard RFC 822 format</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Anomalies are introduced during conversion that make the results
+unsuitable for forensic analysis.</p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>msg_bytes</strong> – the content of the .msg file</p>
