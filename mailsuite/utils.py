@@ -343,11 +343,8 @@ def parse_email(data: Union[str, bytes],
     parsed_email["text_html"] = _parsed_email.text_html.copy()
     if len(parsed_email["text_plain"]) > 0:
         parsed_email["body"] = "\n\n".join(parsed_email["text_plain"])
-        parsed_email["body_markdown"] = "\n\n".join(parsed_email["text_plain"])
     if len(parsed_email["text_html"]) > 0:
         parsed_email["body"] = "\n\n".join(parsed_email["text_html"])
-        parsed_email["body_markdown"] = markdown_maker.handle(
-            parsed_email["body"])
 
     if "received" in parsed_email:
         for received in parsed_email["received"]:
