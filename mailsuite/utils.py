@@ -339,6 +339,7 @@ def parse_email(data: Union[str, bytes],
                 f"Failed to parse authentication header: {e}")
     if "body" not in parsed_email or parsed_email["body"] is None:
         parsed_email["body"] = ""
+        parsed_email["body_markdown"] = ""
     parsed_email["raw_body"] = parsed_email["body"]
     parsed_email["text_plain"] = _parsed_email.text_plain.copy()
     parsed_email["text_html"] = _parsed_email.text_html.copy()
