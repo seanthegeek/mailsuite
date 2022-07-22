@@ -247,9 +247,10 @@ def parse_dkim_signature(dkim_signature: Union[str, List]) -> Union[Dict,
         parts = dkim_signature_.split(";")
         for part in parts:
             key_value = part.split("=")
-            key = key_value[0].strip()
-            value = key_value[1].strip()
-            parsed_signature[key] = value
+            if len(key_value) == 2:
+                key = key_value[0].strip()
+                value = key_value[1].strip()
+                parsed_signature[key] = value
 
         if "h" in parsed_signature:
             parsed_signature["h"] = parsed_signature["h"].split(":")
