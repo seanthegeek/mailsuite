@@ -34,6 +34,7 @@ markdown_maker = html2text.HTML2Text()
 markdown_maker.unicode_snob = True
 markdown_maker.decode_errors = "replace"
 markdown_maker.body_width = 0
+markdown_maker.protect_links = True
 
 
 class EmailParserError(RuntimeError):
@@ -343,8 +344,11 @@ def parse_email(data: Union[str, bytes],
     parsed_email["text_html"] = _parsed_email.text_html.copy()
     if len(parsed_email["text_plain"]) > 0:
         parsed_email["body"] = "\n\n".join(parsed_email["text_plain"])
+        parsed_email["body_markdown"] = parsed_email["body"]
     if len(parsed_email["text_html"]) > 0:
         parsed_email["body"] = "\n\n".join(parsed_email["text_html"])
+        parsed_email["body_markdown"] = markdown_maker.handle(parsed_email[
+                                                                  "body"])
 
     if "received" in parsed_email:
         for received in parsed_email["received"]:
@@ -431,10 +435,6 @@ def parse_email(data: Union[str, bytes],
     if "body" not in parsed_email:
         parsed_email["body"] = None
         parsed_email["body_markdown"] = None
-    else:
-        parsed_email["body_markdown"] = markdown_maker.handle(
-            parsed_email["body"])
-
     return parsed_email
 
 
