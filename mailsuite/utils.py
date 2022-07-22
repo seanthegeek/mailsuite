@@ -524,8 +524,10 @@ def from_trusted_domain(message: Union[str, IOBase, Dict],
                     return True
         if "dmarc" in results:
             if "dmarc" in results:
-                dmarc = results["dkim"]
+                dmarc = results["dmarc"]
                 dmarc_result = dmarc["result"]
+                if "header.from" not in dmarc:
+                    return False
                 domain = dmarc["header.from"].lower().strip()
                 sld = publicsuffix2.get_sld(domain)
                 if dmarc_result == "pass" and domain in trusted_domains:
