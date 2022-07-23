@@ -306,6 +306,14 @@ def parse_email(data: Union[str, bytes],
     headers_str = data.split("\n\n")[0]
     parsed_email["raw_headers"] = headers_str
     headers_str = re.sub(r"\n\s+", " ", headers_str)
+    if "subject" in parsed_email:
+        headers_str = re.sub(r"Subject: .+",
+                             f"Subject: {parsed_email['subject']}",
+                             headers_str)
+    if "thread-topic" in parsed_email:
+        headers_str = re.sub(r"Thread-Topic: .+",
+                             f"Thread-Topic: {parsed_email['thread-topic']}",
+                             headers_str)
     parsed_email["headers_string"] = headers_str
     from_domain = None
     if parsed_email["from"] is not None:
