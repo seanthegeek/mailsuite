@@ -28,6 +28,9 @@ from expiringdict import ExpiringDict
 
 logger = logging.getLogger(__name__)
 
+mailparser_logger = logging.getLogger("mailparser")
+mailparser_logger.setLevel(logging.CRITICAL)
+
 null_file = open(os.devnull, "w")
 
 markdown_maker = html2text.HTML2Text()
