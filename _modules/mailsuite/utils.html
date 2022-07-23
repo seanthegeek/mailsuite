@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mailsuite.utils &mdash; mailsuite 1.9.1 documentation</title>
+  <title>mailsuite.utils &mdash; mailsuite 1.9.3 documentation</title>
       <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -28,7 +28,7 @@
             <a href="../../index.html" class="icon icon-home"> mailsuite
           </a>
               <div class="version">
-                1.9.1
+                1.9.3
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
@@ -97,12 +97,16 @@
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
+<span class="n">mailparser_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;mailparser&quot;</span><span class="p">)</span>
+<span class="n">mailparser_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">CRITICAL</span><span class="p">)</span>
+
 <span class="n">null_file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">devnull</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span>
 
 <span class="n">markdown_maker</span> <span class="o">=</span> <span class="n">html2text</span><span class="o">.</span><span class="n">HTML2Text</span><span class="p">()</span>
 <span class="n">markdown_maker</span><span class="o">.</span><span class="n">unicode_snob</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="n">markdown_maker</span><span class="o">.</span><span class="n">decode_errors</span> <span class="o">=</span> <span class="s2">&quot;replace&quot;</span>
 <span class="n">markdown_maker</span><span class="o">.</span><span class="n">body_width</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">markdown_maker</span><span class="o">.</span><span class="n">protect_links</span> <span class="o">=</span> <span class="kc">True</span>
 
 
 <div class="viewcode-block" id="EmailParserError"><a class="viewcode-back" href="../../api.html#mailsuite.utils.EmailParserError">[docs]</a><span class="k">class</span> <span class="nc">EmailParserError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
@@ -316,9 +320,10 @@
         <span class="n">parts</span> <span class="o">=</span> <span class="n">dkim_signature_</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">:</span>
             <span class="n">key_value</span> <span class="o">=</span> <span class="n">part</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span>
-            <span class="n">key</span> <span class="o">=</span> <span class="n">key_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-            <span class="n">value</span> <span class="o">=</span> <span class="n">key_value</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-            <span class="n">parsed_signature</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">key_value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="n">key_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">key_value</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="n">parsed_signature</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
 
         <span class="k">if</span> <span class="s2">&quot;h&quot;</span> <span class="ow">in</span> <span class="n">parsed_signature</span><span class="p">:</span>
             <span class="n">parsed_signature</span><span class="p">[</span><span class="s2">&quot;h&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">parsed_signature</span><span class="p">[</span><span class="s2">&quot;h&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
@@ -373,6 +378,14 @@
     <span class="n">headers_str</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
     <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;raw_headers&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">headers_str</span>
     <span class="n">headers_str</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\n\s+&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">headers_str</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">&quot;subject&quot;</span> <span class="ow">in</span> <span class="n">parsed_email</span><span class="p">:</span>
+        <span class="n">headers_str</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Subject: .+&quot;</span><span class="p">,</span>
+                             <span class="sa">f</span><span class="s2">&quot;Subject: </span><span class="si">{</span><span class="n">parsed_email</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                             <span class="n">headers_str</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">&quot;thread-topic&quot;</span> <span class="ow">in</span> <span class="n">parsed_email</span><span class="p">:</span>
+        <span class="n">headers_str</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Thread-Topic: .+&quot;</span><span class="p">,</span>
+                             <span class="sa">f</span><span class="s2">&quot;Thread-Topic: </span><span class="si">{</span><span class="n">parsed_email</span><span class="p">[</span><span class="s1">&#39;thread-topic&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                             <span class="n">headers_str</span><span class="p">)</span>
     <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;headers_string&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">headers_str</span>
     <span class="n">from_domain</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;from&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -406,16 +419,17 @@
                 <span class="sa">f</span><span class="s2">&quot;Failed to parse authentication header: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="s2">&quot;body&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">parsed_email</span> <span class="ow">or</span> <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
     <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;raw_body&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">]</span>
     <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;text_plain&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_parsed_email</span><span class="o">.</span><span class="n">text_plain</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
     <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;text_html&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_parsed_email</span><span class="o">.</span><span class="n">text_html</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;text_plain&quot;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;text_plain&quot;</span><span class="p">])</span>
-        <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;text_plain&quot;</span><span class="p">])</span>
+        <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">]</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;text_html&quot;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;text_html&quot;</span><span class="p">])</span>
-        <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">markdown_maker</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span>
-            <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">])</span>
+        <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">markdown_maker</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">parsed_email</span><span class="p">[</span>
+                                                                  <span class="s2">&quot;body&quot;</span><span class="p">])</span>
 
     <span class="k">if</span> <span class="s2">&quot;received&quot;</span> <span class="ow">in</span> <span class="n">parsed_email</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">received</span> <span class="ow">in</span> <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;received&quot;</span><span class="p">]:</span>
@@ -502,10 +516,6 @@
     <span class="k">if</span> <span class="s2">&quot;body&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">parsed_email</span><span class="p">:</span>
         <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">markdown_maker</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span>
-            <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">])</span>
-
     <span class="k">return</span> <span class="n">parsed_email</span></div>
 
 
@@ -592,8 +602,10 @@
                     <span class="k">return</span> <span class="kc">True</span>
         <span class="k">if</span> <span class="s2">&quot;dmarc&quot;</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
             <span class="k">if</span> <span class="s2">&quot;dmarc&quot;</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
-                <span class="n">dmarc</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s2">&quot;dkim&quot;</span><span class="p">]</span>
+                <span class="n">dmarc</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s2">&quot;dmarc&quot;</span><span class="p">]</span>
                 <span class="n">dmarc_result</span> <span class="o">=</span> <span class="n">dmarc</span><span class="p">[</span><span class="s2">&quot;result&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="s2">&quot;header.from&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dmarc</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">False</span>
                 <span class="n">domain</span> <span class="o">=</span> <span class="n">dmarc</span><span class="p">[</span><span class="s2">&quot;header.from&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
                 <span class="n">sld</span> <span class="o">=</span> <span class="n">publicsuffix2</span><span class="o">.</span><span class="n">get_sld</span><span class="p">(</span><span class="n">domain</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">dmarc_result</span> <span class="o">==</span> <span class="s2">&quot;pass&quot;</span> <span class="ow">and</span> <span class="n">domain</span> <span class="ow">in</span> <span class="n">trusted_domains</span><span class="p">:</span>
