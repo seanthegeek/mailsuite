@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.9.4
+-----
+
+- Add `automatic_reply` flag to parsed emails
+
 1.9.3
 -----
 

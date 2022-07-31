@@ -294,6 +294,18 @@ def parse_email(data: Union[str, bytes],
       ``binary: True`` use ``mailsuite.utils.decode_base64`` to convert the
       payload to bytes.
     """
+    def _test_header_value(header_name: str,
+                           header_value: Union[str, int, float],
+                           startswith: bool = False) -> bool:
+        if header_name.lower() not in parsed_email:
+            return False
+        if parsed_email[header_name] is None:
+            return False
+        if startswith and all([isinstance(header_value, str),
+                               isinstance(parsed_email[header_name], str)]):
+            return parsed_email[header_name].startswith(header_value)
+        return parsed_email[header_name] == header_value
+
     if type(data) == str:
         if os.path.exists(data):
             with open(data, "rb") as f:
@@ -313,6 +325,7 @@ def parse_email(data: Union[str, bytes],
         headers_str = re.sub(r"Subject: .+",
                              f"Subject: {parsed_email['subject']}",
                              headers_str)
+
     if "thread-topic" in parsed_email:
         headers_str = re.sub(r"Thread-Topic: .+",
                              f"Thread-Topic: {parsed_email['thread-topic']}",
@@ -447,6 +460,11 @@ def parse_email(data: Union[str, bytes],
     if "body" not in parsed_email:
         parsed_email["body"] = None
         parsed_email["body_markdown"] = None
+
+    auto_reply = all([_test_header_value("x-auto-response-suppress", "All"),
+                      _test_header_value("auto-submitted", "auto_generated")])
+    parsed_email["automatic_reply"] = auto_reply
+
     return parsed_email
 
 
