@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.9.5
+-----
+
+- In `utils.from_trusted_domain()`,  if `use_authentication_results_original` is `True`, but the `Authentication-Results-Original` header does not exist, fall back to checking the `Authentication-Results` header 
+
 1.9.4
 -----
 

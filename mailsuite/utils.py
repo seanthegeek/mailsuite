@@ -531,7 +531,8 @@ def from_trusted_domain(message: Union[str, IOBase, Dict],
 
     header_name = "authentication-results"
     if use_authentication_results_original:
-        header_name = "authentication-results-original"
+        if "authentication-results-original" in parsed_email:
+            header_name = "authentication-results-original"
 
     if header_name not in parsed_email:
         return False
@@ -550,18 +551,17 @@ def from_trusted_domain(message: Union[str, IOBase, Dict],
                 if dkim_result == "pass" and sld in trusted_domains:
                     return True
         if "dmarc" in results:
-            if "dmarc" in results:
-                dmarc = results["dmarc"]
-                dmarc_result = dmarc["result"]
-                if "header.from" not in dmarc:
-                    return False
-                domain = dmarc["header.from"].lower().strip()
-                sld = publicsuffix2.get_sld(domain)
-                if dmarc_result == "pass" and domain in trusted_domains:
+            dmarc = results["dmarc"]
+            dmarc_result = dmarc["result"]
+            if "header.from" not in dmarc:
+                return False
+            domain = dmarc["header.from"].lower().strip()
+            sld = publicsuffix2.get_sld(domain)
+            if dmarc_result == "pass" and domain in trusted_domains:
+                return True
+            if include_sld:
+                if dmarc_result == "pass" and sld in trusted_domains:
                     return True
-                if include_sld:
-                    if dmarc_result == "pass" and sld in trusted_domains:
-                        return True
         return False
     if isinstance(results, list) and allow_multiple_authentication_results:
         dmarc = None
