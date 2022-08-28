@@ -1,10 +1,16 @@
 Changelog
 =========
 
+1.9.7
+-----
+
+- Fix regression causing noisy `mailparser` log messages to reappear
+- Rename `urls` list to `body_urls` 
+
 1.9.6
 -----
 
-- Add `url` list to parsed `utils.parse_email()` results
+- Add `urls` list to parsed `utils.parse_email()` results
 
 
 1.9.5
