@@ -27,9 +27,7 @@ from expiringdict import ExpiringDict
 
 
 logger = logging.getLogger(__name__)
-
-mailparser_logger = logging.getLogger("mailparser")
-mailparser_logger.setLevel(logging.CRITICAL)
+logger.addHandler(logging.NullHandler())
 
 url_regex = re.compile(r"([A-Za-z]+://)([-\w]+(?:\.\w[-\w]*)+)(:\d+)?(/[^.!,?"
                        r"\"<>\[\]{}\s\x7F-\xFF]*(?:[.!,?]+[^.!,?"
