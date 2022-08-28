@@ -31,6 +31,8 @@ logger = logging.getLogger(__name__)
 mailparser_logger = logging.getLogger("mailparser")
 mailparser_logger.setLevel(logging.CRITICAL)
 
+url_regex = re.compile(r"([A-Za-z]+://)([-\w]+(?:\.\w[-\w]*)+)(:\d+)?(/[^.!,?\"<>\[\]{}\s\x7F-\xFF]*(?:[.!,?]+[^.!,?\"<>\[\]{}\s\x7F-\xFF]+)*)?")
+
 null_file = open(os.devnull, "w")
 
 markdown_maker = html2text.HTML2Text()
@@ -361,6 +363,7 @@ def parse_email(data: Union[str, bytes],
         except Exception as e:
             logger.warning(
                 f"Failed to parse authentication header: {e}")
+    urls = []
     if "body" not in parsed_email or parsed_email["body"] is None:
         parsed_email["body"] = ""
         parsed_email["body_markdown"] = ""
@@ -374,7 +377,10 @@ def parse_email(data: Union[str, bytes],
         parsed_email["body"] = "\n\n".join(parsed_email["text_html"])
         parsed_email["body_markdown"] = markdown_maker.handle(parsed_email[
                                                                   "body"])
-
+        urls = url_regex.findall(parsed_email["body_markdown"])
+        for i in range(len(urls)):
+            urls[i] = "".join(urls[i]).rstrip(")")
+        parsed_email["urls"] = urls
     if "received" in parsed_email:
         for received in parsed_email["received"]:
             if "date_utc" in received:
@@ -460,7 +466,6 @@ def parse_email(data: Union[str, bytes],
     if "body" not in parsed_email:
         parsed_email["body"] = None
         parsed_email["body_markdown"] = None
-
     auto_reply = all([_test_header_value("x-auto-response-suppress", "All"),
                       _test_header_value("auto-submitted", "auto_generated")])
     parsed_email["automatic_reply"] = auto_reply

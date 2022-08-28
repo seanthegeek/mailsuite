@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.9.6
+-----
+
+- Add `url` list to parsed `utils.parse_email()` results
+
+
 1.9.5
 -----
 
