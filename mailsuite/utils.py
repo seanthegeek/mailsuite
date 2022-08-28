@@ -31,7 +31,9 @@ logger = logging.getLogger(__name__)
 mailparser_logger = logging.getLogger("mailparser")
 mailparser_logger.setLevel(logging.CRITICAL)
 
-url_regex = re.compile(r"([A-Za-z]+://)([-\w]+(?:\.\w[-\w]*)+)(:\d+)?(/[^.!,?\"<>\[\]{}\s\x7F-\xFF]*(?:[.!,?]+[^.!,?\"<>\[\]{}\s\x7F-\xFF]+)*)?")
+url_regex = re.compile(r"([A-Za-z]+://)([-\w]+(?:\.\w[-\w]*)+)(:\d+)?(/[^.!,?"
+                       r"\"<>\[\]{}\s\x7F-\xFF]*(?:[.!,?]+[^.!,?"
+                       r"\"<>\[\]{}\s\x7F-\xFF]+)*)?")
 
 null_file = open(os.devnull, "w")
 
