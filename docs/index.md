@@ -3,7 +3,6 @@
 [![PyPI](https://img.shields.io/pypi/v/mailsuite)](https://pypi.org/project/mailsuite/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/mailsuite?color=blue)](https://pypistats.org/packages/mailsuite)
 
-
 A Python package for retrieving, parsing, and sending emails.
 
 ## Features
@@ -44,11 +43,11 @@ unsuitable for forensic analysis.
 
 Instead of using `msgconvert`, use one of these other Outlook clients.
 
-```{note}
+:::{note}
 If a `.msg` file is attached to an email and sent from a Windows Outlook
-client, the email will actually be sent as a `.eml` file. So, users can send 
+client, the email will actually be sent as a `.eml` file. So, users can send
 email samples without needing to worry about the file format.
-```
+:::
 
 ### Microsoft Outlook for macOS
 

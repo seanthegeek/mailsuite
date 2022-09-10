@@ -19,6 +19,7 @@ docutils<0.19,>=0.7
 sphinx
 sphinx_rtd_theme
 myst-parser
+myst-parser[linkify]
 wheel
 codecov
 hatch
