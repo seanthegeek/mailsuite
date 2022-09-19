@@ -184,7 +184,7 @@ def parse_authentication_results(authentication_results: Union[str, List],
     """
     def parse_result(authentication_results_, from_domain_):
         authentication_results_ = authentication_results_.lower()
-        authentication_results_ = re.sub(r"\n\s+", " ",
+        authentication_results_ = re.sub(r"(\n|\r\n)\s+", " ",
                                          authentication_results_)
         parts = authentication_results_.split(";")
         parsed_parts = {}
@@ -251,7 +251,7 @@ def parse_dkim_signature(dkim_signature: Union[str, List]) -> Union[Dict,
     """
     def parse_header(dkim_signature_: str) -> Dict:
         parsed_signature = {}
-        dkim_signature_ = re.sub(r"\n\s+", " ", dkim_signature_)
+        dkim_signature_ = re.sub(r"(\n|\r\n)\s+", " ", dkim_signature_)
         parts = dkim_signature_.split(";")
         for part in parts:
             key_value = part.split("=")

@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.9.10
+------
+
+- Fix parsing of `Authentication-Results` and `DKIM-Signature` headers when Windows line breaks (`\r\n`) are used
+
 1.9.9
 -----
 
