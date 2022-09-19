@@ -322,9 +322,9 @@ def parse_email(data: Union[str, bytes],
     parsed_email = _parsed_email.mail
     if isinstance(parsed_email, str):
         raise ValueError("Not an email")
-    headers_str = data.split("\n\n")[0]
+    headers_str = re.split(r"(\n|\r\n){2,}", data)[0]
     parsed_email["raw_headers"] = headers_str
-    headers_str = re.sub(r"\n\s+", " ", headers_str)
+    headers_str = re.sub(r"(\n|\r\n)\s+", " ", headers_str)
     if "subject" in parsed_email:
         headers_str = re.sub(r"Subject: .+",
                              f"Subject: {parsed_email['subject']}",
@@ -529,7 +529,7 @@ def from_trusted_domain(message: Union[str, IOBase, Dict],
         parsed_email = parse_email(message)
 
     if isinstance(trusted_domains, str):
-        trusted_domains.split("\n")
+        trusted_domains = re.split(r"(\n|\r\n)", trusted_domains)
 
     for i in range(len(trusted_domains)):
         trusted_domains[i] = trusted_domains[i].lower().strip()
