@@ -20,18 +20,17 @@ Changelog
 -----
 
 - Fix regression causing noisy `mailparser` log messages to reappear
-- Rename `urls` list to `body_urls` 
+- Rename `urls` list to `body_urls`
 
 1.9.6
 -----
 
 - Add `urls` list to parsed `utils.parse_email()` results
 
-
 1.9.5
 -----
 
-- In `utils.from_trusted_domain()`,  if `use_authentication_results_original` is `True`, but the `Authentication-Results-Original` header does not exist, fall back to checking the `Authentication-Results` header 
+- In `utils.from_trusted_domain()`,  if `use_authentication_results_original` is `True`, but the `Authentication-Results-Original` header does not exist, fall back to checking the `Authentication-Results` header
 
 1.9.4
 -----
@@ -79,13 +78,12 @@ Changelog
 - Fix outdated package version number
 - Accept a file path as possible input for the `data` argument in `utils.parse_email()`
 
-
 1.8.0
 -----
 
 - Parse `Authentication-Results` and `DKIM-Signature` headers
 - Add `utils.from_trusted_domain()`
-- Parsed header keys and values are now stored at the root of the parsed email dictionary, instead of in a `headers` dictionary 
+- Parsed header keys and values are now stored at the root of the parsed email dictionary, instead of in a `headers` dictionary
 - Add `raw_headers` to parsed email output
 
 7.1.3
@@ -128,7 +126,7 @@ Changelog
 - Store the HTML body in body in `body`, or the text body if an HTML body does not exist
 - Store all body parts as a string in `raw_body`
 - Only run `html2text` on HTML bodies
-- Disable wrapping on markdown to make searching strings with Yara or other tools easier
+- Disable wrapping on markdown to make searching strings with YARA or other tools easier
 
 1.5.4
 -----
