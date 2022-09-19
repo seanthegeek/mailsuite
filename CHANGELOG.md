@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.9.8
+-----
+
+- Fix parsing of email addresses in message `From` headers with encoded display names.
+
 1.9.7
 -----
 
