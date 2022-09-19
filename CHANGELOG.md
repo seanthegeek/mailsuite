@@ -4,7 +4,7 @@ Changelog
 1.9.9
 -----
 
-- Fix header body separation when Windows line breaks (`\r\n`) are used
+- Fix header and body separation when Windows line breaks (`\r\n`) are used
 
 1.9.8
 -----
