@@ -261,7 +261,10 @@ def parse_dkim_signature(dkim_signature: Union[str, List]) -> Union[Dict,
                 parsed_signature[key] = value
 
         if "h" in parsed_signature:
-            parsed_signature["h"] = parsed_signature["h"].split(":")
+            signed_headers = parsed_signature["h"].split(":")
+            for _i in range(len(signed_headers)):
+                signed_headers[_i] = signed_headers[_i].strip()
+            parsed_signature["h"] = signed_headers
 
         return parsed_signature
 

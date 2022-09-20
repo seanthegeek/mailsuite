@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.9.11
+------
+
+- Strip leading and trailing spaces from `DKIM-Signature` header `h=` list items
+
 1.9.10
 ------
 
