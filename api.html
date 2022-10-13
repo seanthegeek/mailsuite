@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>API &mdash; mailsuite 1.9.11 documentation</title>
+  <title>API &mdash; mailsuite 1.9.12 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -16,6 +16,7 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -30,7 +31,7 @@
             <a href="index.html" class="icon icon-home"> mailsuite
           </a>
               <div class="version">
-                1.9.11
+                1.9.12
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -42,9 +43,38 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">API</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#module-mailsuite.imap">mailsuite.imap</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-mailsuite.smtp">mailsuite.smtp</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-mailsuite.utils">mailsuite.utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-mailsuite.imap">mailsuite.imap</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.imap.IMAPClient"><code class="docutils literal notranslate"><span class="pre">IMAPClient</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#mailsuite.imap.IMAPClient.create_folder"><code class="docutils literal notranslate"><span class="pre">IMAPClient.create_folder()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mailsuite.imap.IMAPClient.delete_messages"><code class="docutils literal notranslate"><span class="pre">IMAPClient.delete_messages()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mailsuite.imap.IMAPClient.fetch_message"><code class="docutils literal notranslate"><span class="pre">IMAPClient.fetch_message()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mailsuite.imap.IMAPClient.move_messages"><code class="docutils literal notranslate"><span class="pre">IMAPClient.move_messages()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mailsuite.imap.IMAPClient.reset_connection"><code class="docutils literal notranslate"><span class="pre">IMAPClient.reset_connection()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.imap.MaxRetriesExceeded"><code class="docutils literal notranslate"><span class="pre">MaxRetriesExceeded</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-mailsuite.smtp">mailsuite.smtp</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.smtp.SMTPError"><code class="docutils literal notranslate"><span class="pre">SMTPError</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.smtp.send_email"><code class="docutils literal notranslate"><span class="pre">send_email()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-mailsuite.utils">mailsuite.utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.utils.EmailParserError"><code class="docutils literal notranslate"><span class="pre">EmailParserError</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.utils.convert_outlook_msg"><code class="docutils literal notranslate"><span class="pre">convert_outlook_msg()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.utils.create_email"><code class="docutils literal notranslate"><span class="pre">create_email()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.utils.decode_base64"><code class="docutils literal notranslate"><span class="pre">decode_base64()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.utils.from_trusted_domain"><code class="docutils literal notranslate"><span class="pre">from_trusted_domain()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.utils.get_filename_safe_string"><code class="docutils literal notranslate"><span class="pre">get_filename_safe_string()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.utils.get_reverse_dns"><code class="docutils literal notranslate"><span class="pre">get_reverse_dns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.utils.is_outlook_msg"><code class="docutils literal notranslate"><span class="pre">is_outlook_msg()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.utils.parse_authentication_results"><code class="docutils literal notranslate"><span class="pre">parse_authentication_results()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.utils.parse_dkim_signature"><code class="docutils literal notranslate"><span class="pre">parse_dkim_signature()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.utils.parse_email"><code class="docutils literal notranslate"><span class="pre">parse_email()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.utils.query_dns"><code class="docutils literal notranslate"><span class="pre">query_dns()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
