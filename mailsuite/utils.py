@@ -576,6 +576,7 @@ def from_trusted_domain(message: Union[str, IOBase, Dict],
                     return True
         return False
     if isinstance(results, list) and allow_multiple_authentication_results:
+        dmarc_result = False
         dmarc = None
         for header in results:
             if "dmarc" in header:
@@ -586,10 +587,11 @@ def from_trusted_domain(message: Union[str, IOBase, Dict],
                 domain = dmarc["header.from"]
                 sld = publicsuffix2.get_sld(domain)
                 if dmarc_result == "pass" and domain in trusted_domains:
-                    return True
+                    dmarc_result = True
                 if include_sld:
                     if dmarc_result == "pass" and sld in trusted_domains:
-                        return True
+                        dmarc_result = True
+        return dmarc_result
     return False
 
 

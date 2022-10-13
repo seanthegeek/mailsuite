@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.9.12
+------
+
+- Ignore all `dmarc` `Authentication-Results` if multiple `dmarc` results are found
+
 1.9.11
 ------
 
