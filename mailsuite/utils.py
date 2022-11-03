@@ -304,7 +304,8 @@ def parse_email(data: Union[str, bytes],
     def _test_header_value(header_name: str,
                            header_value: Union[str, int, float],
                            startswith: bool = False) -> bool:
-        if header_name.lower() not in parsed_email:
+        header_name = header_name.lower()
+        if header_name not in parsed_email:
             return False
         if parsed_email[header_name] is None:
             return False

@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.9.13
+------
+
+- Normalize the case of a header name when testing header values.
+
 1.9.12
 ------
 
