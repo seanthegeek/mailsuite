@@ -414,10 +414,10 @@ def parse_email(data: Union[str, bytes],
     else:
         parsed_email["date"] = None
     if "reply_to" in parsed_email:
-        parsed_email["reply_to"] = list(map(lambda x: parse_email_address(x),
+        parsed_email["reply-to"] = list(map(lambda x: parse_email_address(x),
                                             parsed_email["reply_to"]))
     else:
-        parsed_email["reply_to"] = []
+        parsed_email["reply-to"] = []
 
     if "to" in parsed_email:
         parsed_email["to"] = list(map(lambda x: parse_email_address(x),
@@ -438,9 +438,9 @@ def parse_email(data: Union[str, bytes],
         parsed_email["bcc"] = []
 
     if "delivered_to" in parsed_email:
-        parsed_email["delivered_to"] = list(
+        parsed_email["delivered-to"] = list(
             map(lambda x: parse_email_address(x),
-                parsed_email["delivered_to"])
+                parsed_email["delivered-to"])
         )
 
     if "attachments" not in parsed_email:

@@ -1,6 +1,14 @@
 Changelog
 =========
 
+1.9.14
+------
+
+- Email parsing improvements
+  - Parse out email addresses in the `Delivered-To` header
+  - Rename `reply_to` key to `reply-to`
+    - Replaces formatting provided by `mailparser` with parsed out email addresses that match the rest of the output
+
 1.9.13
 ------
 
