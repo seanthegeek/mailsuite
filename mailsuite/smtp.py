@@ -38,7 +38,7 @@ def send_email(host: str, message_from: str, message_to: List[str] = None,
         envelope_from: Overrides the SMTP envelope "mail from" header
         subject: The message subject
         message_headers: Custom message headers
-        attachments: A list of tuples, containing filenames as bytes
+        attachments: A list of tuples, containing filenames and bytes
         plain_message: The plain text message body
         html_message: The HTML message body
     """
