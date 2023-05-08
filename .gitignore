@@ -107,3 +107,6 @@ venv.bak/
 .idea/
 
 private/
+*.eml
+*.msg
+scratch.py

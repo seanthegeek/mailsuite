@@ -385,10 +385,10 @@ def parse_email(data: Union[str, bytes],
         parsed_email["body"] = "\n\n".join(parsed_email["text_html"])
         parsed_email["body_markdown"] = markdown_maker.handle(parsed_email[
                                                                   "body"])
-        body_urls = url_regex.findall(parsed_email["body_markdown"])
-        for i in range(len(body_urls)):
-            body_urls[i] = "".join(body_urls[i]).rstrip(")")
-        parsed_email["body_urls"] = body_urls
+    body_urls = url_regex.findall(parsed_email["body_markdown"])
+    for i in range(len(body_urls)):
+        body_urls[i] = "".join(body_urls[i]).rstrip(")")
+    parsed_email["body_urls"] = body_urls
     if "received" in parsed_email:
         for received in parsed_email["received"]:
             if "date_utc" in received:

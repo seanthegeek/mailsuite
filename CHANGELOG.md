@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.9.15
+------
+
+- Fix missing `body_urls` list when an email does not contain an HTML body
+
 1.9.14
 ------
 
