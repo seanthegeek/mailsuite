@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mailsuite.utils &mdash; mailsuite 1.9.14 documentation</title>
+  <title>mailsuite.utils &mdash; mailsuite 1.9.15 documentation</title>
       <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -11,9 +11,6 @@
   <![endif]-->
   
         <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-        <script src="../../_static/jquery.js"></script>
-        <script src="../../_static/underscore.js"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../../_static/doctools.js"></script>
         <script src="../../_static/sphinx_highlight.js"></script>
     <script src="../../_static/js/theme.js"></script>
@@ -26,14 +23,18 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../../index.html" class="icon icon-home"> mailsuite
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            mailsuite
           </a>
               <div class="version">
-                1.9.14
+                1.9.15
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -56,7 +57,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../../index.html" class="icon icon-home"></a></li>
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
       <li class="breadcrumb-item active">mailsuite.utils</li>
       <li class="wy-breadcrumbs-aside">
@@ -115,11 +116,11 @@
 
 
 <div class="viewcode-block" id="EmailParserError"><a class="viewcode-back" href="../../api.html#mailsuite.utils.EmailParserError">[docs]</a><span class="k">class</span> <span class="nc">EmailParserError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Raised when an email parsing error occurs&quot;&quot;&quot;</span></div>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when an email parsing error occurs&quot;&quot;&quot;</span></div>
 
 
 <div class="viewcode-block" id="decode_base64"><a class="viewcode-back" href="../../api.html#mailsuite.utils.decode_base64">[docs]</a><span class="k">def</span> <span class="nf">decode_base64</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Decodes a base64 string, with padding being optional</span>
 
 <span class="sd">    Args:</span>
@@ -159,7 +160,7 @@
 
 
 <div class="viewcode-block" id="get_filename_safe_string"><a class="viewcode-back" href="../../api.html#mailsuite.utils.get_filename_safe_string">[docs]</a><span class="k">def</span> <span class="nf">get_filename_safe_string</span><span class="p">(</span><span class="n">string</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">max_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">146</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Converts a string to a string that is safe for a filename</span>
 
 <span class="sd">    Args:</span>
@@ -186,7 +187,7 @@
 
 
 <div class="viewcode-block" id="is_outlook_msg"><a class="viewcode-back" href="../../api.html#mailsuite.utils.is_outlook_msg">[docs]</a><span class="k">def</span> <span class="nf">is_outlook_msg</span><span class="p">(</span><span class="n">content</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Checks if the given content is an Outlook msg OLE file</span>
 
 <span class="sd">    Args:</span>
@@ -199,7 +200,7 @@
 
 
 <div class="viewcode-block" id="convert_outlook_msg"><a class="viewcode-back" href="../../api.html#mailsuite.utils.convert_outlook_msg">[docs]</a><span class="k">def</span> <span class="nf">convert_outlook_msg</span><span class="p">(</span><span class="n">msg_bytes</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Uses the ``msgconvert`` Perl utility to convert an Outlook .msg file to</span>
 <span class="sd">    standard RFC 822 format</span>
 
@@ -242,7 +243,7 @@
 <div class="viewcode-block" id="parse_authentication_results"><a class="viewcode-back" href="../../api.html#mailsuite.utils.parse_authentication_results">[docs]</a><span class="k">def</span> <span class="nf">parse_authentication_results</span><span class="p">(</span><span class="n">authentication_results</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">],</span>
                                  <span class="n">from_domain</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span>
                                                                    <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]]:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Parses and normalizes an Authentication-Results header value or list of \</span>
 <span class="sd">    values</span>
 
@@ -311,7 +312,7 @@
 
 <div class="viewcode-block" id="parse_dkim_signature"><a class="viewcode-back" href="../../api.html#mailsuite.utils.parse_dkim_signature">[docs]</a><span class="k">def</span> <span class="nf">parse_dkim_signature</span><span class="p">(</span><span class="n">dkim_signature</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span>
                                                                     <span class="n">List</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Parses a DKIM-Signature header value or list of values</span>
 
 <span class="sd">    Args:</span>
@@ -357,7 +358,7 @@
 
 <div class="viewcode-block" id="parse_email"><a class="viewcode-back" href="../../api.html#mailsuite.utils.parse_email">[docs]</a><span class="k">def</span> <span class="nf">parse_email</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">],</span>
                 <span class="n">strip_attachment_payloads</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A simplified email parser</span>
 
 <span class="sd">    Args:</span>
@@ -455,10 +456,10 @@
         <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;text_html&quot;</span><span class="p">])</span>
         <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">markdown_maker</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">parsed_email</span><span class="p">[</span>
                                                                   <span class="s2">&quot;body&quot;</span><span class="p">])</span>
-        <span class="n">body_urls</span> <span class="o">=</span> <span class="n">url_regex</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body_markdown&quot;</span><span class="p">])</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">body_urls</span><span class="p">)):</span>
-            <span class="n">body_urls</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">body_urls</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">)</span>
-        <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body_urls&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">body_urls</span>
+    <span class="n">body_urls</span> <span class="o">=</span> <span class="n">url_regex</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body_markdown&quot;</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">body_urls</span><span class="p">)):</span>
+        <span class="n">body_urls</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">body_urls</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">)</span>
+    <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;body_urls&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">body_urls</span>
     <span class="k">if</span> <span class="s2">&quot;received&quot;</span> <span class="ow">in</span> <span class="n">parsed_email</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">received</span> <span class="ow">in</span> <span class="n">parsed_email</span><span class="p">[</span><span class="s2">&quot;received&quot;</span><span class="p">]:</span>
             <span class="k">if</span> <span class="s2">&quot;date_utc&quot;</span> <span class="ow">in</span> <span class="n">received</span><span class="p">:</span>
@@ -557,7 +558,7 @@
                         <span class="n">allow_multiple_authentication_results</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                         <span class="n">use_authentication_results_original</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                         <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Checks if an email is from a trusted domain based on the contents of the</span>
 <span class="sd">    ``Authentication-Results`` header</span>
 
@@ -671,7 +672,7 @@
               <span class="n">cache</span><span class="p">:</span> <span class="n">ExpiringDict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
               <span class="n">nameservers</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
               <span class="n">timeout</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Queries DNS</span>
 
 <span class="sd">    Args:</span>
@@ -720,7 +721,7 @@
                     <span class="n">cache</span><span class="p">:</span> <span class="n">ExpiringDict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                     <span class="n">nameservers</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                     <span class="n">timeout</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Resolves an IP address to a hostname using a reverse DNS query</span>
 
 <span class="sd">    Args:</span>
@@ -749,7 +750,7 @@
                  <span class="n">message_headers</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">attachments</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">plain_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">html_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Creates an RFC 822 email message and returns it as a string</span>
 
 <span class="sd">    Args:</span>
