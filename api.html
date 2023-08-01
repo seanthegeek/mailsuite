@@ -46,7 +46,18 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">API</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#mailsuite-imap">mailsuite.imap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-mailsuite.imap">mailsuite.imap</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.imap.IMAPClient"><code class="docutils literal notranslate"><span class="pre">IMAPClient</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#mailsuite.imap.IMAPClient.create_folder"><code class="docutils literal notranslate"><span class="pre">IMAPClient.create_folder()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mailsuite.imap.IMAPClient.delete_messages"><code class="docutils literal notranslate"><span class="pre">IMAPClient.delete_messages()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mailsuite.imap.IMAPClient.fetch_message"><code class="docutils literal notranslate"><span class="pre">IMAPClient.fetch_message()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mailsuite.imap.IMAPClient.move_messages"><code class="docutils literal notranslate"><span class="pre">IMAPClient.move_messages()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mailsuite.imap.IMAPClient.reset_connection"><code class="docutils literal notranslate"><span class="pre">IMAPClient.reset_connection()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#mailsuite.imap.MaxRetriesExceeded"><code class="docutils literal notranslate"><span class="pre">MaxRetriesExceeded</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#module-mailsuite.smtp">mailsuite.smtp</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#mailsuite.smtp.SMTPError"><code class="docutils literal notranslate"><span class="pre">SMTPError</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#mailsuite.smtp.send_email"><code class="docutils literal notranslate"><span class="pre">send_email()</span></code></a></li>
@@ -97,8 +108,92 @@
              
   <section class="tex2jax_ignore mathjax_ignore" id="api">
 <h1>API<a class="headerlink" href="#api" title="Permalink to this heading"></a></h1>
-<section id="mailsuite-imap">
-<h2>mailsuite.imap<a class="headerlink" href="#mailsuite-imap" title="Permalink to this heading"></a></h2>
+<section id="module-mailsuite.imap">
+<span id="mailsuite-imap"></span><h2>mailsuite.imap<a class="headerlink" href="#module-mailsuite.imap" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="mailsuite.imap.IMAPClient">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mailsuite.imap.</span></span><span class="sig-name descname"><span class="pre">IMAPClient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">port</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ssl</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ssl_context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">SSLContext</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verify</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_retries</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'INBOX'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">idle_callback</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">idle_timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient" title="Permalink to this definition"></a></dt>
+<dd><p>A simplified IMAP client</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="mailsuite.imap.IMAPClient.create_folder">
+<span class="sig-name descname"><span class="pre">create_folder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_attempt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.create_folder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.create_folder" title="Permalink to this definition"></a></dt>
+<dd><p>Creates an IMAP folder at the given path</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder_path</strong> – The path of the folder to create</p></li>
+<li><p><strong>_attempt</strong> – The attempt number</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mailsuite.imap.IMAPClient.delete_messages">
+<span class="sig-name descname"><span class="pre">delete_messages</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg_uids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_attempt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.delete_messages"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.delete_messages" title="Permalink to this definition"></a></dt>
+<dd><p>Deletes the given messages by Message UIDs</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>msg_uids</strong> – A list of UIDs of messages to delete</p></li>
+<li><p><strong>silent</strong> – Do it silently</p></li>
+<li><p><strong>_attempt</strong> – The attempt number</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mailsuite.imap.IMAPClient.fetch_message">
+<span class="sig-name descname"><span class="pre">fetch_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg_uid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parse</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_attempt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Dict</span></span></span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.fetch_message"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.fetch_message" title="Permalink to this definition"></a></dt>
+<dd><p>Fetch a message by UID, and optionally parse it</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>msg_uid</strong> – The message UID</p></li>
+<li><p><strong>parse</strong> – Return parsed results from mailparser</p></li>
+<li><p><strong>_attempt</strong> – The attempt number</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The raw mail message, including headers
+dict: A parsed email message</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mailsuite.imap.IMAPClient.move_messages">
+<span class="sig-name descname"><span class="pre">move_messages</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg_uids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_attempt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.move_messages"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.move_messages" title="Permalink to this definition"></a></dt>
+<dd><p>Move the emails with the given UIDs to the given folder</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>msg_uids</strong> – A UID or list of UIDs of messages to move</p></li>
+<li><p><strong>folder_path</strong> – The path of the destination folder</p></li>
+<li><p><strong>_attempt</strong> – The attempt number</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mailsuite.imap.IMAPClient.reset_connection">
+<span class="sig-name descname"><span class="pre">reset_connection</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/mailsuite/imap.html#IMAPClient.reset_connection"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mailsuite.imap.IMAPClient.reset_connection" title="Permalink to this definition"></a></dt>
+<dd><p>Resets the connection to the IMAP server</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="mailsuite.imap.MaxRetriesExceeded">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mailsuite.imap.</span></span><span class="sig-name descname"><span class="pre">MaxRetriesExceeded</span></span><a class="reference internal" href="_modules/mailsuite/imap.html#MaxRetriesExceeded"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mailsuite.imap.MaxRetriesExceeded" title="Permalink to this definition"></a></dt>
+<dd><p>Raised when the maximum number of retries in exceeded</p>
+</dd></dl>
+
 </section>
 <section id="module-mailsuite.smtp">
 <span id="mailsuite-smtp"></span><h2>mailsuite.smtp<a class="headerlink" href="#module-mailsuite.smtp" title="Permalink to this heading"></a></h2>
