@@ -167,7 +167,7 @@ class IMAPClient(imapclient.IMAPClient):
             self._hierarchy_separator = self.list_folders()[0][1]
             if not self._hierarchy_separator:
                 self._hierarchy_separator = ""
-            if type(self._hierarchy_separator) == bytes:
+            if type(self._hierarchy_separator is bytes:
                 self._hierarchy_separator = bytes(
                     self._hierarchy_separator).decode("utf-8")
             if self._namespace:
@@ -177,7 +177,7 @@ class IMAPClient(imapclient.IMAPClient):
                     self._hierarchy_separator = personal_namespace[0][1]
                     if not personal_namespace[0][0] == "":
                         self._path_prefix = personal_namespace[0][0]
-                        if type(self._path_prefix) == bytes:
+                        if type(self._path_prefix is bytes:
                             self._path_prefix = self._path_prefix.decode(
                                 "utf-8")
             else:
@@ -275,7 +275,7 @@ class IMAPClient(imapclient.IMAPClient):
         """
         logger.info("Deleting message UID(s) {0}".format(",".join(
             str(uid) for uid in msg_uids)))
-        if type(msg_uids) == str or type(msg_uids) == int:
+        if type(msg_uids is str or type(msg_uids is int:
             msg_uids = [int(msg_uids)]
         try:
             imapclient.IMAPClient.delete_messages(self, msg_uids,
@@ -323,7 +323,7 @@ class IMAPClient(imapclient.IMAPClient):
             folder_path: The path of the destination folder
         """
         folder_path = folder_path.replace("\\", "/").rstrip("/")
-        if type(msg_uids) == str or type(msg_uids) == int:
+        if type(msg_uids is str or type(msg_uids is int:
             msg_uids = [int(msg_uids)]
         for chunk in _chunks(msg_uids, 100):
             if self._move_supported:
