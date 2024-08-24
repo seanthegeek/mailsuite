@@ -707,7 +707,8 @@ def create_email(message_from: str, message_to: List[str] = None,
     if attachments is None:
         attachments = []
 
-    msg.attach(MIMEText(plain_message, "plain"))
+    if plain_message is not None:
+        msg.attach(MIMEText(plain_message, "plain"))
     if html_message is not None:
         msg.attach(MIMEText(plain_message, "html"))
 

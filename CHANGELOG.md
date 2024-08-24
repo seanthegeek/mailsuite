@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.9.16
+------
+
+- Accept `plain_message=None` when creating emails
+
 1.9.15
 ------
 
