@@ -1,20 +1,22 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mailsuite.utils &mdash; mailsuite 1.9.15 documentation</title>
-      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <title>mailsuite.utils &mdash; mailsuite 1.9.16 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-        <script src="../../_static/doctools.js"></script>
-        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=dc78beae"></script>
+        <script src="../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -32,7 +34,7 @@
             mailsuite
           </a>
               <div class="version">
-                1.9.15
+                1.9.16
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
@@ -117,11 +119,16 @@
 <span class="n">markdown_maker</span><span class="o">.</span><span class="n">protect_links</span> <span class="o">=</span> <span class="kc">True</span>
 
 
-<div class="viewcode-block" id="EmailParserError"><a class="viewcode-back" href="../../api.html#mailsuite.utils.EmailParserError">[docs]</a><span class="k">class</span> <span class="nc">EmailParserError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+<div class="viewcode-block" id="EmailParserError">
+<a class="viewcode-back" href="../../api.html#mailsuite.utils.EmailParserError">[docs]</a>
+<span class="k">class</span> <span class="nc">EmailParserError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when an email parsing error occurs&quot;&quot;&quot;</span></div>
 
 
-<div class="viewcode-block" id="decode_base64"><a class="viewcode-back" href="../../api.html#mailsuite.utils.decode_base64">[docs]</a><span class="k">def</span> <span class="nf">decode_base64</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+
+<div class="viewcode-block" id="decode_base64">
+<a class="viewcode-back" href="../../api.html#mailsuite.utils.decode_base64">[docs]</a>
+<span class="k">def</span> <span class="nf">decode_base64</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Decodes a base64 string, with padding being optional</span>
 
@@ -136,6 +143,7 @@
     <span class="k">if</span> <span class="n">missing_padding</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">data</span> <span class="o">+=</span> <span class="sa">b</span><span class="s1">&#39;=&#39;</span> <span class="o">*</span> <span class="p">(</span><span class="mi">4</span> <span class="o">-</span> <span class="n">missing_padding</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
 
 
 <span class="k">def</span> <span class="nf">parse_email_address</span><span class="p">(</span><span class="n">original_address</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
@@ -161,7 +169,9 @@
                        <span class="p">)</span>
 
 
-<div class="viewcode-block" id="get_filename_safe_string"><a class="viewcode-back" href="../../api.html#mailsuite.utils.get_filename_safe_string">[docs]</a><span class="k">def</span> <span class="nf">get_filename_safe_string</span><span class="p">(</span><span class="n">string</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">max_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">146</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="get_filename_safe_string">
+<a class="viewcode-back" href="../../api.html#mailsuite.utils.get_filename_safe_string">[docs]</a>
+<span class="k">def</span> <span class="nf">get_filename_safe_string</span><span class="p">(</span><span class="n">string</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">max_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">146</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Converts a string to a string that is safe for a filename</span>
 
@@ -188,7 +198,10 @@
     <span class="k">return</span> <span class="n">string</span></div>
 
 
-<div class="viewcode-block" id="is_outlook_msg"><a class="viewcode-back" href="../../api.html#mailsuite.utils.is_outlook_msg">[docs]</a><span class="k">def</span> <span class="nf">is_outlook_msg</span><span class="p">(</span><span class="n">content</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+
+<div class="viewcode-block" id="is_outlook_msg">
+<a class="viewcode-back" href="../../api.html#mailsuite.utils.is_outlook_msg">[docs]</a>
+<span class="k">def</span> <span class="nf">is_outlook_msg</span><span class="p">(</span><span class="n">content</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Checks if the given content is an Outlook msg OLE file</span>
 
@@ -201,7 +214,10 @@
         <span class="sa">b</span><span class="s2">&quot;</span><span class="se">\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="convert_outlook_msg"><a class="viewcode-back" href="../../api.html#mailsuite.utils.convert_outlook_msg">[docs]</a><span class="k">def</span> <span class="nf">convert_outlook_msg</span><span class="p">(</span><span class="n">msg_bytes</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+
+<div class="viewcode-block" id="convert_outlook_msg">
+<a class="viewcode-back" href="../../api.html#mailsuite.utils.convert_outlook_msg">[docs]</a>
+<span class="k">def</span> <span class="nf">convert_outlook_msg</span><span class="p">(</span><span class="n">msg_bytes</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Uses the ``msgconvert`` Perl utility to convert an Outlook .msg file to</span>
 <span class="sd">    standard RFC 822 format</span>
@@ -242,7 +258,10 @@
     <span class="k">return</span> <span class="n">rfc822</span></div>
 
 
-<div class="viewcode-block" id="parse_authentication_results"><a class="viewcode-back" href="../../api.html#mailsuite.utils.parse_authentication_results">[docs]</a><span class="k">def</span> <span class="nf">parse_authentication_results</span><span class="p">(</span><span class="n">authentication_results</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">],</span>
+
+<div class="viewcode-block" id="parse_authentication_results">
+<a class="viewcode-back" href="../../api.html#mailsuite.utils.parse_authentication_results">[docs]</a>
+<span class="k">def</span> <span class="nf">parse_authentication_results</span><span class="p">(</span><span class="n">authentication_results</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">],</span>
                                  <span class="n">from_domain</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span>
                                                                    <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -312,7 +331,10 @@
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Must be a string or list&quot;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="parse_dkim_signature"><a class="viewcode-back" href="../../api.html#mailsuite.utils.parse_dkim_signature">[docs]</a><span class="k">def</span> <span class="nf">parse_dkim_signature</span><span class="p">(</span><span class="n">dkim_signature</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span>
+
+<div class="viewcode-block" id="parse_dkim_signature">
+<a class="viewcode-back" href="../../api.html#mailsuite.utils.parse_dkim_signature">[docs]</a>
+<span class="k">def</span> <span class="nf">parse_dkim_signature</span><span class="p">(</span><span class="n">dkim_signature</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span>
                                                                     <span class="n">List</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Parses a DKIM-Signature header value or list of values</span>
@@ -358,7 +380,10 @@
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Must be a string or list&quot;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="parse_email"><a class="viewcode-back" href="../../api.html#mailsuite.utils.parse_email">[docs]</a><span class="k">def</span> <span class="nf">parse_email</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">],</span>
+
+<div class="viewcode-block" id="parse_email">
+<a class="viewcode-back" href="../../api.html#mailsuite.utils.parse_email">[docs]</a>
+<span class="k">def</span> <span class="nf">parse_email</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">],</span>
                 <span class="n">strip_attachment_payloads</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A simplified email parser</span>
@@ -554,7 +579,10 @@
     <span class="k">return</span> <span class="n">parsed_email</span></div>
 
 
-<div class="viewcode-block" id="from_trusted_domain"><a class="viewcode-back" href="../../api.html#mailsuite.utils.from_trusted_domain">[docs]</a><span class="k">def</span> <span class="nf">from_trusted_domain</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">IOBase</span><span class="p">,</span> <span class="n">Dict</span><span class="p">],</span>
+
+<div class="viewcode-block" id="from_trusted_domain">
+<a class="viewcode-back" href="../../api.html#mailsuite.utils.from_trusted_domain">[docs]</a>
+<span class="k">def</span> <span class="nf">from_trusted_domain</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">IOBase</span><span class="p">,</span> <span class="n">Dict</span><span class="p">],</span>
                         <span class="n">trusted_domains</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">],</span>
                         <span class="n">include_sld</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
                         <span class="n">allow_multiple_authentication_results</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -669,7 +697,10 @@
     <span class="k">return</span> <span class="kc">False</span></div>
 
 
-<div class="viewcode-block" id="query_dns"><a class="viewcode-back" href="../../api.html#mailsuite.utils.query_dns">[docs]</a><span class="k">def</span> <span class="nf">query_dns</span><span class="p">(</span><span class="n">domain</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+
+<div class="viewcode-block" id="query_dns">
+<a class="viewcode-back" href="../../api.html#mailsuite.utils.query_dns">[docs]</a>
+<span class="k">def</span> <span class="nf">query_dns</span><span class="p">(</span><span class="n">domain</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
               <span class="n">record_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
               <span class="n">cache</span><span class="p">:</span> <span class="n">ExpiringDict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
               <span class="n">nameservers</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -719,7 +750,10 @@
     <span class="k">return</span> <span class="n">records</span></div>
 
 
-<div class="viewcode-block" id="get_reverse_dns"><a class="viewcode-back" href="../../api.html#mailsuite.utils.get_reverse_dns">[docs]</a><span class="k">def</span> <span class="nf">get_reverse_dns</span><span class="p">(</span><span class="n">ip_address</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+
+<div class="viewcode-block" id="get_reverse_dns">
+<a class="viewcode-back" href="../../api.html#mailsuite.utils.get_reverse_dns">[docs]</a>
+<span class="k">def</span> <span class="nf">get_reverse_dns</span><span class="p">(</span><span class="n">ip_address</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                     <span class="n">cache</span><span class="p">:</span> <span class="n">ExpiringDict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                     <span class="n">nameservers</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                     <span class="n">timeout</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
@@ -747,7 +781,10 @@
     <span class="k">return</span> <span class="n">hostname</span></div>
 
 
-<div class="viewcode-block" id="create_email"><a class="viewcode-back" href="../../api.html#mailsuite.utils.create_email">[docs]</a><span class="k">def</span> <span class="nf">create_email</span><span class="p">(</span><span class="n">message_from</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">message_to</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+
+<div class="viewcode-block" id="create_email">
+<a class="viewcode-back" href="../../api.html#mailsuite.utils.create_email">[docs]</a>
+<span class="k">def</span> <span class="nf">create_email</span><span class="p">(</span><span class="n">message_from</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">message_to</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">message_cc</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">subject</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">message_headers</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">attachments</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -780,7 +817,8 @@
     <span class="k">if</span> <span class="n">attachments</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">attachments</span> <span class="o">=</span> <span class="p">[]</span>
 
-    <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="n">MIMEText</span><span class="p">(</span><span class="n">plain_message</span><span class="p">,</span> <span class="s2">&quot;plain&quot;</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">plain_message</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="n">MIMEText</span><span class="p">(</span><span class="n">plain_message</span><span class="p">,</span> <span class="s2">&quot;plain&quot;</span><span class="p">))</span>
     <span class="k">if</span> <span class="n">html_message</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="n">MIMEText</span><span class="p">(</span><span class="n">plain_message</span><span class="p">,</span> <span class="s2">&quot;html&quot;</span><span class="p">))</span>
 
@@ -793,6 +831,7 @@
         <span class="n">msg</span><span class="o">.</span><span class="n">attach</span><span class="p">(</span><span class="n">part</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">msg</span><span class="o">.</span><span class="n">as_string</span><span class="p">()</span></div>
+
 </pre></div>
 
            </div>
