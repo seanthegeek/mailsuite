@@ -27,7 +27,7 @@ def _chunks(list_like_object, n: int):
 class IMAPClient(imapclient.IMAPClient):
     """A simplified IMAP client"""
 
-    def _normalize_folder(self, folder_name: str) -> str:
+    def _normalise_folder(self, folder_name: str) -> str:
         """
         Returns an appropriate path based on the namespace (if any) and
         hierarchy separator
@@ -39,7 +39,7 @@ class IMAPClient(imapclient.IMAPClient):
             A corrected path
         """
         if folder_name in ["", "*", "INBOX"]:
-            return imapclient.IMAPClient._normalize_folder(self, folder_name)
+            return imapclient.IMAPClient._normalise_folder(self, folder_name)
         folder_name = folder_name.rstrip("/")
         folder_name = folder_name.replace(self._path_prefix, "")
         if not self._hierarchy_separator == "/":
@@ -47,7 +47,7 @@ class IMAPClient(imapclient.IMAPClient):
             folder_name = folder_name.replace("/", self._hierarchy_separator)
         folder_name = "{0}{1}".format(self._path_prefix, folder_name)
 
-        return imapclient.IMAPClient._normalize_folder(self, folder_name)
+        return imapclient.IMAPClient._normalise_folder(self, folder_name)
 
     def _start_idle(self, idle_callback, idle_timeout: int = 30):
         """
