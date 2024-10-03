@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.9.17
+------
+
+- Fix IMAP namespace handling (PR #11 closes issue #10)
+
 1.9.16
 ------
 
