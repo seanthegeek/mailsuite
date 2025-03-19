@@ -347,6 +347,8 @@ def parse_email(data: Union[str, bytes],
                 break
         if "domain" in parse_email["from"]:
             from_domain = parsed_email["from"]["domain"]
+        else:
+            logger.warning("Message from header could not be parsed")
     if "dkim-signature" in parsed_email:
         try:
             dkim_list = parse_dkim_signature(parsed_email["dkim-signature"])
