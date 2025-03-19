@@ -345,7 +345,8 @@ def parse_email(data: Union[str, bytes],
             if "@" in entry[1]:
                 parsed_email["from"] = parse_email_address(entry)
                 break
-        from_domain = parsed_email["from"]["domain"]
+        if "domain" in parse_email["from"]:
+            from_domain = parsed_email["from"]["domain"]
     if "dkim-signature" in parsed_email:
         try:
             dkim_list = parse_dkim_signature(parsed_email["dkim-signature"])
