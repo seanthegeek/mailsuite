@@ -4,6 +4,12 @@ Changelog
 1.9.18
 ------
 
+- Upgrade `mail-parser` requirement to `>=4.1.2`
+- Gracefully handle an invalid email from address
+
+1.9.18
+------
+
 - Pin `mail-parser` version at `3.15.0` due to a parsing regression in `4.0.0`
 
 1.9.17
