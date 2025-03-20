@@ -345,7 +345,7 @@ def parse_email(data: Union[str, bytes],
             if "@" in entry[1]:
                 parsed_email["from"] = parse_email_address(entry)
                 break
-        if "domain" in parse_email["from"]:
+        if "domain" in parsed_email["from"]:
             from_domain = parsed_email["from"]["domain"]
         else:
             logger.warning("Message from header could not be parsed")

@@ -1,7 +1,12 @@
 Changelog
 =========
 
-1.9.18
+1.9.20
+------
+
+- Fix typo that caused email  parsing to fail
+
+1.9.19
 ------
 
 - Upgrade `mail-parser` requirement to `>=4.1.2`
