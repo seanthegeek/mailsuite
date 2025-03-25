@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.10.0
+------
+
+- Handle address parsing instead of relying on `mail-parser` for that
+
 1.9.20
 ------
 

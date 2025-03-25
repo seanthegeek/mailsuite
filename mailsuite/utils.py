@@ -34,6 +34,7 @@ mailparser_logger.setLevel(logging.CRITICAL)
 url_regex = re.compile(r"([A-Za-z]+://)([-\w]+(?:\.\w[-\w]*)+)(:\d+)?(/[^.!,?"
                        r"\"<>\[\]{}\s\x7F-\xFF]*(?:[.!,?]+[^.!,?"
                        r"\"<>\[\]{}\s\x7F-\xFF]+)*)?")
+header_regex = re.compile(r"([a-zA-Z-]+): (.+)")
 
 null_file = open(os.devnull, "w")
 
@@ -42,6 +43,10 @@ markdown_maker.unicode_snob = True
 markdown_maker.decode_errors = "replace"
 markdown_maker.body_width = 0
 markdown_maker.protect_links = True
+authentication_results_headers = ["authentication-results",
+                                  "authentication-results-original"]
+address_headers = ["from", "sender", "delivered-to"]
+addresses_headers = ["reply-to", "to", "cc", "bcc"]
 
 
 class EmailParserError(RuntimeError):
@@ -65,12 +70,21 @@ def decode_base64(data: str) -> bytes:
     return base64.b64decode(data)
 
 
-def parse_email_address(original_address: str) -> dict:
-    if original_address[0] == "":
-        display_name = None
-    else:
-        display_name = original_address[0]
-    address = original_address[1]
+def parse_email_address(email_address: Union[tuple, str]) -> dict:
+    compliant = True
+    display_name = None
+    if isinstance(email_address, str):
+        parsed_address = email.utils.parseaddr(email_address)
+        if parsed_address == ('',''):
+            compliant = False
+            parsed_address = email_address.split("<")
+            parsed_address = (parsed_address[0].strip().strip('"'),
+                              parsed_address[-1].strip(">"))
+    elif isinstance(email_address, tuple):
+       parsed_address = email_address
+    if parsed_address[0] != "":
+        display_name = parsed_address[0]
+    address = parsed_address[1]
     address_parts = address.split("@")
     local = None
     domain = None
@@ -84,7 +98,8 @@ def parse_email_address(original_address: str) -> dict:
                         ("address", address),
                         ("local", local),
                         ("domain", domain),
-                        ("sld", sld)]
+                        ("sld", sld),
+                        ("compliant", compliant)]
                        )
 
 
@@ -329,6 +344,8 @@ def parse_email(data: Union[str, bytes],
     headers_str = re.split(r"(\n|\r\n){2,}", data)[0]
     parsed_email["raw_headers"] = headers_str
     headers_str = re.sub(r"(\n|\r\n)\s+", " ", headers_str)
+    if "to_domains" in parsed_email and "" in parsed_email["to_domains"]:
+        parsed_email["to_domains"].remove("")
     if "subject" in parsed_email:
         headers_str = re.sub(r"Subject: .+",
                              f"Subject: {parsed_email['subject']}",
@@ -339,42 +356,43 @@ def parse_email(data: Union[str, bytes],
                              f"Thread-Topic: {parsed_email['thread-topic']}",
                              headers_str)
     parsed_email["headers_string"] = headers_str
+    _headers = {}
+    _header_matches = header_regex.findall(headers_str)
+    for header in _header_matches:
+        _headers[header[0].lower()] = header[1]
+    for header in address_headers:
+        if header not in _headers:
+            parsed_email[header] = None
+        else:
+            parsed_email[header] = parse_email_address(_headers[header])
+    for header in addresses_headers:
+        if header not in _headers:
+            parsed_email[header] = []
+        else:
+            parsed_email[header] = list(map(lambda x: parse_email_address(x),
+                                  email.utils.getaddresses([_headers[header]])))
     from_domain = None
-    if parsed_email["from"] is not None:
-        for entry in parsed_email["from"]:
-            if "@" in entry[1]:
-                parsed_email["from"] = parse_email_address(entry)
-                break
+    if "from" in parsed_email:
         if "domain" in parsed_email["from"]:
             from_domain = parsed_email["from"]["domain"]
         else:
             logger.warning("Message from header could not be parsed")
     if "dkim-signature" in parsed_email:
-        try:
-            dkim_list = parse_dkim_signature(parsed_email["dkim-signature"])
-            parsed_email["dkim-signature"] = dkim_list
-        except Exception as e:
-            raise ValueError(f"Unable to parse DKIM-Signature header: {e}")
-    if "authentication-results" in parsed_email:
-        authentication_results = parsed_email["authentication-results"]
-        try:
-            authentication_results = parse_authentication_results(
-                authentication_results, from_domain=from_domain)
-            parsed_email["authentication-results"] = authentication_results
-        except Exception as e:
-            logger.warning(
-                f"Failed to parse authentication header: {e}")
-    if "authentication-results-original" in parsed_email:
-        authentication_results = parsed_email[
-            "authentication-results-original"]
-        try:
-            authentication_results = parse_authentication_results(
-                authentication_results, from_domain=from_domain)
-            parsed_email[
-                "authentication-results-original"] = authentication_results
-        except Exception as e:
-            logger.warning(
-                f"Failed to parse authentication header: {e}")
+        if isinstance(parsed_email["dkim-signature"], str):
+            try:
+                dkim_list = parse_dkim_signature(parsed_email["dkim-signature"])
+                parsed_email["dkim-signature"] = dkim_list
+            except Exception as e:
+                raise ValueError(f"Unable to parse DKIM-Signature header: {e}")
+    for header in authentication_results_headers:
+        if header in parsed_email and isinstance(parsed_email[header], str):
+            authentication_results = parsed_email[header]
+            try:
+                authentication_results = parse_authentication_results(
+                    authentication_results, from_domain=from_domain)
+                parsed_email[header] = authentication_results
+            except Exception as e:
+                logger.warning(f"Failed to parse {header} header: {e}")
     if "body" not in parsed_email or parsed_email["body"] is None:
         parsed_email["body"] = ""
         parsed_email["body_markdown"] = ""
@@ -402,9 +420,6 @@ def parse_email(data: Union[str, bytes],
                                                                         " ")
 
     if "from" not in parsed_email:
-        if "From" in parsed_email["headers"]:
-            parsed_email["from"] = parsed_email["Headers"]["From"]
-        else:
             parsed_email["from"] = None
 
     if "date" in parsed_email:
@@ -421,30 +436,6 @@ def parse_email(data: Union[str, bytes],
                                             parsed_email["reply_to"]))
     else:
         parsed_email["reply-to"] = []
-
-    if "to" in parsed_email:
-        parsed_email["to"] = list(map(lambda x: parse_email_address(x),
-                                      parsed_email["to"]))
-    else:
-        parsed_email["to"] = []
-
-    if "cc" in parsed_email:
-        parsed_email["cc"] = list(map(lambda x: parse_email_address(x),
-                                      parsed_email["cc"]))
-    else:
-        parsed_email["cc"] = []
-
-    if "bcc" in parsed_email:
-        parsed_email["bcc"] = list(map(lambda x: parse_email_address(x),
-                                       parsed_email["bcc"]))
-    else:
-        parsed_email["bcc"] = []
-
-    if "delivered_to" in parsed_email:
-        parsed_email["delivered-to"] = list(
-            map(lambda x: parse_email_address(x),
-                parsed_email["delivered-to"])
-        )
 
     if "attachments" not in parsed_email:
         parsed_email["attachments"] = []
