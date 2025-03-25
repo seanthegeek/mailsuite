@@ -6,7 +6,7 @@ publicsuffix2>=2.20190812
 expiringdict==1.2.2
 nose
 pygments
-flake8
+ruff
 doc8
 collective.checkdocs
 jinja2

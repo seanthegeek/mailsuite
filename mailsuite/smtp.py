@@ -13,14 +13,24 @@ class SMTPError(RuntimeError):
     """Raised when a SMTP error occurs"""
 
 
-def send_email(host: str, message_from: str, message_to: List[str] = None,
-               message_cc: List = None, message_bcc: List = None,
-               port: int = 0, require_encryption: bool = False,
-               verify: bool = True, username: str = None, password: str = None,
-               envelope_from: str = None, subject: str = None,
-               message_headers: Dict = None,
-               attachments: Tuple[str, bytes] = None,
-               plain_message: str = None, html_message: str = None):
+def send_email(
+    host: str,
+    message_from: str,
+    message_to: List[str] = None,
+    message_cc: List = None,
+    message_bcc: List = None,
+    port: int = 0,
+    require_encryption: bool = False,
+    verify: bool = True,
+    username: str = None,
+    password: str = None,
+    envelope_from: str = None,
+    subject: str = None,
+    message_headers: Dict = None,
+    attachments: Tuple[str, bytes] = None,
+    plain_message: str = None,
+    html_message: str = None,
+):
     """
     Send an email using a SMTP relay
 
@@ -42,11 +52,16 @@ def send_email(host: str, message_from: str, message_to: List[str] = None,
         plain_message: The plain text message body
         html_message: The HTML message body
     """
-    msg = create_email(message_from=message_from, message_to=message_to,
-                       message_cc=message_cc, subject=subject,
-                       message_headers=message_headers,
-                       attachments=attachments,
-                       plain_message=plain_message, html_message=html_message)
+    msg = create_email(
+        message_from=message_from,
+        message_to=message_to,
+        message_cc=message_cc,
+        subject=subject,
+        message_headers=message_headers,
+        attachments=attachments,
+        plain_message=plain_message,
+        html_message=html_message,
+    )
 
     try:
         ssl_context = create_default_context()
@@ -65,8 +80,9 @@ def send_email(host: str, message_from: str, message_to: List[str] = None,
                 server.starttls(context=ssl_context)
                 server.ehlo()
             else:
-                logger.warning("SMTP server does not support STARTTLS. "
-                               "Proceeding in plain text!")
+                logger.warning(
+                    "SMTP server does not support STARTTLS. Proceeding in plain text!"
+                )
         if username and password:
             server.login(username, password)
         if envelope_from is None:

@@ -2,8 +2,13 @@ import logging
 from typing import Union, List, Dict
 import time
 import socket
-from ssl import (CERT_NONE, SSLError, CertificateError, SSLContext,
-                 create_default_context)
+from ssl import (
+    CERT_NONE,
+    SSLError,
+    CertificateError,
+    SSLContext,
+    create_default_context,
+)
 
 import imapclient
 import imapclient.exceptions
@@ -21,7 +26,7 @@ class MaxRetriesExceeded(RuntimeError):
 def _chunks(list_like_object, n: int):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(list_like_object), n):
-        yield list_like_object[i:i + n]
+        yield list_like_object[i : i + n]
 
 
 class IMAPClient(imapclient.IMAPClient):
@@ -59,7 +64,8 @@ class IMAPClient(imapclient.IMAPClient):
         """
         if self._idle_supported is False:
             raise imapclient.exceptions.IMAPClientError(
-                "IDLE is not supported by the server")
+                "IDLE is not supported by the server"
+            )
         idle_callback(self)
         idle_start_time = time.monotonic()
         self.idle()
@@ -81,14 +87,13 @@ class IMAPClient(imapclient.IMAPClient):
                         self.idle()
                     else:
                         for r in responses:
-                            if r[0] != 0 and r[1] == b'RECENT':
+                            if r[0] != 0 and r[1] == b"RECENT":
                                 self.idle_done()
                                 idle_callback(self)
                                 idle_start_time = time.monotonic()
                                 self.idle()
                                 break
-            except (KeyError, socket.error, BrokenPipeError,
-                    ConnectionResetError):
+            except (KeyError, socket.error, BrokenPipeError, ConnectionResetError):
                 logger.debug("IMAP error: Connection reset")
                 self.reset_connection()
             except imapclient.exceptions.IMAPClientError as error:
@@ -103,12 +108,21 @@ class IMAPClient(imapclient.IMAPClient):
         except BrokenPipeError:
             pass
 
-    def __init__(self, host: str, username: str, password: str,
-                 port: int = None, ssl: bool = True,
-                 ssl_context: SSLContext = None, verify: bool = True,
-                 timeout: int = 30, max_retries: int = 4,
-                 initial_folder: str = "INBOX", idle_callback=None,
-                 idle_timeout: int = 30):
+    def __init__(
+        self,
+        host: str,
+        username: str,
+        password: str,
+        port: int = None,
+        ssl: bool = True,
+        ssl_context: SSLContext = None,
+        verify: bool = True,
+        timeout: int = 30,
+        max_retries: int = 4,
+        initial_folder: str = "INBOX",
+        idle_callback=None,
+        idle_timeout: int = 30,
+    ):
         """
         Connects to an IMAP server
 
@@ -133,14 +147,20 @@ class IMAPClient(imapclient.IMAPClient):
         if verify is False:
             ssl_context.check_hostname = False
             ssl_context.verify_mode = CERT_NONE
-        self._init_args = dict(host=host, username=username,
-                               password=password, port=port, ssl=ssl,
-                               ssl_context=ssl_context, verify=verify,
-                               timeout=timeout,
-                               max_retries=max_retries,
-                               initial_folder=initial_folder,
-                               idle_callback=idle_callback,
-                               idle_timeout=idle_timeout)
+        self._init_args = dict(
+            host=host,
+            username=username,
+            password=password,
+            port=port,
+            ssl=ssl,
+            ssl_context=ssl_context,
+            verify=verify,
+            timeout=timeout,
+            max_retries=max_retries,
+            initial_folder=initial_folder,
+            idle_callback=idle_callback,
+            idle_timeout=idle_timeout,
+        )
         self.max_retries = max_retries
         self.idle_callback = idle_callback
         self.idle_timeout = idle_timeout
@@ -148,13 +168,15 @@ class IMAPClient(imapclient.IMAPClient):
         self._hierarchy_separator = ""
         if not ssl:
             logger.info("Connecting to IMAP over plain text")
-        imapclient.IMAPClient.__init__(self,
-                                       host=host,
-                                       port=port,
-                                       ssl=ssl,
-                                       ssl_context=ssl_context,
-                                       use_uid=True,
-                                       timeout=timeout)
+        imapclient.IMAPClient.__init__(
+            self,
+            host=host,
+            port=port,
+            ssl=ssl,
+            ssl_context=ssl_context,
+            use_uid=True,
+            timeout=timeout,
+        )
         try:
             if not ssl and b"STARTTLS" in self.capabilities():
                 logger.info("IMAP server supports STARTTLS ... activating now")
@@ -168,8 +190,9 @@ class IMAPClient(imapclient.IMAPClient):
             if not self._hierarchy_separator:
                 self._hierarchy_separator = ""
             if type(self._hierarchy_separator) is bytes:
-                self._hierarchy_separator = bytes(
-                    self._hierarchy_separator).decode("utf-8")
+                self._hierarchy_separator = bytes(self._hierarchy_separator).decode(
+                    "utf-8"
+                )
             if self._namespace:
                 self._namespace = self.namespace()
                 personal_namespace = self._namespace.personal
@@ -178,16 +201,17 @@ class IMAPClient(imapclient.IMAPClient):
                     if not personal_namespace[0][0] == "":
                         self._path_prefix = personal_namespace[0][0]
                         if type(self._path_prefix) is bytes:
-                            self._path_prefix = self._path_prefix.decode(
-                                "utf-8")
+                            self._path_prefix = self._path_prefix.decode("utf-8")
             else:
                 self._namespace = None
             self.select_folder(initial_folder)
-        except (ConnectionResetError, socket.error,
-                TimeoutError,
-                imapclient.exceptions.IMAPClientError) as error:
-            error = error.__str__().lstrip("b'").rstrip("'").rstrip(
-                ".")
+        except (
+            ConnectionResetError,
+            socket.error,
+            TimeoutError,
+            imapclient.exceptions.IMAPClientError,
+        ) as error:
+            error = error.__str__().lstrip("b'").rstrip("'").rstrip(".")
             raise imapclient.exceptions.IMAPClientError(error)
         except ConnectionAbortedError:
             raise imapclient.exceptions.IMAPClientError("Connection aborted")
@@ -195,10 +219,12 @@ class IMAPClient(imapclient.IMAPClient):
             raise imapclient.exceptions.IMAPClientError("Connection timed out")
         except SSLError as error:
             raise imapclient.exceptions.IMAPClientError(
-                "SSL error: {0}".format(error.__str__()))
+                "SSL error: {0}".format(error.__str__())
+            )
         except CertificateError as error:
             raise imapclient.exceptions.IMAPClientError(
-                "Certificate error: {0}".format(error.__str__()))
+                "Certificate error: {0}".format(error.__str__())
+            )
         except BrokenPipeError:
             raise imapclient.exceptions.IMAPClientError("Broken pipe")
 
@@ -211,24 +237,25 @@ class IMAPClient(imapclient.IMAPClient):
         try:
             self.shutdown()
         except Exception as e:
-            logger.info(
-                "Failed to log out: {0}".format(e.__str__()))
-        self.__init__(self._init_args["host"],
-                      self._init_args["username"],
-                      self._init_args["password"],
-                      port=self._init_args["port"],
-                      ssl=self._init_args["ssl"],
-                      ssl_context=self._init_args["ssl_context"],
-                      verify=self._init_args["verify"],
-                      timeout=self._init_args["timeout"],
-                      max_retries=self._init_args["max_retries"],
-                      initial_folder=self._init_args["initial_folder"],
-                      idle_callback=self._init_args["idle_callback"],
-                      idle_timeout=self._init_args["idle_timeout"],
-                      )
+            logger.info("Failed to log out: {0}".format(e.__str__()))
+        self.__init__(
+            self._init_args["host"],
+            self._init_args["username"],
+            self._init_args["password"],
+            port=self._init_args["port"],
+            ssl=self._init_args["ssl"],
+            ssl_context=self._init_args["ssl_context"],
+            verify=self._init_args["verify"],
+            timeout=self._init_args["timeout"],
+            max_retries=self._init_args["max_retries"],
+            initial_folder=self._init_args["initial_folder"],
+            idle_callback=self._init_args["idle_callback"],
+            idle_timeout=self._init_args["idle_timeout"],
+        )
 
-    def fetch_message(self, msg_uid: int, parse: bool = False,
-                      _attempt: int = 1) -> Union[str, Dict]:
+    def fetch_message(
+        self, msg_uid: int, parse: bool = False, _attempt: int = 1
+    ) -> Union[str, Dict]:
         """
         Fetch a message by UID, and optionally parse it
 
@@ -247,13 +274,15 @@ class IMAPClient(imapclient.IMAPClient):
             _attempt = _attempt + 1
             if _attempt > self.max_retries:
                 raise MaxRetriesExceeded("Maximum retries exceeded")
-            logger.info("Attempt {0} of {1} timed out. Retrying...".format(
-                _attempt,
-                self.max_retries))
+            logger.info(
+                "Attempt {0} of {1} timed out. Retrying...".format(
+                    _attempt, self.max_retries
+                )
+            )
             self.reset_connection()
             return self.fetch_message(msg_uid, parse=parse, _attempt=_attempt)
-        msg_keys = [b'RFC822', b'BODY[NULL]', b'BODY[]']
-        msg_key = ''
+        msg_keys = [b"RFC822", b"BODY[NULL]", b"BODY[]"]
+        msg_key = ""
         for key in msg_keys:
             if key in raw_msg.keys():
                 msg_key = key
@@ -263,8 +292,12 @@ class IMAPClient(imapclient.IMAPClient):
             message = mailsuite.utils.parse_email(message)
         return message
 
-    def delete_messages(self, msg_uids: Union[List[int], List[str], str, int],
-                        silent: bool = True, _attempt: int = 1):
+    def delete_messages(
+        self,
+        msg_uids: Union[List[int], List[str], str, int],
+        silent: bool = True,
+        _attempt: int = 1,
+    ):
         """
         Deletes the given messages by Message UIDs
 
@@ -273,21 +306,23 @@ class IMAPClient(imapclient.IMAPClient):
             silent: Do it silently
             _attempt: The attempt number
         """
-        logger.info("Deleting message UID(s) {0}".format(",".join(
-            str(uid) for uid in msg_uids)))
+        logger.info(
+            "Deleting message UID(s) {0}".format(",".join(str(uid) for uid in msg_uids))
+        )
         if type(msg_uids) is str or type(msg_uids) is int:
             msg_uids = [int(msg_uids)]
         try:
-            imapclient.IMAPClient.delete_messages(self, msg_uids,
-                                                  silent=silent)
+            imapclient.IMAPClient.delete_messages(self, msg_uids, silent=silent)
             imapclient.IMAPClient.expunge(self, msg_uids)
         except (socket.timeout, imaplib.IMAP4.abort):
             _attempt = _attempt + 1
             if _attempt > self.max_retries:
                 raise MaxRetriesExceeded("Maximum retries exceeded")
-            logger.info("Attempt {0} of {1} timed out. Retrying...".format(
-                _attempt,
-                self.max_retries))
+            logger.info(
+                "Attempt {0} of {1} timed out. Retrying...".format(
+                    _attempt, self.max_retries
+                )
+            )
             self.reset_connection()
             self.delete_messages(msg_uids, silent=silent, _attempt=_attempt)
 
@@ -307,14 +342,15 @@ class IMAPClient(imapclient.IMAPClient):
                 _attempt = _attempt + 1
                 if _attempt > self.max_retries:
                     raise MaxRetriesExceeded("Maximum retries exceeded")
-                logger.info("Attempt {0} of {1} timed out. Retrying...".format(
-                    _attempt,
-                    self.max_retries))
+                logger.info(
+                    "Attempt {0} of {1} timed out. Retrying...".format(
+                        _attempt, self.max_retries
+                    )
+                )
                 self.reset_connection()
                 self.create_folder(folder_path, _attempt=_attempt)
 
-    def _move_messages(self, msg_uids: Union[int, List[int]],
-                       folder_path: str):
+    def _move_messages(self, msg_uids: Union[int, List[int]], folder_path: str):
         """
         Move the emails with the given UIDs to the given folder
 
@@ -327,32 +363,37 @@ class IMAPClient(imapclient.IMAPClient):
             msg_uids = [int(msg_uids)]
         for chunk in _chunks(msg_uids, 100):
             if self._move_supported:
-                logger.info("Moving message UID(s) {0} to {1}".format(
-                    ",".join(str(uid) for uid in chunk), folder_path
-                ))
+                logger.info(
+                    "Moving message UID(s) {0} to {1}".format(
+                        ",".join(str(uid) for uid in chunk), folder_path
+                    )
+                )
                 try:
                     self.move(chunk, folder_path)
                 except imapclient.exceptions.IMAPClientError as e:
-                    e = e.__str__().lstrip("b'").rstrip(
-                        "'").rstrip(".")
+                    e = e.__str__().lstrip("b'").rstrip("'").rstrip(".")
                     message = "Error moving message UIDs"
-                    e = "{0} {1}: " "{2}".format(message, msg_uids, e)
+                    e = "{0} {1}: {2}".format(message, msg_uids, e)
                     logger.info("IMAP error: {0}".format(e))
                     logger.info(
                         "Copying message UID(s) {0} to {1} by copy".format(
                             ",".join(str(uid) for uid in chunk), folder_path
-                        ))
+                        )
+                    )
                     self.copy(msg_uids, folder_path)
                     self.delete_messages(msg_uids)
             else:
-                logger.info("Moving message UID(s) {0} to {1} by copy".format(
-                    ",".join(str(uid) for uid in chunk), folder_path
-                ))
+                logger.info(
+                    "Moving message UID(s) {0} to {1} by copy".format(
+                        ",".join(str(uid) for uid in chunk), folder_path
+                    )
+                )
                 self.copy(msg_uids, folder_path)
                 self.delete_messages(msg_uids)
 
-    def move_messages(self, msg_uids: Union[int, List[int]], folder_path: str,
-                      _attempt: int = 1):
+    def move_messages(
+        self, msg_uids: Union[int, List[int]], folder_path: str, _attempt: int = 1
+    ):
         """
         Move the emails with the given UIDs to the given folder
 
@@ -367,8 +408,10 @@ class IMAPClient(imapclient.IMAPClient):
             _attempt = _attempt + 1
             if _attempt > self.max_retries:
                 raise MaxRetriesExceeded("Maximum retries exceeded")
-            logger.info("Attempt {0} of {1} timed out. Retrying...".format(
-                _attempt,
-                self.max_retries))
+            logger.info(
+                "Attempt {0} of {1} timed out. Retrying...".format(
+                    _attempt, self.max_retries
+                )
+            )
             self.reset_connection()
             self._move_messages(msg_uids, folder_path)
