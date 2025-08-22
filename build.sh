@@ -11,7 +11,9 @@ pip install -U -r requirements.txt
 cd docs
 make html
 touch _build/html/.nojekyll
-cp -rf _build/html/* ../../mailsuite-docs/
+if [  -d "./../mailsuite-docs" ]; then
+  cp -rf _build/html/* ../../mailsuite-docs/
+fi
 cd ..
 ruff check
 rm -rf dist/ build/
