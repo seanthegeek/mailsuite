@@ -9,7 +9,7 @@ name = "mailsuite"
 description = "A Python package for retrieving, parsing, and sending emails"
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.7"
+requires-python = ">=3.9, <3.14"
 authors = [
     { name = "Sean Whalen", email = "whalenster@gmail.com" },
 ]
@@ -26,6 +26,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
 ]
+
 dependencies = [
     "dnspython>=2.0.0",
     "expiringdict==1.2.2",
