@@ -2,7 +2,7 @@ import logging
 import socket
 import smtplib
 from ssl import SSLError, CertificateError, create_default_context, CERT_NONE
-from typing import List, Dict, Tuple
+from typing import Tuple, Optional
 
 from mailsuite.utils import create_email
 
@@ -16,20 +16,20 @@ class SMTPError(RuntimeError):
 def send_email(
     host: str,
     message_from: str,
-    message_to: List[str] = None,
-    message_cc: List = None,
-    message_bcc: List = None,
+    message_to: Optional[list[str]] = None,
+    message_cc: Optional[list] = None,
+    message_bcc: Optional[list] = None,
     port: int = 0,
     require_encryption: bool = False,
     verify: bool = True,
-    username: str = None,
-    password: str = None,
-    envelope_from: str = None,
-    subject: str = None,
-    message_headers: Dict = None,
-    attachments: Tuple[str, bytes] = None,
-    plain_message: str = None,
-    html_message: str = None,
+    username: Optional[str] = None,
+    password: Optional[str] = None,
+    envelope_from: Optional[str] = None,
+    subject: Optional[str] = None,
+    message_headers: Optional[dict] = None,
+    attachments: Optional[list[Tuple[str, bytes]]] = None,
+    plain_message: Optional[str] = None,
+    html_message: Optional[str] = None,
 ):
     """
     Send an email using a SMTP relay
@@ -52,6 +52,7 @@ def send_email(
         plain_message: The plain text message body
         html_message: The HTML message body
     """
+
     msg = create_email(
         message_from=message_from,
         message_to=message_to,
@@ -87,6 +88,8 @@ def send_email(
             server.login(username, password)
         if envelope_from is None:
             envelope_from = message_from
+        if message_to is None and message_to is None:
+            raise ValueError("message_to and envelope_to cannot both be None")
         envelope_to = message_to.copy()
         if message_cc is not None:
             message_to += message_cc
@@ -107,7 +110,7 @@ def send_email(
         raise SMTPError("Connection aborted")
     except TimeoutError:
         raise SMTPError("Connection timed out")
-    except SSLError as error:
-        raise SMTPError("SSL error: {0}".format(error.__str__()))
     except CertificateError as error:
         raise SMTPError("Certificate error: {0}".format(error.__str__()))
+    except SSLError as error:
+        raise SMTPError("SSL error: {0}".format(error.__str__()))

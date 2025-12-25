@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.11.0
+
+## Breaking changes
+
+For security reasons, `utils.parse_email()` and `utils.from_trusted_domain()` will mo longer treat input as a potential file path. Applications must now do this explicitly themselves when needed.
+
+## Fixes
+
+- Fixed type hints throughout the library.
+- Fixed return values of `utils.from_trusted_domain()`
+- Fixed an issue where the plain text body of an email was attached as the HTML body when using `utils.create_email()`
+
+## Other changes
+
+in the `imap` module, the argument names in `IMAPClient` functions `delete_messages()` and `create_folder()` to align with the overridden functions. These are positional arguments, so this should not mater.
+
 ## 1.10.1
 
 - Set `requires-python` to `>=3.9, <3.14` to avoid [this bug](https://github.com/python/cpython/issues/142307)
