@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.11.1
+
+- Fix `KeyError` when IMAP servers return unexpected message key formats.
+
 ## 1.11.0
 
 ## Breaking changes

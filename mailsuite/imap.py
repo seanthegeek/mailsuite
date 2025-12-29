@@ -274,10 +274,10 @@ class IMAPClient(imapclient.IMAPClient):
             (["BODY[]"], [b"BODY[]"]),
             (["BODY[NULL]"], [b"BODY[NULL]"]),
         ]
-        
+
         raw_msg = None
         msg_key = None
-        
+
         for fetch_cmd, expected_keys in fetch_attempts:
             try:
                 raw_msg = self.fetch(msg_uid, fetch_cmd)[msg_uid]
@@ -297,22 +297,27 @@ class IMAPClient(imapclient.IMAPClient):
                 # Log and continue to next fetch attempt
                 logger.debug(f"Fetch with {fetch_cmd} failed: {e}")
                 continue
-            
+
             # Check if any expected key is in the response
             for key in expected_keys:
                 if key in raw_msg.keys():
                     msg_key = key
                     break
-            
+
             # If we found a valid key, break out of the fetch attempts loop
             if msg_key:
                 break
-        
+
         # If no valid key found after all attempts, raise an informative error
         if not msg_key or raw_msg is None:
             if raw_msg:
                 available_keys = list(raw_msg.keys())
-                available_keys_str = [key.decode('utf-8', 'replace') if isinstance(key, bytes) else str(key) for key in available_keys]
+                available_keys_str = [
+                    key.decode("utf-8", "replace")
+                    if isinstance(key, bytes)
+                    else str(key)
+                    for key in available_keys
+                ]
                 raise KeyError(
                     f"Message UID {msg_uid} does not contain expected message keys after trying all fetch methods. "
                     f"Last response contained: {available_keys_str}"
@@ -321,7 +326,7 @@ class IMAPClient(imapclient.IMAPClient):
                 raise KeyError(
                     f"Failed to fetch message UID {msg_uid} using any of the supported fetch methods"
                 )
-        
+
         message = raw_msg[msg_key].decode("utf-8", "replace")  # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue, reportArgumentType]
         if parse:
             message = mailsuite.utils.parse_email(message)
