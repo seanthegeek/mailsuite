@@ -268,25 +268,60 @@ class IMAPClient(imapclient.IMAPClient):
             str: The raw mail message, including headers
             dict: A parsed email message
         """
-        try:
-            raw_msg = self.fetch(msg_uid, ["RFC822"])[msg_uid]
-        except (socket.timeout, imaplib.IMAP4.abort):
-            _attempt = _attempt + 1
-            if _attempt > self.max_retries:
-                raise MaxRetriesExceeded("Maximum retries exceeded")
-            logger.info(
-                "Attempt {0} of {1} timed out. Retrying...".format(
-                    _attempt, self.max_retries
+        # List of fetch commands to try and their expected response keys
+        fetch_attempts = [
+            (["RFC822"], [b"RFC822"]),
+            (["BODY[]"], [b"BODY[]"]),
+            (["BODY[NULL]"], [b"BODY[NULL]"]),
+        ]
+        
+        raw_msg = None
+        msg_key = None
+        
+        for fetch_cmd, expected_keys in fetch_attempts:
+            try:
+                raw_msg = self.fetch(msg_uid, fetch_cmd)[msg_uid]
+            except (socket.timeout, imaplib.IMAP4.abort):
+                _attempt = _attempt + 1
+                if _attempt > self.max_retries:
+                    raise MaxRetriesExceeded("Maximum retries exceeded")
+                logger.info(
+                    "Attempt {0} of {1} timed out. Retrying...".format(
+                        _attempt, self.max_retries
+                    )
                 )
-            )
-            self.reset_connection()
-            return self.fetch_message(msg_uid, parse=parse, _attempt=_attempt)
-        msg_keys = [b"RFC822", b"BODY[NULL]", b"BODY[]"]
-        msg_key = ""
-        for key in msg_keys:
-            if key in raw_msg.keys():
-                msg_key = key
+                self.reset_connection()
+                return self.fetch_message(msg_uid, parse=parse, _attempt=_attempt)
+            except (KeyError, imapclient.exceptions.IMAPClientError) as e:
+                # Some IMAP servers may not support certain fetch commands
+                # Log and continue to next fetch attempt
+                logger.debug(f"Fetch with {fetch_cmd} failed: {e}")
+                continue
+            
+            # Check if any expected key is in the response
+            for key in expected_keys:
+                if key in raw_msg.keys():
+                    msg_key = key
+                    break
+            
+            # If we found a valid key, break out of the fetch attempts loop
+            if msg_key:
                 break
+        
+        # If no valid key found after all attempts, raise an informative error
+        if not msg_key or raw_msg is None:
+            if raw_msg:
+                available_keys = list(raw_msg.keys())
+                available_keys_str = [key.decode('utf-8', 'replace') if isinstance(key, bytes) else str(key) for key in available_keys]
+                raise KeyError(
+                    f"Message UID {msg_uid} does not contain expected message keys after trying all fetch methods. "
+                    f"Last response contained: {available_keys_str}"
+                )
+            else:
+                raise KeyError(
+                    f"Failed to fetch message UID {msg_uid} using any of the supported fetch methods"
+                )
+        
         message = raw_msg[msg_key].decode("utf-8", "replace")  # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue, reportArgumentType]
         if parse:
             message = mailsuite.utils.parse_email(message)
