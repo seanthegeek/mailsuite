@@ -277,13 +277,11 @@ class IMAPClient(imapclient.IMAPClient):
         
         raw_msg = None
         msg_key = None
-        last_error = None
         
         for fetch_cmd, expected_keys in fetch_attempts:
             try:
                 raw_msg = self.fetch(msg_uid, fetch_cmd)[msg_uid]
-            except (socket.timeout, imaplib.IMAP4.abort) as e:
-                last_error = e
+            except (socket.timeout, imaplib.IMAP4.abort):
                 _attempt = _attempt + 1
                 if _attempt > self.max_retries:
                     raise MaxRetriesExceeded("Maximum retries exceeded")
@@ -294,10 +292,10 @@ class IMAPClient(imapclient.IMAPClient):
                 )
                 self.reset_connection()
                 return self.fetch_message(msg_uid, parse=parse, _attempt=_attempt)
-            except Exception as e:
+            except (KeyError, imapclient.exceptions.IMAPClientError) as e:
+                # Some IMAP servers may not support certain fetch commands
                 # Log and continue to next fetch attempt
                 logger.debug(f"Fetch with {fetch_cmd} failed: {e}")
-                last_error = e
                 continue
             
             # Check if any expected key is in the response
@@ -321,7 +319,7 @@ class IMAPClient(imapclient.IMAPClient):
                 )
             else:
                 raise KeyError(
-                    f"Failed to fetch message UID {msg_uid}. Last error: {last_error}"
+                    f"Failed to fetch message UID {msg_uid} using any of the supported fetch methods"
                 )
         
         message = raw_msg[msg_key].decode("utf-8", "replace")  # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue, reportArgumentType]
