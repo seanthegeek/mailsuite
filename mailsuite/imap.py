@@ -290,9 +290,11 @@ class IMAPClient(imapclient.IMAPClient):
         
         if not msg_key:
             available_keys = list(raw_msg.keys())
+            expected_keys_str = [key.decode('utf-8', 'replace') if isinstance(key, bytes) else str(key) for key in msg_keys]
+            available_keys_str = [key.decode('utf-8', 'replace') if isinstance(key, bytes) else str(key) for key in available_keys]
             raise KeyError(
                 f"Message UID {msg_uid} does not contain expected message keys. "
-                f"Expected one of {msg_keys}, but found: {available_keys}"
+                f"Expected one of {expected_keys_str}, but found: {available_keys_str}"
             )
         
         message = raw_msg[msg_key].decode("utf-8", "replace")  # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue, reportArgumentType]
