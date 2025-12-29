@@ -287,6 +287,14 @@ class IMAPClient(imapclient.IMAPClient):
             if key in raw_msg.keys():
                 msg_key = key
                 break
+        
+        if not msg_key:
+            available_keys = list(raw_msg.keys())
+            raise KeyError(
+                f"Message UID {msg_uid} does not contain expected message keys. "
+                f"Expected one of {msg_keys}, but found: {available_keys}"
+            )
+        
         message = raw_msg[msg_key].decode("utf-8", "replace")  # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue, reportArgumentType]
         if parse:
             message = mailsuite.utils.parse_email(message)
