@@ -13,6 +13,7 @@
   - Optional cloud backends are loaded lazily via PEP 562 — importing `mailsuite.mailbox` never requires the extras to be installed; referencing the class surfaces a clear `ImportError` if they aren't.
   - `send_message()` raises `NotImplementedError` on the receive-only IMAP and Maildir backends; use `mailsuite.smtp.send_email` for standalone sending.
 - Add a comprehensive `pytest` test suite covering all modules, plus a GitHub Actions CI workflow that runs `ruff`, `pyright`, and `pytest` (with coverage) across supported Python versions
+- Fix `IMAPClient.select_folder` (and other folder operations) on shared / other-users namespaces. `_normalise_folder` previously prepended the personal namespace prefix to every path, so e.g. `user/colleague/Inbox` became `INBOX/user/colleague/Inbox`. Paths already inside an RFC 2342 non-personal namespace are now passed through untouched (#13).
 
 ## 1.11.2
 
