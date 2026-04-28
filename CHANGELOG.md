@@ -1,7 +1,9 @@
 # Changelog
 
-## 1.13.0
+## 2.0.0
 
+- Add a new `mailsuite.dkim` module for DKIM key generation, public key extraction, TXT record generation, email signing, and signature verification
+- `smtp.send_email()` now accepts `dkim_private_key`, `dkim_selector`, `dkim_domain`, and `dkim_additional_headers` parameters for sending DKIM-signed mail
 - Add `mailsuite.mailbox`, a provider-agnostic mailbox abstraction lifted from `parsedmarc`
   - `MailboxConnection` ABC with `create_folder`, `fetch_messages`, `fetch_message`, `delete_message`, `move_message`, `keepalive`, `watch`, and `send_message`
   - `IMAPConnection` (built on `mailsuite.imap.IMAPClient`, IDLE-based watch loop)
@@ -10,11 +12,7 @@
   - `GmailConnection` (built on `google-api-python-client`; sends through `users.messages.send`). Requires the `mailsuite[gmail]` extra.
   - Optional cloud backends are loaded lazily via PEP 562 — importing `mailsuite.mailbox` never requires the extras to be installed; referencing the class surfaces a clear `ImportError` if they aren't.
   - `send_message()` raises `NotImplementedError` on the receive-only IMAP and Maildir backends; use `mailsuite.smtp.send_email` for standalone sending.
-
-## 1.12.0
-
-- Add a new `mailsuite.dkim` module for DKIM key generation, public key extraction, TXT record generation, email signing, and signature verification
-- `smtp.send_email()` now accepts `dkim_private_key`, `dkim_selector`, `dkim_domain`, and `dkim_additional_headers` parameters for sending DKIM-signed mail
+- Add a comprehensive `pytest` test suite covering all modules, plus a GitHub Actions CI workflow that runs `ruff`, `pyright`, and `pytest` (with coverage) across supported Python versions
 
 ## 1.11.2
 

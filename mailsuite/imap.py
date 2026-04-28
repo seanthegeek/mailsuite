@@ -346,11 +346,13 @@ class IMAPClient(imapclient.IMAPClient):
             silent: Do it silently
             _attempt: The attempt number
         """
-        logger.info(
-            "Deleting message UID(s) {0}".format(",".join(str(uid) for uid in messages))  # pyright: ignore[reportGeneralTypeIssues]
-        )
         if type(messages) is str or type(messages) is int:
             messages = [int(messages)]
+        logger.info(
+            "Deleting message UID(s) {0}".format(
+                ",".join(str(uid) for uid in messages)  # pyright: ignore[reportGeneralTypeIssues]
+            )
+        )
         try:
             imapclient.IMAPClient.delete_messages(self, messages, silent=silent)
             imapclient.IMAPClient.expunge(self, messages)
