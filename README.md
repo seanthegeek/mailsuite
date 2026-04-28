@@ -60,3 +60,20 @@ pip install "mailsuite[all]"       # both
 Importing `mailsuite.mailbox` never requires the extras. Referencing
 `MSGraphConnection` or `GmailConnection` without the matching extra
 installed raises an `ImportError` pointing at the right install command.
+
+## Microsoft Graph notes
+
+`MSGraphConnection` defaults to the worldwide cloud
+(`https://graph.microsoft.com`). To target a sovereign cloud or any
+other Graph endpoint, pass `graph_url`:
+
+```python
+MSGraphConnection(..., graph_url="https://graph.microsoft.us")
+```
+
+The `azure-identity` token cache lives under `name="mailsuite"` by
+default. Applications migrating from a previous installation that used a
+different cache name can pass it through `token_cache_name=` so existing
+cached `AuthenticationRecord`s and tokens continue to work — for
+example, `token_cache_name="parsedmarc"` keeps users authenticated
+across the migration.

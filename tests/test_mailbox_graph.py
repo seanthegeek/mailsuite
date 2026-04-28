@@ -19,6 +19,7 @@ pytest.importorskip("azure.identity")
 
 from mailsuite.mailbox import MailboxConnection  # noqa: E402
 from mailsuite.mailbox.graph import (  # noqa: E402
+    DEFAULT_TOKEN_CACHE_NAME,
     AuthMethod,
     MSGraphConnection,
     _generate_credential,
@@ -432,3 +433,149 @@ class TestWatch:
 
         conn.watch(cb, check_timeout=0, config_reloading=reload)
         assert calls["n"] == 1
+
+
+class TestGraphUrl:
+    """The graph_url parameter must override the httpx client base URL."""
+
+    def _build(self, graph_url, monkeypatch):
+        # Bypass real cert auth by stubbing _generate_credential to return a
+        # ClientSecretCredential subclass — the constructor branches on that
+        # type to skip the interactive `authenticate()` step.
+        from azure.identity import ClientSecretCredential
+        from mailsuite.mailbox import graph as graph_mod
+
+        class FakeCred(ClientSecretCredential):
+            def __init__(self):
+                pass  # bypass real Azure SDK init
+
+            def get_token(self, *a, **k):
+                return None
+
+        monkeypatch.setattr(
+            graph_mod, "_generate_credential", lambda *a, **k: FakeCred()
+        )
+        return MSGraphConnection(
+            auth_method=AuthMethod.ClientSecret.name,
+            mailbox="user@example.com",
+            client_id="c",
+            client_secret="s",
+            username=None,
+            password=None,
+            tenant_id="t",
+            token_file="/tmp/unused-token",
+            allow_unencrypted_storage=False,
+            graph_url=graph_url,
+        )
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://graph.microsoft.us",
+            "https://dod-graph.microsoft.us",
+            "https://microsoftgraph.chinacloudapi.cn",
+            "https://graph.microsoft.de",
+            "https://graph.example.test",
+            "https://graph.microsoft.us/",  # trailing slash stripped
+        ],
+    )
+    def test_overrides_base_url(self, url, monkeypatch):
+        conn = self._build(url, monkeypatch)
+        base = str(conn._client.request_adapter._http_client.base_url)
+        assert url.rstrip("/") in base
+        assert base.endswith("/v1.0") or base.endswith("/v1.0/")
+
+
+class TestCacheName:
+    def test_default_constant(self):
+        assert DEFAULT_TOKEN_CACHE_NAME == "mailsuite"
+
+    def test_default_cache_name_passed_through(self, tmp_path, monkeypatch):
+        captured = {}
+
+        def fake_token_cache_options(name, allow_unencrypted_storage):
+            captured["name"] = name
+            return MagicMock()
+
+        from mailsuite.mailbox import graph as graph_mod
+
+        monkeypatch.setattr(
+            graph_mod, "TokenCachePersistenceOptions", fake_token_cache_options
+        )
+
+        # Construct only the credential; bypass real DeviceCodeCredential
+        class FakeDevCred:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        monkeypatch.setattr(graph_mod, "DeviceCodeCredential", FakeDevCred)
+
+        _generate_credential(
+            AuthMethod.DeviceCode.name,
+            tmp_path / "tok",
+            client_id="c",
+            tenant_id="t",
+            allow_unencrypted_storage=True,
+        )
+        assert captured["name"] == "mailsuite"
+
+    def test_overridden_cache_name(self, tmp_path, monkeypatch):
+        captured = {}
+
+        def fake_token_cache_options(name, allow_unencrypted_storage):
+            captured["name"] = name
+            return MagicMock()
+
+        from mailsuite.mailbox import graph as graph_mod
+
+        monkeypatch.setattr(
+            graph_mod, "TokenCachePersistenceOptions", fake_token_cache_options
+        )
+
+        class FakeDevCred:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        monkeypatch.setattr(graph_mod, "DeviceCodeCredential", FakeDevCred)
+
+        _generate_credential(
+            AuthMethod.DeviceCode.name,
+            tmp_path / "tok",
+            client_id="c",
+            tenant_id="t",
+            allow_unencrypted_storage=False,
+            cache_name="parsedmarc",
+        )
+        assert captured["name"] == "parsedmarc"
+
+    def test_cache_name_for_username_password(self, tmp_path, monkeypatch):
+        captured = {}
+
+        def fake_token_cache_options(name, allow_unencrypted_storage):
+            captured["name"] = name
+            return MagicMock()
+
+        from mailsuite.mailbox import graph as graph_mod
+
+        monkeypatch.setattr(
+            graph_mod, "TokenCachePersistenceOptions", fake_token_cache_options
+        )
+
+        class FakeUPCred:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        monkeypatch.setattr(graph_mod, "UsernamePasswordCredential", FakeUPCred)
+
+        _generate_credential(
+            AuthMethod.UsernamePassword.name,
+            tmp_path / "tok",
+            client_id="c",
+            client_secret="s",
+            username="u",
+            password="p",
+            tenant_id="t",
+            allow_unencrypted_storage=True,
+            cache_name="parsedmarc",
+        )
+        assert captured["name"] == "parsedmarc"

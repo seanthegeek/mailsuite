@@ -21,6 +21,10 @@ try:
         TokenCachePersistenceOptions,
         UsernamePasswordCredential,
     )
+    from kiota_authentication_azure.azure_identity_authentication_provider import (
+        AzureIdentityAuthenticationProvider,
+    )
+    from msgraph.graph_request_adapter import GraphRequestAdapter
     from msgraph.graph_service_client import GraphServiceClient
     from msgraph.generated.models.body_type import BodyType
     from msgraph.generated.models.email_address import EmailAddress
@@ -44,6 +48,7 @@ try:
     from msgraph.generated.users.item.send_mail.send_mail_post_request_body import (
         SendMailPostRequestBody,
     )
+    from msgraph_core import GraphClientFactory
 except ImportError as e:
     raise ImportError(
         "MSGraphConnection requires the 'msgraph' extra: "
@@ -60,10 +65,17 @@ class AuthMethod(Enum):
     Certificate = 4
 
 
-def _get_cache_args(token_path: Path, allow_unencrypted_storage: bool) -> dict:
+DEFAULT_TOKEN_CACHE_NAME = "mailsuite"
+
+
+def _get_cache_args(
+    token_path: Path,
+    allow_unencrypted_storage: bool,
+    cache_name: str = DEFAULT_TOKEN_CACHE_NAME,
+) -> dict:
     cache_args: dict = {
         "cache_persistence_options": TokenCachePersistenceOptions(
-            name="mailsuite", allow_unencrypted_storage=allow_unencrypted_storage
+            name=cache_name, allow_unencrypted_storage=allow_unencrypted_storage
         )
     }
     auth_record = _load_token(token_path)
@@ -89,6 +101,7 @@ def _cache_auth_record(record: AuthenticationRecord, token_path: Path) -> None:
 
 
 def _generate_credential(auth_method: str, token_path: Path, **kwargs):
+    cache_name = kwargs.get("cache_name", DEFAULT_TOKEN_CACHE_NAME)
     if auth_method == AuthMethod.DeviceCode.name:
         return DeviceCodeCredential(
             client_id=kwargs["client_id"],
@@ -97,6 +110,7 @@ def _generate_credential(auth_method: str, token_path: Path, **kwargs):
             **_get_cache_args(
                 token_path,
                 allow_unencrypted_storage=kwargs["allow_unencrypted_storage"],
+                cache_name=cache_name,
             ),
         )
     if auth_method == AuthMethod.UsernamePassword.name:
@@ -109,6 +123,7 @@ def _generate_credential(auth_method: str, token_path: Path, **kwargs):
             **_get_cache_args(
                 token_path,
                 allow_unencrypted_storage=kwargs["allow_unencrypted_storage"],
+                cache_name=cache_name,
             ),
         )
     if auth_method == AuthMethod.ClientSecret.name:
@@ -180,7 +195,34 @@ class MSGraphConnection(MailboxConnection):
         allow_unencrypted_storage: bool,
         certificate_path: Optional[str] = None,
         certificate_password: Optional[Union[str, bytes]] = None,
+        graph_url: Optional[str] = None,
+        token_cache_name: str = DEFAULT_TOKEN_CACHE_NAME,
     ):
+        """
+        Args:
+            auth_method: One of the names in :class:`AuthMethod`
+            mailbox: The mailbox UPN (e.g. ``user@example.com``)
+            client_id: Application (client) ID
+            client_secret: Client secret (required for ClientSecret auth)
+            username: User principal name (required for UsernamePassword auth)
+            password: Password (required for UsernamePassword auth)
+            tenant_id: Azure AD tenant ID
+            token_file: Path to the file used to persist the
+                ``AuthenticationRecord`` between runs
+            allow_unencrypted_storage: Pass through to
+                :class:`azure.identity.TokenCachePersistenceOptions`
+            certificate_path: PEM/PFX path for Certificate auth
+            certificate_password: Optional password for the certificate
+            graph_url: Microsoft Graph endpoint URL. Defaults to the worldwide
+                cloud. Pass a sovereign cloud URL (e.g.
+                ``"https://graph.microsoft.us"``) or any other Graph endpoint
+                to override.
+            token_cache_name: ``msal``/``azure-identity`` token cache name.
+                Defaults to ``"mailsuite"``. Downstream consumers migrating
+                from a previous installation can pass the old cache name
+                (e.g. ``"parsedmarc"``) so existing cached
+                ``AuthenticationRecord``s and tokens continue to work.
+        """
         token_path = Path(token_file)
         credential = _generate_credential(
             auth_method,
@@ -193,6 +235,7 @@ class MSGraphConnection(MailboxConnection):
             tenant_id=tenant_id,
             token_path=token_path,
             allow_unencrypted_storage=allow_unencrypted_storage,
+            cache_name=token_cache_name,
         )
 
         scopes: Optional[List[str]] = None
@@ -204,7 +247,18 @@ class MSGraphConnection(MailboxConnection):
             auth_record = credential.authenticate(scopes=scopes)
             _cache_auth_record(auth_record, token_path)
 
-        self._client = GraphServiceClient(credentials=credential, scopes=scopes)
+        if graph_url is None:
+            self._client = GraphServiceClient(credentials=credential, scopes=scopes)
+        else:
+            httpx_client = GraphClientFactory.create_with_default_middleware()
+            httpx_client.base_url = f"{graph_url.rstrip('/')}/v1.0"
+            auth_provider = AzureIdentityAuthenticationProvider(
+                credentials=credential, scopes=scopes or []
+            )
+            adapter = GraphRequestAdapter(
+                auth_provider=auth_provider, client=httpx_client
+            )
+            self._client = GraphServiceClient(request_adapter=adapter)
         self.mailbox_name = mailbox
 
     # — folder management —
