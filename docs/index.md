@@ -28,6 +28,38 @@ A Python package for retrieving, parsing, and sending emails.
 - Simplified email creation and sending
   - Easily add attachments, plain text, and HTML
   - Uses opportunistic encryption (``STARTTLS``) with SMTP by default
+- DKIM signing and verification
+  - Generate RSA keypairs and the matching DNS TXT record
+  - Sign outbound mail with a sensible default header set (with `From`,
+    `To`, `Cc`, `Subject` oversigned)
+  - Verify one or many `DKIM-Signature` headers on a received message
+- Provider-agnostic mailbox abstraction (`mailsuite.mailbox`)
+  - Single `MailboxConnection` interface for IMAP, Microsoft Graph,
+    Gmail, and on-disk Maildir
+  - Unified `send_message()` on backends that support sending (Microsoft
+    Graph, Gmail) — IMAP and Maildir users send through
+    `mailsuite.smtp.send_email`
+
+## Installation
+
+Base install (IMAP, SMTP, DKIM, Maildir, parsing):
+
+```bash
+pip install mailsuite
+```
+
+The Microsoft Graph and Gmail backends are optional extras — the cloud
+SDKs aren't pulled in unless you ask for them:
+
+```bash
+pip install "mailsuite[msgraph]"   # Microsoft Graph (msgraph-sdk + azure-identity)
+pip install "mailsuite[gmail]"     # Gmail (google-api-python-client + google-auth-oauthlib)
+pip install "mailsuite[all]"       # both
+```
+
+Importing `mailsuite.mailbox` never requires the extras. Referencing
+`MSGraphConnection` or `GmailConnection` without the matching extra
+installed raises an `ImportError` pointing at the right install command.
 
 ## Email samples and Outlook clients
 
