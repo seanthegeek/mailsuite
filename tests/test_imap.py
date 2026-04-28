@@ -23,6 +23,7 @@ def _bare_client(
     *,
     hierarchy_separator: str = "/",
     path_prefix: str = "",
+    other_namespace_prefixes: list[str] | None = None,
     move_supported: bool = True,
     max_retries: int = 4,
 ) -> IMAPClient:
@@ -30,6 +31,7 @@ def _bare_client(
     inst = IMAPClient.__new__(IMAPClient)
     inst._hierarchy_separator = hierarchy_separator
     inst._path_prefix = path_prefix
+    inst._other_namespace_prefixes = other_namespace_prefixes or []
     inst._move_supported = move_supported
     inst.max_retries = max_retries
     inst._init_args = {
@@ -107,6 +109,37 @@ class TestNormaliseFolder:
 
     def test_path_prefix_added(self, monkeypatch):
         client = _bare_client(hierarchy_separator="/", path_prefix="INBOX/")
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "_normalise_folder",
+            lambda self, name: name,
+        )
+        assert client._normalise_folder("Reports") == "INBOX/Reports"
+
+    def test_other_users_namespace_passthrough(self, monkeypatch):
+        # Reproduces issue #13: shared folders accessed via the "other users"
+        # namespace must not get the personal prefix prepended.
+        client = _bare_client(
+            hierarchy_separator="/",
+            path_prefix="INBOX/",
+            other_namespace_prefixes=["user/"],
+        )
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "_normalise_folder",
+            lambda self, name: name,
+        )
+        assert (
+            client._normalise_folder("user/colleague/Inbox")
+            == "user/colleague/Inbox"
+        )
+
+    def test_personal_prefix_still_added_for_unprefixed_paths(self, monkeypatch):
+        client = _bare_client(
+            hierarchy_separator="/",
+            path_prefix="INBOX/",
+            other_namespace_prefixes=["user/"],
+        )
         monkeypatch.setattr(
             imapclient.IMAPClient,
             "_normalise_folder",

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.1
+
+- Fix `IMAPClient.select_folder` (and other folder operations) on shared / other-users namespaces. `_normalise_folder` previously prepended the personal namespace prefix to every path, so e.g. `user/colleague/Inbox` became `INBOX/user/colleague/Inbox`. Paths already inside an RFC 2342 non-personal namespace are now passed through untouched (#13).
+
 ## 2.0.0
 
 - Add a new `mailsuite.dkim` module for DKIM key generation, public key extraction, TXT record generation, email signing, and signature verification

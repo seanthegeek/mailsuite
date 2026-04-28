@@ -58,6 +58,17 @@ class IMAPClient(imapclient.IMAPClient):
             return str(result)
 
         folder_name = folder_name.rstrip("/")
+
+        # If the path is already inside a non-personal namespace (other-users
+        # or shared per RFC 2342), pass it through without applying the
+        # personal-namespace prefix. Otherwise paths like "user/colleague/Inbox"
+        # would get rewritten to "INBOX/user/colleague/Inbox".
+        if any(folder_name.startswith(p) for p in self._other_namespace_prefixes):
+            result = imapclient.IMAPClient._normalise_folder(self, folder_name)
+            if isinstance(result, bytes):
+                return result.decode("utf-8", "replace")
+            return str(result)
+
         folder_name = folder_name.replace(self._path_prefix, "")
         if not self._hierarchy_separator == "/":
             folder_name = folder_name.replace(self._hierarchy_separator, "")
@@ -180,6 +191,7 @@ class IMAPClient(imapclient.IMAPClient):
         self.idle_callback = idle_callback
         self.idle_timeout = idle_timeout
         self._path_prefix = ""
+        self._other_namespace_prefixes: List[str] = []
         self._hierarchy_separator = ""
         if not ssl:
             logger.info("Connecting to IMAP over plain text")
@@ -217,6 +229,16 @@ class IMAPClient(imapclient.IMAPClient):
                         self._path_prefix = personal_namespace[0][0]
                         if type(self._path_prefix) is bytes:
                             self._path_prefix = self._path_prefix.decode("utf-8")
+                # Track non-personal namespace prefixes (other-users, shared)
+                # so _normalise_folder can recognise paths that already live
+                # in a different namespace and leave them alone.
+                for ns in (self._namespace.other, self._namespace.shared):
+                    for entry in ns or ():
+                        prefix = entry[0]
+                        if isinstance(prefix, bytes):
+                            prefix = prefix.decode("utf-8")
+                        if prefix:
+                            self._other_namespace_prefixes.append(prefix)
             else:
                 self._namespace = None
             self.select_folder(initial_folder)
