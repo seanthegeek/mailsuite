@@ -28,6 +28,8 @@ classifiers = [
 ]
 
 dependencies = [
+    "cryptography>=41.0.0",
+    "dkimpy>=1.1.0",
     "dnspython>=2.0.0",
     "expiringdict==1.2.2",
     "html2text>=2020.1.16",

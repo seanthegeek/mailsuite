@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.12.0
+
+- Add a new `mailsuite.dkim` module for DKIM key generation, public key extraction, TXT record generation, email signing, and signature verification
+- `smtp.send_email()` now accepts `dkim_private_key`, `dkim_selector`, `dkim_domain`, and `dkim_additional_headers` parameters for sending DKIM-signed mail
+
 ## 1.11.2
 
 - Support Python 3.14+
