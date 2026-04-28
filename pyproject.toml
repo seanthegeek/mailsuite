@@ -41,6 +41,20 @@ dynamic = [
     "version",
 ]
 
+[project.optional-dependencies]
+msgraph = [
+    "azure-identity>=1.15.0",
+    "msgraph-sdk>=1.0.0",
+]
+gmail = [
+    "google-api-python-client>=2.0.0",
+    "google-auth>=2.0.0",
+    "google-auth-oauthlib>=1.0.0",
+]
+all = [
+    "mailsuite[msgraph,gmail]",
+]
+
 [project.urls]
 Homepage = "https://github.com/seanthegeek/mailsuite/"
 Documentation = "https://seanthegeek.github.io/mailsuite/"
@@ -57,3 +71,26 @@ include = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["mailsuite"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers"
+filterwarnings = [
+    "ignore::DeprecationWarning:mailparser",
+    "ignore::DeprecationWarning:imapclient",
+    "ignore::DeprecationWarning:msgraph.*",
+    "ignore::RuntimeWarning",
+]
+
+[tool.coverage.run]
+source = ["mailsuite"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
