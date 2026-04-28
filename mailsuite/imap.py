@@ -1,5 +1,5 @@
 import logging
-from typing import Union, List, Dict, Optional, cast
+from typing import Callable, Union, List, Dict, Optional, cast
 import time
 import socket
 from ssl import (
@@ -137,9 +137,9 @@ class IMAPClient(imapclient.IMAPClient):
     def __init__(
         self,
         host: str,
-        username: str,
-        password: str,
-        port: int = 933,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        port: int = 993,
         ssl: bool = True,
         ssl_context: Optional[SSLContext] = None,
         verify: bool = True,
@@ -148,14 +148,18 @@ class IMAPClient(imapclient.IMAPClient):
         initial_folder: str = "INBOX",
         idle_callback=None,
         idle_timeout: int = 30,
+        oauth2_token: Optional[str] = None,
+        oauth2_token_provider: Optional[Callable[[], str]] = None,
+        oauth2_mechanism: str = "XOAUTH2",
+        oauth2_vendor: Optional[str] = None,
     ):
         """
         Connects to an IMAP server
 
         Args:
             host: The server hostname or IP address
-            username: The username
-            password: The password
+            username: The username (or OAuth2 identity / email address)
+            password: The password (omit when using OAuth2)
             port: The port
             ssl: Use SSL or TLS
             ssl_context: For more advanced TLS options
@@ -166,6 +170,25 @@ class IMAPClient(imapclient.IMAPClient):
             idle_callback: The function to call when new messages are detected
             idle_timeout: Number of seconds to wait for an IDLE
                                   response
+            oauth2_token: A static OAuth2 access token. For long-running
+                connections (IDLE, reconnects after timeouts) prefer
+                ``oauth2_token_provider`` so a fresh token is fetched on
+                reconnect.
+            oauth2_token_provider: A zero-arg callable returning a current
+                OAuth2 access token. Invoked on every (re)connect, so the
+                callable is responsible for refreshing the token when
+                needed.
+            oauth2_mechanism: ``"XOAUTH2"`` (default — Gmail/Yahoo/M365) or
+                ``"OAUTHBEARER"`` (Gmail's standards-track replacement).
+            oauth2_vendor: Optional vendor string required by Yahoo's
+                XOAUTH2 implementation.
+
+        For Google Workspace and Microsoft 365 the higher-level
+        :class:`mailsuite.mailbox.GmailConnection` and
+        :class:`mailsuite.mailbox.MSGraphConnection` backends are usually
+        a better fit — they speak the providers' native APIs and handle
+        token refresh end-to-end. Generic IMAP OAuth2 is intended for
+        other providers (Yahoo, self-hosted, etc.).
         """
 
         if ssl_context is None:
@@ -173,6 +196,18 @@ class IMAPClient(imapclient.IMAPClient):
         if verify is False:
             ssl_context.check_hostname = False
             ssl_context.verify_mode = CERT_NONE
+        using_oauth = (
+            oauth2_token is not None or oauth2_token_provider is not None
+        )
+        if using_oauth and not username:
+            raise ValueError(
+                "username is required when authenticating with OAuth2"
+            )
+        if not using_oauth and (username is None or password is None):
+            raise ValueError(
+                "either password or an OAuth2 token / token_provider must be "
+                "provided"
+            )
         self._init_args = dict(
             host=host,
             username=username,
@@ -186,6 +221,10 @@ class IMAPClient(imapclient.IMAPClient):
             initial_folder=initial_folder,
             idle_callback=idle_callback,
             idle_timeout=idle_timeout,
+            oauth2_token=oauth2_token,
+            oauth2_token_provider=oauth2_token_provider,
+            oauth2_mechanism=oauth2_mechanism,
+            oauth2_vendor=oauth2_vendor,
         )
         self.max_retries = max_retries
         self.idle_callback = idle_callback
@@ -208,7 +247,23 @@ class IMAPClient(imapclient.IMAPClient):
             if not ssl and b"STARTTLS" in self.capabilities():
                 logger.info("IMAP server supports STARTTLS ... activating now")
                 self.starttls(ssl_context=ssl_context)
-            self.login(username, password)
+            if using_oauth:
+                token = (
+                    oauth2_token_provider()
+                    if oauth2_token_provider is not None
+                    else oauth2_token
+                )
+                if oauth2_mechanism.upper() == "OAUTHBEARER":
+                    self.oauthbearer_login(username, token)
+                else:
+                    self.oauth2_login(
+                        cast(str, username),
+                        cast(str, token),
+                        mech=oauth2_mechanism,
+                        vendor=oauth2_vendor,
+                    )
+            else:
+                self.login(cast(str, username), cast(str, password))
             self.server_capabilities = self.capabilities()
             self._move_supported = b"MOVE" in self.server_capabilities
             self._idle_supported = b"IDLE" in self.server_capabilities
@@ -266,13 +321,17 @@ class IMAPClient(imapclient.IMAPClient):
             self._init_args["password"],  # pyright: ignore[reportArgumentType]
             port=self._init_args["port"],  # pyright: ignore[reportArgumentType]
             ssl=self._init_args["ssl"],  # pyright: ignore[reportArgumentType]
-            ssl_context=self._init_args["ssl_context"],
+            ssl_context=self._init_args["ssl_context"],  # pyright: ignore[reportArgumentType]
             verify=self._init_args["verify"],  # pyright: ignore[reportArgumentType]
             timeout=self._init_args["timeout"],  # pyright: ignore[reportArgumentType]
             max_retries=self._init_args["max_retries"],  # pyright: ignore[reportArgumentType]
             initial_folder=self._init_args["initial_folder"],  # pyright: ignore[reportArgumentType]
             idle_callback=self._init_args["idle_callback"],
             idle_timeout=self._init_args["idle_timeout"],  # pyright: ignore[reportArgumentType]
+            oauth2_token=self._init_args["oauth2_token"],  # pyright: ignore[reportArgumentType]
+            oauth2_token_provider=self._init_args["oauth2_token_provider"],  # pyright: ignore[reportArgumentType]
+            oauth2_mechanism=self._init_args["oauth2_mechanism"],  # pyright: ignore[reportArgumentType]
+            oauth2_vendor=self._init_args["oauth2_vendor"],  # pyright: ignore[reportArgumentType]
         )
 
     def fetch_message(

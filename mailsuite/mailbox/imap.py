@@ -32,16 +32,42 @@ class IMAPConnection(MailboxConnection):
         self,
         host: str,
         user: str,
-        password: str,
+        password: Optional[str] = None,
         port: int = 993,
         ssl: bool = True,
         verify: bool = True,
         timeout: int = 30,
         max_retries: int = 4,
+        oauth2_token: Optional[str] = None,
+        oauth2_token_provider: Optional[Callable[[], str]] = None,
+        oauth2_mechanism: str = "XOAUTH2",
+        oauth2_vendor: Optional[str] = None,
     ):
+        """
+        Args:
+            host: IMAP server hostname
+            user: Username (or OAuth2 identity / email address)
+            password: Password (omit when using OAuth2)
+            port: Server port
+            ssl: Use SSL/TLS
+            verify: Verify the server's TLS certificate
+            timeout: Per-operation timeout in seconds
+            max_retries: Retries after a timeout
+            oauth2_token: Static OAuth2 access token
+            oauth2_token_provider: Zero-arg callable returning a current
+                token. Re-invoked on reconnect, so the callable is
+                responsible for refreshing the token. Prefer this over
+                ``oauth2_token`` for long-running watch loops.
+            oauth2_mechanism: ``"XOAUTH2"`` (default) or ``"OAUTHBEARER"``
+            oauth2_vendor: Optional vendor string for Yahoo's XOAUTH2
+        """
         self._username = user
         self._password = password
         self._verify = verify
+        self._oauth2_token = oauth2_token
+        self._oauth2_token_provider = oauth2_token_provider
+        self._oauth2_mechanism = oauth2_mechanism
+        self._oauth2_vendor = oauth2_vendor
         self._client = IMAPClient(
             host,
             user,
@@ -51,6 +77,10 @@ class IMAPConnection(MailboxConnection):
             verify=verify,
             timeout=timeout,
             max_retries=max_retries,
+            oauth2_token=oauth2_token,
+            oauth2_token_provider=oauth2_token_provider,
+            oauth2_mechanism=oauth2_mechanism,
+            oauth2_vendor=oauth2_vendor,
         )
 
     def create_folder(self, folder_name: str) -> None:
@@ -121,6 +151,10 @@ class IMAPConnection(MailboxConnection):
                     verify=self._verify,
                     idle_callback=idle_callback_wrapper,
                     idle_timeout=check_timeout,
+                    oauth2_token=self._oauth2_token,
+                    oauth2_token_provider=self._oauth2_token_provider,
+                    oauth2_mechanism=self._oauth2_mechanism,
+                    oauth2_vendor=self._oauth2_vendor,
                 )
             except (timeout, IMAPClientError):
                 logger.warning("IMAP connection timeout. Reconnecting...")

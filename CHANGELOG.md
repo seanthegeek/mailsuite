@@ -2,7 +2,9 @@
 
 ## 2.0.1
 
+- Add OAuth2 (XOAUTH2 / OAUTHBEARER) login support to `mailsuite.imap.IMAPClient` and `mailsuite.mailbox.IMAPConnection`. Pass `oauth2_token=` for a static access token, or `oauth2_token_provider=` (a zero-arg callable) to have a fresh token fetched on every connect/reconnect — recommended for long-running watch / IDLE loops where tokens expire mid-session. Yahoo's vendor string is supported via `oauth2_vendor=`. Workspace and Microsoft 365 users should still prefer the higher-level `GmailConnection` / `MSGraphConnection` backends, which handle token refresh end-to-end (#6).
 - Fix `IMAPClient.select_folder` (and other folder operations) on shared / other-users namespaces. `_normalise_folder` previously prepended the personal namespace prefix to every path, so e.g. `user/colleague/Inbox` became `INBOX/user/colleague/Inbox`. Paths already inside an RFC 2342 non-personal namespace are now passed through untouched (#13).
+- Fix the `IMAPClient` default port (was `933`, now the standard `993`).
 
 ## 2.0.0
 
