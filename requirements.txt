@@ -6,6 +6,11 @@ publicsuffix2>=2.20190812
 expiringdict==1.2.2
 dkimpy>=1.1.0
 cryptography>=41.0.0
+msgraph-sdk>=1.0.0
+azure-identity>=1.15.0
+google-api-python-client>=2.0.0
+google-auth>=2.0.0
+google-auth-oauthlib>=1.0.0
 nose
 pygments
 ruff
