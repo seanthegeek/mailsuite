@@ -291,9 +291,11 @@ class MSGraphConnection(MailboxConnection):
         )
         if kwargs.get("mark_read"):
             self.mark_message_read(str(message_id))
-        if isinstance(raw, bytes):
-            return raw.decode("utf-8", errors="replace")
-        return raw or ""
+        if raw is None:
+            return ""
+        if isinstance(raw, str):
+            return raw
+        return bytes(raw).decode("utf-8", errors="replace")
 
     def mark_message_read(self, message_id: str) -> None:
         _run(
