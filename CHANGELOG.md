@@ -8,7 +8,7 @@
   - `MailboxConnection` ABC with `create_folder`, `fetch_messages`, `fetch_message`, `delete_message`, `move_message`, `keepalive`, `watch`, and `send_message`
   - `IMAPConnection` (built on `mailsuite.imap.IMAPClient`, IDLE-based watch loop)
   - `MaildirConnection` (built on the stdlib `mailbox.Maildir`)
-  - `MSGraphConnection` (built on `msgraph-sdk`; sends through `/users/{mailbox}/sendMail`). Requires the `mailsuite[msgraph]` extra.
+  - `MSGraphConnection` (built on `msgraph-sdk`; sends through `/users/{mailbox}/sendMail`). Requires the `mailsuite[msgraph]` extra. Constructor accepts `graph_url` (any Microsoft Graph endpoint — sovereign clouds, dev/test endpoints, etc.) and `token_cache_name` (defaults to `"mailsuite"`; pass the previous installation's cache name — e.g. `"parsedmarc"` — for seamless migration so cached `AuthenticationRecord`s carry over without re-prompting users).
   - `GmailConnection` (built on `google-api-python-client`; sends through `users.messages.send`). Requires the `mailsuite[gmail]` extra.
   - Optional cloud backends are loaded lazily via PEP 562 — importing `mailsuite.mailbox` never requires the extras to be installed; referencing the class surfaces a clear `ImportError` if they aren't.
   - `send_message()` raises `NotImplementedError` on the receive-only IMAP and Maildir backends; use `mailsuite.smtp.send_email` for standalone sending.
