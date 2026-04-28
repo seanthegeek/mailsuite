@@ -579,3 +579,98 @@ class TestCacheName:
             cache_name="parsedmarc",
         )
         assert captured["name"] == "parsedmarc"
+
+
+class TestSharedMailboxScopes:
+    """When mailbox != username, MSGraphConnection must request the
+    Mail.ReadWrite.Shared scope (instead of Mail.ReadWrite). This is the
+    only signal that distinguishes a shared mailbox from the signed-in
+    user's own — silent regression here breaks shared-mailbox callers.
+    """
+
+    def _construct(self, monkeypatch, *, mailbox: str, username: str):
+        from unittest.mock import MagicMock
+
+        from mailsuite.mailbox import graph as graph_mod
+
+        # Track scopes passed to credential.authenticate()
+        captured = {}
+
+        class FakeCredential:
+            def authenticate(self, scopes):
+                captured["scopes"] = list(scopes)
+                return MagicMock()
+
+        monkeypatch.setattr(
+            graph_mod, "_generate_credential", lambda *a, **k: FakeCredential()
+        )
+        monkeypatch.setattr(graph_mod, "_cache_auth_record", lambda *a, **k: None)
+        # Don't actually construct an SDK client (no network/auth)
+        monkeypatch.setattr(
+            graph_mod, "GraphServiceClient", lambda **kwargs: MagicMock()
+        )
+
+        MSGraphConnection(
+            auth_method=AuthMethod.DeviceCode.name,
+            mailbox=mailbox,
+            client_id="cid",
+            client_secret="secret",
+            username=username,
+            password="pass",
+            tenant_id="tenant",
+            token_file="/tmp/unused-token",
+            allow_unencrypted_storage=True,
+        )
+        return captured
+
+    def test_shared_mailbox_uses_shared_scope(self, monkeypatch):
+        captured = self._construct(
+            monkeypatch,
+            mailbox="shared@example.com",
+            username="owner@example.com",
+        )
+        assert captured["scopes"] == ["Mail.ReadWrite.Shared"]
+
+    def test_own_mailbox_uses_personal_scope(self, monkeypatch):
+        captured = self._construct(
+            monkeypatch,
+            mailbox="user@example.com",
+            username="user@example.com",
+        )
+        assert captured["scopes"] == ["Mail.ReadWrite"]
+
+
+class TestCacheAuthRecord:
+    """_cache_auth_record must create the parent directory if it doesn't
+    exist. parsedmarc relied on this when token_file pointed at a path
+    inside a fresh config directory.
+    """
+
+    def test_creates_nested_parent_dirs(self, tmp_path):
+        from unittest.mock import MagicMock
+
+        from mailsuite.mailbox.graph import _cache_auth_record
+
+        token_path = tmp_path / "subdir" / "nested" / ".token"
+        assert not token_path.parent.exists()
+
+        record = MagicMock()
+        record.serialize.return_value = "serialized-token"
+        _cache_auth_record(record, token_path)
+
+        assert token_path.exists()
+        assert token_path.read_text() == "serialized-token"
+
+    def test_existing_parent_no_op(self, tmp_path):
+        from unittest.mock import MagicMock
+
+        from mailsuite.mailbox.graph import _cache_auth_record
+
+        token_path = tmp_path / ".token"
+        record = MagicMock()
+        record.serialize.return_value = "data"
+        _cache_auth_record(record, token_path)
+        # Re-write — should not error even though parent already exists
+        record.serialize.return_value = "data2"
+        _cache_auth_record(record, token_path)
+        assert token_path.read_text() == "data2"
