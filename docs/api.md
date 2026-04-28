@@ -17,6 +17,14 @@ mailsuite.smtp
    :members:
 ```
 
+mailsuite.dkim
+--------------
+
+```{eval-rst}
+.. automodule:: mailsuite.dkim
+   :members:
+```
+
 mailsuite.utils
 ---------------
 
@@ -24,4 +32,3 @@ mailsuite.utils
 .. automodule:: mailsuite.utils
    :members:
 ```
-

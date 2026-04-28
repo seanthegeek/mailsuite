@@ -1,3 +1,4 @@
+import email.utils
 import logging
 import socket
 import smtplib
@@ -5,6 +6,7 @@ from ssl import SSLError, CertificateError, create_default_context, CERT_NONE
 from typing import Tuple, Optional
 
 from mailsuite.utils import create_email
+from mailsuite.dkim import sign_email as _dkim_sign_email
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,10 @@ def send_email(
     attachments: Optional[list[Tuple[str, bytes]]] = None,
     plain_message: Optional[str] = None,
     html_message: Optional[str] = None,
+    dkim_private_key: Optional[str] = None,
+    dkim_selector: Optional[str] = None,
+    dkim_domain: Optional[str] = None,
+    dkim_additional_headers: Optional[list[str]] = None,
 ):
     """
     Send an email using a SMTP relay
@@ -51,6 +57,15 @@ def send_email(
         attachments: A list of tuples, containing filenames and bytes
         plain_message: The plain text message body
         html_message: The HTML message body
+        dkim_private_key: A PEM-encoded RSA private key. When provided
+            (along with ``dkim_selector`` and ``dkim_domain``), the message
+            is DKIM-signed before sending.
+        dkim_selector: The DKIM selector to use when signing
+        dkim_domain: The DKIM signing domain (defaults to the domain of
+            ``message_from`` when ``dkim_private_key`` is set but
+            ``dkim_domain`` is not)
+        dkim_additional_headers: Additional header names to include in the
+            DKIM signature. Headers not present in the message are skipped.
     """
 
     msg = create_email(
@@ -63,6 +78,24 @@ def send_email(
         plain_message=plain_message,
         html_message=html_message,
     )
+
+    if dkim_private_key:
+        if not dkim_selector:
+            raise ValueError("dkim_selector is required when dkim_private_key is set")
+        if not dkim_domain:
+            from_addr = email.utils.parseaddr(message_from)[1]
+            if "@" not in from_addr:
+                raise ValueError(
+                    "Could not infer dkim_domain from message_from; pass dkim_domain explicitly"
+                )
+            dkim_domain = from_addr.rsplit("@", 1)[-1]
+        msg = _dkim_sign_email(
+            msg,
+            selector=dkim_selector,
+            domain=dkim_domain,
+            private_key=dkim_private_key,
+            additional_headers=dkim_additional_headers,
+        )
 
     try:
         ssl_context = create_default_context()
