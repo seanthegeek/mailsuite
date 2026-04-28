@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.13.0
+
+- Add `mailsuite.mailbox`, a provider-agnostic mailbox abstraction lifted from `parsedmarc`
+  - `MailboxConnection` ABC with `create_folder`, `fetch_messages`, `fetch_message`, `delete_message`, `move_message`, `keepalive`, `watch`, and `send_message`
+  - `IMAPConnection` (built on `mailsuite.imap.IMAPClient`, IDLE-based watch loop)
+  - `MaildirConnection` (built on the stdlib `mailbox.Maildir`)
+  - `send_message()` raises `NotImplementedError` on receive-only backends; use `mailsuite.smtp.send_email` for standalone sending. Microsoft Graph and Gmail backends with native `send_message()` support land in a follow-up release.
+
 ## 1.12.0
 
 - Add a new `mailsuite.dkim` module for DKIM key generation, public key extraction, TXT record generation, email signing, and signature verification
