@@ -47,8 +47,30 @@ def _bare_client(
         "initial_folder": "INBOX",
         "idle_callback": None,
         "idle_timeout": 30,
+        "oauth2_token": None,
+        "oauth2_token_provider": None,
+        "oauth2_mechanism": "XOAUTH2",
+        "oauth2_vendor": None,
     }
     return inst
+
+
+def _stub_network(monkeypatch):
+    """Stub everything in the base IMAPClient that does network I/O."""
+    monkeypatch.setattr(
+        imapclient.IMAPClient, "__init__", lambda self, **kw: None
+    )
+    monkeypatch.setattr(
+        imapclient.IMAPClient, "capabilities", lambda self: (b"IMAP4rev1",)
+    )
+    monkeypatch.setattr(
+        imapclient.IMAPClient,
+        "list_folders",
+        lambda self: [((), b"/", b"INBOX")],
+    )
+    monkeypatch.setattr(
+        imapclient.IMAPClient, "select_folder", lambda self, name: None
+    )
 
 
 class TestChunks:
@@ -344,3 +366,118 @@ class TestMoveMessages:
 class TestExceptions:
     def test_max_retries_is_runtime_error(self):
         assert issubclass(MaxRetriesExceeded, RuntimeError)
+
+
+class TestOAuth2Login:
+    def test_password_auth_calls_login(self, monkeypatch):
+        _stub_network(monkeypatch)
+        called = {}
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "login",
+            lambda self, u, p: called.update(user=u, pw=p),
+        )
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "oauth2_login",
+            lambda *a, **k: pytest.fail("oauth2_login should not be called"),
+        )
+        IMAPClient("host", "u@example.com", "secret")
+        assert called == {"user": "u@example.com", "pw": "secret"}
+
+    def test_static_oauth2_token_uses_xoauth2(self, monkeypatch):
+        _stub_network(monkeypatch)
+        called = {}
+
+        def fake_oauth(self, user, token, mech="XOAUTH2", vendor=None):
+            called.update(user=user, token=token, mech=mech, vendor=vendor)
+
+        monkeypatch.setattr(imapclient.IMAPClient, "oauth2_login", fake_oauth)
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "login",
+            lambda *a, **k: pytest.fail("login should not be called"),
+        )
+        IMAPClient("host", "u@example.com", oauth2_token="tok-123")
+        assert called == {
+            "user": "u@example.com",
+            "token": "tok-123",
+            "mech": "XOAUTH2",
+            "vendor": None,
+        }
+
+    def test_token_provider_invoked_each_connect(self, monkeypatch):
+        _stub_network(monkeypatch)
+        tokens = iter(["tok-1", "tok-2", "tok-3"])
+        provider_calls = {"n": 0}
+
+        def provider():
+            provider_calls["n"] += 1
+            return next(tokens)
+
+        seen_tokens: list[str] = []
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "oauth2_login",
+            lambda self, user, token, mech="XOAUTH2", vendor=None: (
+                seen_tokens.append(token)
+            ),
+        )
+        client = IMAPClient(
+            "host", "u@example.com", oauth2_token_provider=provider
+        )
+        # Reconnect: the provider must be called again so the new
+        # connection uses a fresh access token.
+        monkeypatch.setattr(client, "shutdown", lambda: None)
+        client.reset_connection()
+        assert provider_calls["n"] == 2
+        assert seen_tokens == ["tok-1", "tok-2"]
+
+    def test_oauthbearer_mechanism(self, monkeypatch):
+        _stub_network(monkeypatch)
+        called = {}
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "oauthbearer_login",
+            lambda self, identity, token: called.update(
+                identity=identity, token=token
+            ),
+        )
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "oauth2_login",
+            lambda *a, **k: pytest.fail("oauth2_login should not be called"),
+        )
+        IMAPClient(
+            "host",
+            "u@example.com",
+            oauth2_token="tok",
+            oauth2_mechanism="OAUTHBEARER",
+        )
+        assert called == {"identity": "u@example.com", "token": "tok"}
+
+    def test_yahoo_vendor_passed_through(self, monkeypatch):
+        _stub_network(monkeypatch)
+        seen = {}
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "oauth2_login",
+            lambda self, user, token, mech="XOAUTH2", vendor=None: seen.update(
+                vendor=vendor
+            ),
+        )
+        IMAPClient(
+            "host",
+            "u@yahoo.com",
+            oauth2_token="tok",
+            oauth2_vendor="yahoo",
+        )
+        assert seen == {"vendor": "yahoo"}
+
+    def test_missing_credentials_raises(self):
+        with pytest.raises(ValueError, match="password or an OAuth2"):
+            IMAPClient("host", "u@example.com")
+
+    def test_oauth_without_username_raises(self):
+        with pytest.raises(ValueError, match="username is required"):
+            IMAPClient("host", oauth2_token="tok")

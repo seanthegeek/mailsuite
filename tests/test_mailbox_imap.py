@@ -16,6 +16,10 @@ def _bare_connection() -> IMAPConnection:
     inst._username = "user"
     inst._password = "pw"
     inst._verify = True
+    inst._oauth2_token = None
+    inst._oauth2_token_provider = None
+    inst._oauth2_mechanism = "XOAUTH2"
+    inst._oauth2_vendor = None
     inst._client = MagicMock()
     return inst
 
@@ -83,3 +87,27 @@ class TestIMAPConnection:
         conn = _bare_connection()
         with pytest.raises(NotImplementedError, match="IMAP"):
             conn.send_message("a@example.com")
+
+    def test_oauth2_kwargs_forwarded_to_client(self, monkeypatch):
+        captured = {}
+
+        def fake_imapclient_init(self, *args, **kwargs):
+            captured.update(kwargs)
+
+        monkeypatch.setattr(
+            "mailsuite.mailbox.imap.IMAPClient", fake_imapclient_init
+        )
+
+        def provider() -> str:
+            return "tok"
+
+        IMAPConnection(
+            "host",
+            "u@example.com",
+            oauth2_token_provider=provider,
+            oauth2_mechanism="OAUTHBEARER",
+        )
+        assert captured["oauth2_token_provider"] is provider
+        assert captured["oauth2_mechanism"] == "OAUTHBEARER"
+        assert captured["oauth2_token"] is None
+        assert captured["oauth2_vendor"] is None
