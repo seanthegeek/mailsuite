@@ -290,13 +290,6 @@ class TestMessageOps:
         result = conn.fetch_message("msg42")
         assert result == "raw rfc822 bytes"
 
-    def test_fetch_message_str_passthrough(self):
-        conn = _make_conn()
-        # Patch content.get to return a str directly
-        item = conn._client.users.by_user_id("x").messages.by_message_id("m1")
-        item.content.get = MagicMock(return_value=_coro("already a string"))
-        assert conn.fetch_message("m1") == "already a string"
-
     def test_fetch_message_none_returns_empty(self):
         conn = _make_conn()
         item = conn._client.users.by_user_id("x").messages.by_message_id("m2")

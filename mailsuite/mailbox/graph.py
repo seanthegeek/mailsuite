@@ -347,8 +347,6 @@ class MSGraphConnection(MailboxConnection):
             self.mark_message_read(str(message_id))
         if raw is None:
             return ""
-        if isinstance(raw, str):
-            return raw
         return bytes(raw).decode("utf-8", errors="replace")
 
     def mark_message_read(self, message_id: str) -> None:
