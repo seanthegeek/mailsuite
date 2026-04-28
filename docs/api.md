@@ -25,6 +25,18 @@ mailsuite.dkim
    :members:
 ```
 
+mailsuite.mailbox
+-----------------
+
+```{eval-rst}
+.. automodule:: mailsuite.mailbox.base
+   :members:
+.. automodule:: mailsuite.mailbox.imap
+   :members:
+.. automodule:: mailsuite.mailbox.maildir
+   :members:
+```
+
 mailsuite.utils
 ---------------
 
