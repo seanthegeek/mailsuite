@@ -78,6 +78,33 @@ cached `AuthenticationRecord`s and tokens continue to work — for
 example, `token_cache_name="parsedmarc"` keeps users authenticated
 across the migration.
 
+### Microsoft Graph permissions
+
+Grant the appropriate Microsoft Graph **API permissions** on the app
+registration based on which `MSGraphConnection` operations you need.
+Combine permissions across rows when you need multiple capabilities —
+e.g., to both read and send mail in a delegated flow against your own
+mailbox, grant `Mail.ReadWrite` and `Mail.Send`.
+
+| Use case | Delegated (own mailbox) | Delegated (shared mailbox) | App-only |
+| --- | --- | --- | --- |
+| Read messages only (`fetch_message`, `fetch_messages`) | `Mail.Read` | `Mail.Read.Shared` | `Mail.Read` |
+| Read + modify (mark read, delete, move, create folder) | `Mail.ReadWrite` | `Mail.ReadWrite.Shared` | `Mail.ReadWrite` |
+| Send mail (`send_message`) | `Mail.Send` | `Mail.Send.Shared` | `Mail.Send` |
+
+Delegated flows (`DeviceCode`, `UsernamePassword`) targeting a shared
+mailbox — i.e. when the `mailbox` argument differs from `username` —
+use the `.Shared` variants. App-only flows (`ClientSecret`,
+`Certificate`) do not need the `.Shared` variants since application
+permissions span every mailbox in the tenant (unless restricted by an
+[Application Access Policy](https://learn.microsoft.com/en-us/graph/auth-limit-mailbox-access)).
+
+For delegated flows, `MSGraphConnection` requests `Mail.ReadWrite` (or
+`Mail.ReadWrite.Shared`) at authenticate time, so even read-only
+callers must consent to at least `Mail.ReadWrite`. App-only flows
+authenticate with `https://graph.microsoft.com/.default`, which grants
+whichever permissions the app registration has consented.
+
 ## Email samples and Outlook clients
 
 ### Microsoft Outlook for Windows

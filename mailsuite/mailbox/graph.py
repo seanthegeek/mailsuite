@@ -168,6 +168,25 @@ class MSGraphConnection(MailboxConnection):
     ``/users/{mailbox}/sendMail`` with a structured ``Message`` body
     (Graph automatically saves a copy to Sent Items).
 
+    Required Microsoft Graph **API permissions** on the app registration
+    (combine as needed):
+
+    * Read-only (``fetch_message``, ``fetch_messages``): ``Mail.Read``
+    * Read + modify (mark read, delete, move, create folder):
+      ``Mail.ReadWrite``
+    * Send mail (``send_message``): ``Mail.Send``
+
+    Delegated flows (``DeviceCode``, ``UsernamePassword``) targeting a
+    shared mailbox (i.e. ``mailbox != username``) use the ``.Shared``
+    variants — ``Mail.Read.Shared``, ``Mail.ReadWrite.Shared``,
+    ``Mail.Send.Shared``. App-only flows (``ClientSecret``,
+    ``Certificate``) do not need the ``.Shared`` variants. See the
+    README "Microsoft Graph permissions" section for the full mapping.
+
+    Note: delegated flows always request ``Mail.ReadWrite`` at
+    authenticate time, so even read-only callers must consent to at
+    least ``Mail.ReadWrite``.
+
     Requires the ``msgraph`` extra::
 
         pip install mailsuite[msgraph]
