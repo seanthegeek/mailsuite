@@ -35,6 +35,10 @@ mailsuite.mailbox
    :members:
 .. automodule:: mailsuite.mailbox.maildir
    :members:
+.. automodule:: mailsuite.mailbox.graph
+   :members:
+.. automodule:: mailsuite.mailbox.gmail
+   :members:
 ```
 
 mailsuite.utils
