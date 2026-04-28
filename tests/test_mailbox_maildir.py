@@ -170,3 +170,78 @@ class TestMaildirConnection:
 
         # Should log warning and exit cleanly without re-raising
         conn.watch(cb, check_timeout=0, config_reloading=reload)
+
+
+class TestUidMismatch:
+    """Maildir on Linux/Docker often runs with a non-root user that doesn't
+    own the maildir directory. We must warn — not crash — so the operator
+    can fix permissions instead of debugging an unhandled OSError on import.
+    """
+
+    def test_non_root_mismatch_warns(self, maildir_path, monkeypatch, caplog):
+        import logging
+        import os
+
+        from mailsuite.mailbox import maildir as md_mod
+
+        real_stat = os.stat(maildir_path)
+        # os.stat returns a real stat_result; the .st_uid attribute is the
+        # only field the implementation reads. Ensure mismatch by claiming
+        # owner uid is one above whatever the runtime uid will be.
+        runtime_uid = 1000
+        owner_uid = runtime_uid + 1
+
+        class FakeStat:
+            st_uid = owner_uid
+
+            def __getattr__(self, name):
+                return getattr(real_stat, name)
+
+        monkeypatch.setattr(md_mod.os, "stat", lambda p: FakeStat())
+        monkeypatch.setattr(md_mod.os, "getuid", lambda: runtime_uid)
+
+        with caplog.at_level(logging.WARNING, logger="mailsuite.mailbox.maildir"):
+            # Should not raise — just warn
+            MaildirConnection(maildir_path, maildir_create=False)
+
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert any("differs from maildir" in r.getMessage() for r in warnings)
+
+    def test_root_with_mismatch_attempts_setuid(self, maildir_path, monkeypatch):
+        import os
+
+        from mailsuite.mailbox import maildir as md_mod
+
+        real_stat = os.stat(maildir_path)
+        owner_uid = 1234
+
+        class FakeStat:
+            st_uid = owner_uid
+
+            def __getattr__(self, name):
+                return getattr(real_stat, name)
+
+        setuid_calls = []
+        monkeypatch.setattr(md_mod.os, "stat", lambda p: FakeStat())
+        monkeypatch.setattr(md_mod.os, "getuid", lambda: 0)
+        monkeypatch.setattr(md_mod.os, "setuid", lambda uid: setuid_calls.append(uid))
+
+        MaildirConnection(maildir_path, maildir_create=False)
+        assert setuid_calls == [owner_uid]
+
+    def test_no_mismatch_no_warning(self, maildir_path, monkeypatch, caplog):
+        import logging
+        import os
+
+        from mailsuite.mailbox import maildir as md_mod
+
+        real_stat = os.stat(maildir_path)
+        # owner uid matches the (faked) runtime uid → no warning, no setuid
+        monkeypatch.setattr(md_mod.os, "getuid", lambda: real_stat.st_uid)
+
+        with caplog.at_level(logging.WARNING, logger="mailsuite.mailbox.maildir"):
+            MaildirConnection(maildir_path, maildir_create=False)
+
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert not any("differs from maildir" in r.getMessage() for r in warnings)
+        assert not any("Switching uid" in r.getMessage() for r in warnings)

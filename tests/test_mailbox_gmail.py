@@ -295,3 +295,41 @@ class TestWatch:
 
         conn.watch(cb, check_timeout=0, config_reloading=reload)
         assert calls["n"] == 1
+
+
+class TestTokenFileMkdir:
+    """_get_creds must create the parent directory of the token file when
+    persisting newly-issued credentials. Callers point token_file at paths
+    inside fresh config directories.
+    """
+
+    def test_installed_app_creates_parent_dirs(self, tmp_path, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from mailsuite.mailbox import gmail as gmail_mod
+
+        token_path = tmp_path / "deep" / "nested" / "token.json"
+        creds_file = tmp_path / "client_secrets.json"
+        creds_file.write_text("{}")
+
+        # Stub the OAuth flow — return a fake creds whose to_json() yields a
+        # known string we can assert on.
+        fake_creds = MagicMock()
+        fake_creds.valid = True
+        fake_creds.to_json.return_value = '{"access_token": "stub"}'
+        fake_flow = MagicMock()
+        fake_flow.run_local_server.return_value = fake_creds
+        monkeypatch.setattr(
+            gmail_mod.InstalledAppFlow,
+            "from_client_secrets_file",
+            classmethod(lambda cls, f, s: fake_flow),
+        )
+
+        assert not token_path.parent.exists()
+        result = gmail_mod._get_creds(
+            str(token_path), str(creds_file), ["scope"], oauth2_port=0
+        )
+
+        assert result is fake_creds
+        assert token_path.exists()
+        assert token_path.read_text() == '{"access_token": "stub"}'
