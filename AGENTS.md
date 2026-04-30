@@ -62,6 +62,60 @@ Don't add adjacent helpers, retry knobs, or precomputed fields the original
 lacked. Inline > extract; helpers earn their keep when called more than once.
 PR #22 history is the worst-case example to avoid re-creating.
 
+## Working with vendor SDKs
+
+When the question is "does the SDK do X?" or "what does the SDK return for
+Y?", **read the SDK source**. Don't guess, don't rely on a prior port's
+behavior, don't trust an LLM summary. Vendor SDKs change shape between
+versions and the installed version is the only contract that matters.
+
+In order of preference:
+
+1. The **installed SDK source** in `venv/lib/python.../site-packages/`.
+   `grep` and `inspect.getsource` answer most questions in seconds.
+2. The vendor's **official documentation** (Microsoft Learn, Google API
+   reference, etc.) for HTTP-level contracts the SDK wraps — error codes,
+   filter syntax, pagination semantics.
+3. The SDK's **GitHub issues** for known bugs and maintainer-recommended
+   patterns. Be wary of community workarounds in stale threads.
+
+Don't use parsedmarc, third-party blogs, or "what the original code did"
+as primary evidence. They're useful as "where to look next," not as a
+source of truth.
+
+### Lessons learned (Microsoft Graph SDK — `msgraph-sdk-python`)
+
+- **Retries are built-in.** `kiota_http`'s `RetryHandler` is part of the
+  default middleware pipeline (`max_retries=3`, exponential backoff on
+  `{429, 503, 504}`). Don't add an application-level retry layer; it's
+  redundant and competes with the SDK's behavior.
+- **Sync wrapper requires a persistent event loop.** The SDK is
+  async-only. `GraphRequestAdapter` holds a single `httpx.AsyncClient`
+  whose connection pool binds to the loop on first request — closing
+  that loop (e.g. via `asyncio.run` per call) invalidates the pool and
+  the next call surfaces as `RuntimeError: Event loop is closed`. Keep
+  one loop alive across calls (see `mailbox/graph.py:_run`). Microsoft
+  publishes no official sync-wrapper recipe; this is the
+  community-converged shape (see msgraph-sdk-python issues #366, #787,
+  #798).
+- **HTTP error detection: use `response_status_code`.** `ODataError`
+  inherits from `kiota_abstractions.api_error.APIError` and the
+  `response_status_code` attribute is set explicitly before raising
+  (see `kiota_http/httpx_request_adapter.py:throw_failed_responses`).
+  Check that, not the exception's string representation —
+  string-matching is fragile to error-message localization and SDK
+  changes.
+- **OData `$filter` strings need manual escaping.** The SDK provides no
+  helper. Per the [Graph query parameters
+  docs](https://learn.microsoft.com/en-us/graph/query-parameters),
+  single quotes inside string literals must be doubled (`'` → `''`).
+  Always escape user-supplied values before substituting into a
+  filter expression.
+- **The `with_url(next_link).get()` pattern follows OData pagination.**
+  Generated request builders expose `with_url(raw_url)` for following
+  `@odata.nextLink`. Kiota's `PageIterator` is an alternative but not
+  required.
+
 ## Optional extras (cloud backends)
 
 `MSGraphConnection` and `GmailConnection` are loaded lazily through PEP 562

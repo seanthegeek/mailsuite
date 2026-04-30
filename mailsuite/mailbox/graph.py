@@ -147,16 +147,35 @@ def _generate_credential(auth_method: str, token_path: Path, **kwargs):
     raise RuntimeError(f"Auth method {auth_method} not found")
 
 
+_persistent_loop: Optional[asyncio.AbstractEventLoop] = None
+
+
 def _run(coro):
-    """Run a coroutine to completion. Refuses to nest in a running loop."""
+    """Run a coroutine to completion on a persistent event loop.
+
+    Refuses to nest in a running loop. We retain a single persistent
+    loop across calls because the Graph SDK's underlying
+    ``httpx.AsyncClient`` keeps connection-pool resources bound to the
+    loop that issued the first request — closing the loop between calls
+    (as ``asyncio.run`` does) invalidates those resources and surfaces
+    on the next call as ``RuntimeError: Event loop is closed``. See
+    https://github.com/domainaware/parsedmarc/issues/742.
+    """
+    global _persistent_loop
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(coro)
-    raise RuntimeError(
-        "MSGraphConnection cannot be called from inside a running event loop. "
-        "Use msgraph.GraphServiceClient directly from async code."
-    )
+        pass
+    else:
+        raise RuntimeError(
+            "MSGraphConnection cannot be called from inside a running event loop. "
+            "Use msgraph.GraphServiceClient directly from async code."
+        )
+
+    if _persistent_loop is None or _persistent_loop.is_closed():
+        _persistent_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(_persistent_loop)
+    return _persistent_loop.run_until_complete(coro)
 
 
 class MSGraphConnection(MailboxConnection):
@@ -308,8 +327,7 @@ class MSGraphConnection(MailboxConnection):
                 )
             logger.debug("Created folder %s", folder_name)
         except Exception as e:
-            # 409 / "already exists" is normal — surface other errors
-            if "already exists" in str(e).lower() or "ErrorFolderExists" in str(e):
+            if getattr(e, "response_status_code", None) == 409:
                 logger.debug("Folder %s already exists, skipping", folder_name)
                 return
             raise
@@ -520,9 +538,11 @@ class MSGraphConnection(MailboxConnection):
     def _list_folders_filtered(
         self, folder_name: str, parent_folder_id: Optional[str]
     ) -> List[MailFolder]:
+        # OData string-literal escape: single quotes are doubled.
+        escaped = folder_name.replace("'", "''")
         if parent_folder_id is None:
             query = MailFoldersRequestBuilder.MailFoldersRequestBuilderGetQueryParameters(
-                filter=f"displayName eq '{folder_name}'"
+                filter=f"displayName eq '{escaped}'"
             )
             config = MailFoldersRequestBuilder.MailFoldersRequestBuilderGetRequestConfiguration(
                 query_parameters=query
@@ -534,7 +554,7 @@ class MSGraphConnection(MailboxConnection):
             )
         else:
             child_query = ChildFoldersRequestBuilder.ChildFoldersRequestBuilderGetQueryParameters(
-                filter=f"displayName eq '{folder_name}'"
+                filter=f"displayName eq '{escaped}'"
             )
             child_config = ChildFoldersRequestBuilder.ChildFoldersRequestBuilderGetRequestConfiguration(
                 query_parameters=child_query

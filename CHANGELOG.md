@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.2
+
+- Fix `RuntimeError: Event loop is closed` in `MSGraphConnection` after the first Graph call. The internal `_run` helper used `asyncio.run`, which closed the event loop after each invocation; the Graph SDK's underlying `httpx.AsyncClient` keeps connection-pool resources bound to that loop, so the next call would fail. `_run` now retains a single persistent event loop across calls ([domainaware/parsedmarc#742](https://github.com/domainaware/parsedmarc/issues/742)).
+- Detect "folder already exists" in `MSGraphConnection.create_folder` by HTTP status code (`409 Conflict` on the SDK's `APIError.response_status_code`) rather than by string-matching the exception message. The previous string match was brittle to error-message localization and Graph SDK changes.
+- Escape single quotes in folder-name OData filters in `MSGraphConnection`. Folder names containing an apostrophe (e.g. `John's mail`) previously produced a malformed `displayName eq '…'` filter expression that Graph rejected.
+
 ## 2.0.1
 
 - Add OAuth2 (XOAUTH2 / OAUTHBEARER) login support to `mailsuite.imap.IMAPClient` and `mailsuite.mailbox.IMAPConnection`. Pass `oauth2_token=` for a static access token, or `oauth2_token_provider=` (a zero-arg callable) to have a fresh token fetched on every connect/reconnect — recommended for long-running watch / IDLE loops where tokens expire mid-session. Yahoo's vendor string is supported via `oauth2_vendor=`. Workspace and Microsoft 365 users should still prefer the higher-level `GmailConnection` / `MSGraphConnection` backends, which handle token refresh end-to-end (#6).
