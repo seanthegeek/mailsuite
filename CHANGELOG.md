@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Close the persistent event loop in `mailsuite.mailbox.graph` at interpreter shutdown via `atexit`. Prevents a `ResourceWarning: unclosed event loop` under `-W error` / `PYTHONDEVMODE=1` after the 2.0.2 fix retained the loop across calls.
+
 ## 2.0.2
 
 - Fix `RuntimeError: Event loop is closed` in `MSGraphConnection` after the first Graph call. The internal `_run` helper used `asyncio.run`, which closed the event loop after each invocation; the Graph SDK's underlying `httpx.AsyncClient` keeps connection-pool resources bound to that loop, so the next call would fail. `_run` now retains a single persistent event loop across calls ([domainaware/parsedmarc#742](https://github.com/domainaware/parsedmarc/issues/742)).
