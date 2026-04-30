@@ -86,6 +86,7 @@ class FakeMailFolders:
         self.posts = []
         self._items: dict = {}
         self._listing_pages = []
+        self.get_calls = []
 
     def by_mail_folder_id(self, fid):
         if fid not in self._items:
@@ -93,6 +94,7 @@ class FakeMailFolders:
         return self._items[fid]
 
     def get(self, request_configuration=None):
+        self.get_calls.append(request_configuration)
         if self._listing_pages:
             return _coro(self._listing_pages.pop(0))
         return _coro(MagicMock(value=[]))
@@ -191,6 +193,23 @@ class TestRunHelper:
                 _run(asyncio.sleep(0))
 
         asyncio.run(main())
+
+    def test_reuses_loop_across_calls(self):
+        """Regression for parsedmarc#742. ``_run`` must reuse a single
+        persistent event loop across calls; closing the loop (as
+        ``asyncio.run`` did) leaves the Graph SDK's httpx connection
+        pool bound to a closed loop, surfacing as ``RuntimeError: Event
+        loop is closed`` on the next request."""
+        loops_seen = []
+
+        async def capture_loop():
+            loops_seen.append(asyncio.get_running_loop())
+
+        _run(capture_loop())
+        _run(capture_loop())
+
+        assert loops_seen[0] is loops_seen[1]
+        assert not loops_seen[0].is_closed()
 
 
 class TestAuthMethodNames:
@@ -333,6 +352,19 @@ class TestFolderResolution:
         with pytest.raises(RuntimeError, match="not found"):
             conn._find_folder_id_from_folder_path("DoesNotExist")
 
+    def test_odata_single_quote_escaping(self):
+        """Folder names containing apostrophes must escape them per OData
+        rules (single quote → two single quotes), or the filter expression
+        is malformed and Graph rejects the request."""
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="id1", display_name="John's mail")]),
+        ]
+        assert conn._find_folder_id_from_folder_path("John's mail") == "id1"
+        config = folders.get_calls[0]
+        assert config.query_parameters.filter == "displayName eq 'John''s mail'"
+
     def test_well_known_folder_fallback(self):
         conn = _make_conn()
         # Empty listing for the literal name…
@@ -362,12 +394,17 @@ class TestCreateFolder:
 
     def test_already_exists_swallowed(self):
         conn = _make_conn()
-        # Make post raise an "already exists" error
+
+        # Graph returns 409 Conflict when a folder with the same display
+        # name already exists. The SDK surfaces it as an APIError-derived
+        # exception with response_status_code == 409.
+        class FakeAPIError(Exception):
+            response_status_code = 409
+
         async def _raise(*a, **k):
-            raise RuntimeError("ErrorFolderExists: yep")
+            raise FakeAPIError("Conflict")
 
         conn._client.users.by_user_id("x").mail_folders.post = lambda body: _raise()
-        # Should not raise
         conn.create_folder("Reports")
 
     def test_unknown_error_propagates(self):
