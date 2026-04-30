@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import atexit
 import logging
 from enum import Enum
 from functools import lru_cache
@@ -176,6 +177,14 @@ def _run(coro):
         _persistent_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(_persistent_loop)
     return _persistent_loop.run_until_complete(coro)
+
+
+@atexit.register
+def _close_persistent_loop() -> None:
+    global _persistent_loop
+    if _persistent_loop is not None and not _persistent_loop.is_closed():
+        _persistent_loop.close()
+    _persistent_loop = None
 
 
 class MSGraphConnection(MailboxConnection):
