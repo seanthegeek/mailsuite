@@ -123,14 +123,31 @@ class GmailConnection(MailboxConnection):
                 raise
 
     def rename_folder(self, old_name: str, new_name: str) -> None:
-        # Gmail uses labels; renaming patches the label's name. System labels
-        # (INBOX, SPAM, etc.) can't be renamed and surface as an HttpError.
+        """
+        Rename a label
+
+        Gmail has no folders — only labels — so this backend maps the
+        :class:`MailboxConnection` "folder" concept onto labels. Renaming
+        patches the label's display name; the label's *immutable id* is
+        preserved, so existing message associations (and any cached id) stay
+        valid.
+
+        Only user labels can be renamed. Renaming a system label (``INBOX``,
+        ``SENT``, ``SPAM``, etc.) is rejected by Gmail and surfaces as a
+        :class:`googleapiclient.errors.HttpError`. Nested labels are
+        independent: renaming ``Work`` does not touch a label named
+        ``Work/Projects``.
+
+        Args:
+            old_name: The current label name (or id)
+            new_name: The new label display name
+        """
         label_id = self._find_label_id_for_label(old_name)
         logger.debug("Renaming label %s to %s", old_name, new_name)
         self.service.users().labels().patch(
             userId="me", id=label_id, body={"name": new_name}
         ).execute()
-        # The id→name mapping is now stale; drop the lru_cache.
+        # Only the name→id cache is stale now; the label id itself is unchanged.
         self._find_label_id_for_label.cache_clear()
 
     def _fetch_all_message_ids(
