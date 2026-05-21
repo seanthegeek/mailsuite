@@ -17,7 +17,7 @@ import pytest
 pytest.importorskip("msgraph")
 pytest.importorskip("azure.identity")
 
-from mailsuite.mailbox import MailboxConnection  # noqa: E402
+from mailsuite.mailbox import FolderExistsError, MailboxConnection  # noqa: E402
 from mailsuite.mailbox.graph import (  # noqa: E402
     DEFAULT_TOKEN_CACHE_NAME,
     AuthMethod,
@@ -427,7 +427,10 @@ class TestRenameFolder:
     def test_patches_display_name(self):
         conn = _make_conn()
         folders = conn._client.users.by_user_id("x").mail_folders
+        # First page (empty) answers the new-name conflict check as "absent";
+        # the second resolves the old folder being renamed.
         folders._listing_pages = [
+            MagicMock(value=[]),
             MagicMock(value=[MagicMock(id="fid1", display_name="Old")]),
         ]
         conn._find_folder_id_from_folder_path.cache_clear()
@@ -442,12 +445,24 @@ class TestRenameFolder:
         conn = _make_conn()
         folders = conn._client.users.by_user_id("x").mail_folders
         folders._listing_pages = [
+            MagicMock(value=[]),  # conflict check: Parent/Renamed absent
             MagicMock(value=[MagicMock(id="fid2", display_name="Old")]),
         ]
         conn._find_folder_id_from_folder_path.cache_clear()
         conn.rename_folder("Old", "Parent/Renamed")
         item = folders.by_mail_folder_id("fid2")
         assert item.patched.display_name == "Renamed"
+
+    def test_conflict_raises(self):
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        # The target name resolves to an existing folder → conflict.
+        folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="dup", display_name="New")]),
+        ]
+        conn._find_folder_id_from_folder_path.cache_clear()
+        with pytest.raises(FolderExistsError):
+            conn.rename_folder("Old", "New")
 
 
 class TestFolderExists:

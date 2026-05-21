@@ -357,7 +357,11 @@ class MSGraphConnection(MailboxConnection):
         Args:
             old_name: The current folder name or ``parent/child`` path
             new_name: The new display name (leaf segment is used)
+
+        Raises:
+            FolderExistsError: If ``new_name`` already resolves to a folder.
         """
+        self._ensure_no_folder_conflict(new_name)
         folder_id = self._find_folder_id_from_folder_path(old_name)
         display_name = new_name.split("/")[-1]
         _run(

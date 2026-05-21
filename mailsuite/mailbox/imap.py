@@ -87,6 +87,7 @@ class IMAPConnection(MailboxConnection):
         self._client.create_folder(folder_name)
 
     def rename_folder(self, old_name: str, new_name: str) -> None:
+        self._ensure_no_folder_conflict(new_name)
         self._client.rename_folder(old_name, new_name)
 
     def folder_exists(self, folder_name: str) -> bool:

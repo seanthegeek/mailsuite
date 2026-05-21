@@ -7,7 +7,11 @@ import os
 
 import pytest
 
-from mailsuite.mailbox import MailboxConnection, MaildirConnection
+from mailsuite.mailbox import (
+    FolderExistsError,
+    MailboxConnection,
+    MaildirConnection,
+)
 
 
 @pytest.fixture
@@ -52,6 +56,16 @@ class TestMaildirConnection:
         conn = MaildirConnection(maildir_path, maildir_create=True)
         with pytest.raises(OSError):
             conn.rename_folder("DoesNotExist", "Whatever")
+
+    def test_rename_conflict_raises(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        conn.create_folder("Reports")
+        conn.create_folder("Archive")
+        with pytest.raises(FolderExistsError):
+            conn.rename_folder("Reports", "Archive")
+        # Both folders are left intact (no destructive os.rename replace).
+        assert conn.folder_exists("Reports") is True
+        assert conn.folder_exists("Archive") is True
 
     def test_folder_exists(self, maildir_path):
         conn = MaildirConnection(maildir_path, maildir_create=True)

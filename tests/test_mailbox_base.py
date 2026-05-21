@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from mailsuite.mailbox import MailboxConnection
+from mailsuite.mailbox import FolderExistsError, MailboxConnection
 
 
 class TestABCDefaultMethods:
@@ -56,3 +56,21 @@ class TestABCDefaultMethods:
     def test_send_message(self, conn):
         with pytest.raises(NotImplementedError):
             conn.send_message("a@example.com")
+
+
+class TestFolderExistsError:
+    def test_is_runtime_error(self):
+        # Subclassing RuntimeError lets callers catch it as a domain error
+        # without importing the specific type.
+        assert issubclass(FolderExistsError, RuntimeError)
+
+    def test_guard_raises_when_folder_present(self):
+        conn = MailboxConnection.__new__(MailboxConnection)
+        conn.folder_exists = lambda name: True  # type: ignore[method-assign]
+        with pytest.raises(FolderExistsError):
+            conn._ensure_no_folder_conflict("Archive")
+
+    def test_guard_passes_when_absent(self):
+        conn = MailboxConnection.__new__(MailboxConnection)
+        conn.folder_exists = lambda name: False  # type: ignore[method-assign]
+        conn._ensure_no_folder_conflict("Archive")  # no raise

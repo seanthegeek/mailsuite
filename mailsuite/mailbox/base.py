@@ -6,6 +6,11 @@ from abc import ABC
 from typing import Any, Callable, Optional, Tuple
 
 
+class FolderExistsError(RuntimeError):
+    """Raised by :meth:`MailboxConnection.rename_folder` when the target
+    name is already taken by another folder/label."""
+
+
 class MailboxConnection(ABC):
     """
     A provider-agnostic interface for a mailbox
@@ -23,9 +28,16 @@ class MailboxConnection(ABC):
         """
         Rename a folder/label in the mailbox
 
+        Implementations call :meth:`_ensure_no_folder_conflict` first, so a
+        rename onto an existing name raises :class:`FolderExistsError`
+        consistently rather than each backend's native behavior.
+
         Args:
             old_name: The current folder/label name (or path)
             new_name: The new folder/label name
+
+        Raises:
+            FolderExistsError: If ``new_name`` already exists.
         """
         raise NotImplementedError
 
@@ -37,6 +49,22 @@ class MailboxConnection(ABC):
             folder_name: The folder/label name (or path) to check
         """
         raise NotImplementedError
+
+    def _ensure_no_folder_conflict(self, folder_name: str) -> None:
+        """Raise :class:`FolderExistsError` if ``folder_name`` already exists.
+
+        Backends call this from :meth:`rename_folder` so a name collision
+        fails uniformly, instead of each provider's native behavior — Graph
+        silently creating a second folder with a duplicate display name,
+        Maildir replacing an empty target directory, IMAP/Gmail raising
+        provider-specific errors. Best-effort: a folder created between this
+        check and the rename still falls back to the backend's behavior.
+        """
+        if self.folder_exists(folder_name):
+            raise FolderExistsError(
+                f"cannot rename to {folder_name!r}: a folder or label with "
+                "that name already exists"
+            )
 
     def fetch_messages(self, reports_folder: str, **kwargs: Any) -> list:
         """Return a list of message identifiers in the given folder"""

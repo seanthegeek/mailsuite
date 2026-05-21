@@ -141,7 +141,11 @@ class GmailConnection(MailboxConnection):
         Args:
             old_name: The current label name (or id)
             new_name: The new label display name
+
+        Raises:
+            FolderExistsError: If a label named ``new_name`` already exists.
         """
+        self._ensure_no_folder_conflict(new_name)
         label_id = self._find_label_id_for_label(old_name)
         if not label_id:
             # Without this guard we'd PATCH id="" and get a confusing API error

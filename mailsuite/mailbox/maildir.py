@@ -79,7 +79,9 @@ class MaildirConnection(MailboxConnection):
     def rename_folder(self, old_name: str, new_name: str) -> None:
         # Maildir++ stores each folder as a sibling directory named
         # ".<folder>"; the stdlib mailbox.Maildir has no rename, so move the
-        # directory and drop the stale cached client for the old name.
+        # directory and drop the stale cached client for the old name. Guard
+        # first: os.rename would otherwise silently replace an empty target.
+        self._ensure_no_folder_conflict(new_name)
         old_path = os.path.join(self._maildir_path, "." + old_name)
         new_path = os.path.join(self._maildir_path, "." + new_name)
         os.rename(old_path, new_path)

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 from imapclient.exceptions import IMAPClientError
 
+from mailsuite.mailbox import FolderExistsError
 from mailsuite.mailbox.imap import IMAPConnection
 
 
@@ -32,8 +33,16 @@ class TestIMAPConnection:
 
     def test_rename_folder_delegates(self):
         conn = _bare_connection()
+        conn._client.folder_exists.return_value = False
         conn.rename_folder("Reports", "Archive")
         conn._client.rename_folder.assert_called_once_with("Reports", "Archive")
+
+    def test_rename_folder_conflict_raises(self):
+        conn = _bare_connection()
+        conn._client.folder_exists.return_value = True
+        with pytest.raises(FolderExistsError):
+            conn.rename_folder("Reports", "Archive")
+        conn._client.rename_folder.assert_not_called()
 
     def test_folder_exists_delegates(self):
         conn = _bare_connection()

@@ -18,7 +18,7 @@ pytest.importorskip("google.oauth2.credentials")
 
 from googleapiclient.errors import HttpError  # noqa: E402
 
-from mailsuite.mailbox import MailboxConnection  # noqa: E402
+from mailsuite.mailbox import FolderExistsError, MailboxConnection  # noqa: E402
 from mailsuite.mailbox.gmail import GmailConnection, _get_creds  # noqa: E402
 
 
@@ -133,11 +133,22 @@ class TestCreateFolder:
 class TestRenameFolder:
     def test_patches_label_name(self):
         conn = _bare_connection()
-        conn._find_label_id_for_label = MagicMock(return_value="L42")
+        # Old label resolves; the new name does not (no conflict).
+        conn._find_label_id_for_label = MagicMock(
+            side_effect=lambda n: "L42" if n == "Reports" else ""
+        )
         conn.rename_folder("Reports", "Archived Reports")
         kwargs = conn.service.labels_obj.patch.call_args.kwargs
         assert kwargs["id"] == "L42"
         assert kwargs["body"] == {"name": "Archived Reports"}
+
+    def test_conflict_raises(self):
+        conn = _bare_connection()
+        # The target label already exists.
+        conn._find_label_id_for_label = MagicMock(return_value="LX")
+        with pytest.raises(FolderExistsError):
+            conn.rename_folder("Reports", "Archive")
+        conn.service.labels_obj.patch.assert_not_called()
 
     def test_missing_label_raises_not_found(self):
         """A missing source label must raise a clear error rather than
