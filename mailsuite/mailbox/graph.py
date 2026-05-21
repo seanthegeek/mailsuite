@@ -17,6 +17,7 @@ try:
     from azure.identity import (
         AuthenticationRecord,
         CertificateCredential,
+        ClientAssertionCredential,
         ClientSecretCredential,
         DeviceCodeCredential,
         TokenCachePersistenceOptions,
@@ -67,6 +68,7 @@ class AuthMethod(Enum):
     UsernamePassword = 2
     ClientSecret = 3
     Certificate = 4
+    ClientAssertion = 5
 
 
 DEFAULT_TOKEN_CACHE_NAME = "mailsuite"
@@ -129,6 +131,12 @@ def _generate_credential(auth_method: str, token_path: Path, **kwargs):
                 allow_unencrypted_storage=kwargs["allow_unencrypted_storage"],
                 cache_name=cache_name,
             ),
+        )
+    if auth_method == AuthMethod.ClientAssertion.name:
+        return ClientAssertionCredential(
+            tenant_id=kwargs["tenant_id"],
+            client_id=kwargs["client_id"],
+            func=kwargs["oauth2_token_provider"],
         )
     if auth_method == AuthMethod.ClientSecret.name:
         return ClientSecretCredential(
@@ -194,10 +202,10 @@ class MSGraphConnection(MailboxConnection):
     """
     A :class:`MailboxConnection` backed by Microsoft Graph
 
-    Supports DeviceCode, UsernamePassword, ClientSecret, and Certificate
-    auth via :mod:`azure.identity`. Send mail goes through
-    ``/users/{mailbox}/sendMail`` with a structured ``Message`` body
-    (Graph automatically saves a copy to Sent Items).
+    Supports DeviceCode, UsernamePassword, ClientSecret, ClientAssertion
+    (OAuth2) and Certificate auth via :mod:`azure.identity`. Send mail
+    goes through ``/users/{mailbox}/sendMail`` with a structured ``Message``
+    body (Graph automatically saves a copy to Sent Items).
 
     Required Microsoft Graph **API permissions** on the app registration
     (combine as needed):
@@ -210,7 +218,7 @@ class MSGraphConnection(MailboxConnection):
     Delegated flows (``DeviceCode``, ``UsernamePassword``) targeting a
     shared mailbox (i.e. ``mailbox != username``) use the ``.Shared``
     variants — ``Mail.Read.Shared``, ``Mail.ReadWrite.Shared``,
-    ``Mail.Send.Shared``. App-only flows (``ClientSecret``,
+    ``Mail.Send.Shared``. App-only flows (``ClientSecret``, ``ClientAssertion``
     ``Certificate``) do not need the ``.Shared`` variants. See the
     README "Microsoft Graph permissions" section for the full mapping.
 
@@ -247,6 +255,8 @@ class MSGraphConnection(MailboxConnection):
         certificate_password: Optional[Union[str, bytes]] = None,
         graph_url: Optional[str] = None,
         token_cache_name: str = DEFAULT_TOKEN_CACHE_NAME,
+        oauth2_token: Optional[str] = None,
+        oauth2_token_provider: Optional[Callable[[], str]] = None,
     ):
         """
         Args:
@@ -272,8 +282,18 @@ class MSGraphConnection(MailboxConnection):
                 from a previous installation can pass the old cache name
                 (e.g. ``"parsedmarc"``) so existing cached
                 ``AuthenticationRecord``s and tokens continue to work.
+            oauth2_token: A static OAuth2 access token for ClientAssertion
+                auth. For long-running connections prefer
+                ``oauth2_token_provider`` so a fresh token is fetched on
+                reconnect.
+            oauth2_token_provider: A zero-arg callable returning a current
+                OAuth2 access token. Invoked on every (re)connect, so the
+                callable is responsible for refreshing the token when
+                needed.
         """
         token_path = Path(token_file)
+        if oauth2_token_provider is None and oauth2_token is not None:
+            oauth2_token_provider = lambda: oauth2_token
         credential = _generate_credential(
             auth_method,
             client_id=client_id,
@@ -286,10 +306,12 @@ class MSGraphConnection(MailboxConnection):
             token_path=token_path,
             allow_unencrypted_storage=allow_unencrypted_storage,
             cache_name=token_cache_name,
+            oauth2_token_provider=oauth2_token_provider,
         )
 
         scopes: Optional[List[str]] = None
-        if not isinstance(credential, (ClientSecretCredential, CertificateCredential)):
+        if not isinstance(credential, (ClientAssertionCredential, ClientSecretCredential,
+                                       CertificateCredential)):
             scopes = ["Mail.ReadWrite"]
             # Detect if mailbox is shared
             if mailbox and username and username != mailbox:
