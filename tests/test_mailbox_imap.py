@@ -35,6 +35,17 @@ class TestIMAPConnection:
         conn.rename_folder("Reports", "Archive")
         conn._client.rename_folder.assert_called_once_with("Reports", "Archive")
 
+    def test_folder_exists_delegates(self):
+        conn = _bare_connection()
+        conn._client.folder_exists.return_value = True
+        assert conn.folder_exists("Reports") is True
+        conn._client.folder_exists.assert_called_once_with("Reports")
+
+    def test_folder_exists_false(self):
+        conn = _bare_connection()
+        conn._client.folder_exists.return_value = False
+        assert conn.folder_exists("Nope") is False
+
     def test_fetch_messages_no_since(self):
         conn = _bare_connection()
         conn._client.search.return_value = [1, 2, 3]

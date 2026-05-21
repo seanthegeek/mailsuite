@@ -143,12 +143,21 @@ class GmailConnection(MailboxConnection):
             new_name: The new label display name
         """
         label_id = self._find_label_id_for_label(old_name)
+        if not label_id:
+            # Without this guard we'd PATCH id="" and get a confusing API error
+            # instead of a clear "doesn't exist" signal. Mirrors the Graph
+            # backend's "folder not found" RuntimeError.
+            raise RuntimeError(f"label {old_name} not found")
         logger.debug("Renaming label %s to %s", old_name, new_name)
         self.service.users().labels().patch(
             userId="me", id=label_id, body={"name": new_name}
         ).execute()
         # Only the name→id cache is stale now; the label id itself is unchanged.
         self._find_label_id_for_label.cache_clear()
+
+    def folder_exists(self, folder_name: str) -> bool:
+        # _find_label_id_for_label returns "" when no label matches the name/id.
+        return bool(self._find_label_id_for_label(folder_name))
 
     def _fetch_all_message_ids(
         self,

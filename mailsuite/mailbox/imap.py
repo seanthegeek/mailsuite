@@ -89,6 +89,9 @@ class IMAPConnection(MailboxConnection):
     def rename_folder(self, old_name: str, new_name: str) -> None:
         self._client.rename_folder(old_name, new_name)
 
+    def folder_exists(self, folder_name: str) -> bool:
+        return bool(self._client.folder_exists(folder_name))
+
     def fetch_messages(self, reports_folder: str, **kwargs: Any) -> list:
         self._client.select_folder(reports_folder)
         since = kwargs.get("since")

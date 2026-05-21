@@ -86,6 +86,9 @@ class MaildirConnection(MailboxConnection):
         self._subfolder_client.pop(old_name, None)
         self._subfolder_client.pop(new_name, None)
 
+    def folder_exists(self, folder_name: str) -> bool:
+        return os.path.isdir(os.path.join(self._maildir_path, "." + folder_name))
+
     def fetch_messages(self, reports_folder: str, **kwargs: Any) -> list:
         if reports_folder and reports_folder != "INBOX":
             self._active_folder = self._get_folder(reports_folder)

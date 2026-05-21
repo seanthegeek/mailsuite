@@ -342,9 +342,22 @@ class MSGraphConnection(MailboxConnection):
             raise
 
     def rename_folder(self, old_name: str, new_name: str) -> None:
-        # Graph renames a folder in place by PATCHing its displayName; it does
-        # not move the folder between parents. Only the leaf segment of
-        # ``new_name`` is used as the new display name.
+        """
+        Rename a mail folder in place
+
+        Issues ``PATCH /users/{mailbox}/mailFolders/{id}`` with a new
+        ``displayName`` (requires ``Mail.ReadWrite``). Graph's update
+        operation only changes the folder's display name — it does *not*
+        move the folder to a different parent (relocating a folder is a
+        separate ``move`` action). Accordingly, only the leaf segment of
+        ``new_name`` is used as the new display name, so passing a
+        ``parent/child`` path won't create a folder whose name literally
+        contains a slash. The folder's id is unchanged by a rename.
+
+        Args:
+            old_name: The current folder name or ``parent/child`` path
+            new_name: The new display name (leaf segment is used)
+        """
         folder_id = self._find_folder_id_from_folder_path(old_name)
         display_name = new_name.split("/")[-1]
         _run(
@@ -352,8 +365,18 @@ class MSGraphConnection(MailboxConnection):
             .mail_folders.by_mail_folder_id(folder_id)
             .patch(MailFolder(display_name=display_name))
         )
-        # The path→id cache now holds a stale name for this folder.
+        # The path→id cache now holds a stale name for this folder; the
+        # folder id itself is unchanged by a rename.
         self._find_folder_id_from_folder_path.cache_clear()
+
+    def folder_exists(self, folder_name: str) -> bool:
+        """Return ``True`` if the folder (by name or ``parent/child`` path)
+        resolves to an id. A missing folder surfaces as the resolver's
+        ``RuntimeError``; any other failure (auth, network) propagates."""
+        try:
+            return bool(self._find_folder_id_from_folder_path(folder_name))
+        except RuntimeError:
+            return False
 
     # — message reading —
 

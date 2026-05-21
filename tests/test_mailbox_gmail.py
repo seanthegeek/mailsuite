@@ -139,6 +139,27 @@ class TestRenameFolder:
         assert kwargs["id"] == "L42"
         assert kwargs["body"] == {"name": "Archived Reports"}
 
+    def test_missing_label_raises_not_found(self):
+        """A missing source label must raise a clear error rather than
+        PATCHing id="" and surfacing a confusing API error."""
+        conn = _bare_connection()
+        conn._find_label_id_for_label = MagicMock(return_value="")
+        with pytest.raises(RuntimeError, match="not found"):
+            conn.rename_folder("Nope", "Whatever")
+        conn.service.labels_obj.patch.assert_not_called()
+
+
+class TestFolderExists:
+    def test_true_when_label_resolves(self):
+        conn = _bare_connection()
+        conn._find_label_id_for_label = MagicMock(return_value="L42")
+        assert conn.folder_exists("Reports") is True
+
+    def test_false_when_label_missing(self):
+        conn = _bare_connection()
+        conn._find_label_id_for_label = MagicMock(return_value="")
+        assert conn.folder_exists("Nope") is False
+
 
 class TestFetchMessages:
     def test_single_page(self):

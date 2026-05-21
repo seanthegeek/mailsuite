@@ -53,6 +53,12 @@ class TestMaildirConnection:
         with pytest.raises(OSError):
             conn.rename_folder("DoesNotExist", "Whatever")
 
+    def test_folder_exists(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        assert conn.folder_exists("Reports") is False
+        conn.create_folder("Reports")
+        assert conn.folder_exists("Reports") is True
+
     def test_fetch_messages_inbox(self, maildir_path):
         conn = MaildirConnection(maildir_path, maildir_create=True)
         box = mailbox.Maildir(maildir_path)

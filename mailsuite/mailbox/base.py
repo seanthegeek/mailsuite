@@ -29,6 +29,15 @@ class MailboxConnection(ABC):
         """
         raise NotImplementedError
 
+    def folder_exists(self, folder_name: str) -> bool:
+        """
+        Return ``True`` if the named folder/label exists in the mailbox
+
+        Args:
+            folder_name: The folder/label name (or path) to check
+        """
+        raise NotImplementedError
+
     def fetch_messages(self, reports_folder: str, **kwargs: Any) -> list:
         """Return a list of message identifiers in the given folder"""
         raise NotImplementedError

@@ -450,6 +450,24 @@ class TestRenameFolder:
         assert item.patched.display_name == "Renamed"
 
 
+class TestFolderExists:
+    def test_true_when_folder_resolves(self):
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="fid1", display_name="Reports")]),
+        ]
+        conn._find_folder_id_from_folder_path.cache_clear()
+        assert conn.folder_exists("Reports") is True
+
+    def test_false_when_not_found(self):
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        folders._listing_pages = [MagicMock(value=[])]
+        conn._find_folder_id_from_folder_path.cache_clear()
+        assert conn.folder_exists("Missing") is False
+
+
 class TestFetchMessagesPagination:
     def test_single_page(self):
         conn = _make_conn()
