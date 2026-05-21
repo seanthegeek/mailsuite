@@ -81,30 +81,33 @@ class MailboxConnection(ABC):
     def move_folder(
         self,
         source: str,
-        destination: str,
-        destination_is_parent: bool = False,
+        new_path: Optional[str] = None,
+        new_parent: Optional[str] = None,
         create: bool = False,
     ) -> None:
         """
         Relocate a folder (and its contents) to a new location
 
-        By default ``destination`` is the folder's full new path. Set
-        ``destination_is_parent=True`` to instead treat ``destination`` as
-        the parent folder to move ``source`` under, keeping ``source``'s own
-        leaf name (e.g. ``move_folder("Archive/Forensic", "Reports",
-        destination_is_parent=True)`` yields ``Reports/Forensic``).
+        Give exactly one of ``new_path`` or ``new_parent``:
+
+        * ``new_path`` is the folder's complete new path, e.g.
+          ``move_folder("Archive/Forensic", new_path="Reports/Failure")``.
+        * ``new_parent`` is the folder to move ``source`` under, keeping its
+          own leaf name, e.g. ``move_folder("Archive/Forensic",
+          new_parent="Reports")`` yields ``Reports/Forensic``.
 
         Args:
             source: Path of the folder to move. Must exist.
-            destination: New full path, or the parent path when
-                ``destination_is_parent`` is set.
-            destination_is_parent: Interpret ``destination`` as the parent
-                folder rather than the full target path.
+            new_path: The complete new path for the folder.
+            new_parent: The parent folder to move ``source`` under (its leaf
+                name is preserved). Use ``""`` for the mailbox root.
             create: Create the destination's parent path if it doesn't
                 already exist. When ``False`` (default), a missing parent
                 raises :class:`FolderNotFoundError`.
 
         Raises:
+            ValueError: If not exactly one of ``new_path`` / ``new_parent``
+                is given.
             FolderNotFoundError: If ``source`` (or, with ``create=False``,
                 the destination parent) does not exist.
             FolderExistsError: If the target path is already taken.
@@ -114,16 +117,20 @@ class MailboxConnection(ABC):
             ``/`` naming convention — so a move renames the label's path and
             does not relocate independent descendant labels.
         """
+        if (new_path is None) == (new_parent is None):
+            raise ValueError("provide exactly one of new_path or new_parent")
+
         if not self.folder_exists(source):
             raise FolderNotFoundError(f"folder {source!r} not found")
 
-        src_leaf = source.rpartition("/")[2]
-        if destination_is_parent:
-            target_parent = destination
-            target_path = f"{destination}/{src_leaf}" if destination else src_leaf
+        if new_parent is not None:
+            src_leaf = source.rpartition("/")[2]
+            target_parent = new_parent
+            target_path = f"{new_parent}/{src_leaf}" if new_parent else src_leaf
         else:
-            target_parent = destination.rpartition("/")[0]
-            target_path = destination
+            assert new_path is not None
+            target_parent = new_path.rpartition("/")[0]
+            target_path = new_path
 
         if target_parent and not self.folder_exists(target_parent):
             if create:

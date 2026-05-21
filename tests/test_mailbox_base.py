@@ -114,42 +114,54 @@ class _FakeConn(MailboxConnection):
 
 
 class TestMoveFolder:
-    def test_full_path(self):
+    def test_new_path(self):
         conn = _FakeConn(folders={"A/X", "B"})
-        conn.move_folder("A/X", "B/Y")
+        conn.move_folder("A/X", new_path="B/Y")
         assert conn.relocated == [("A/X", "B", "B/Y")]
 
-    def test_destination_is_parent_keeps_leaf(self):
+    def test_new_parent_keeps_leaf(self):
         conn = _FakeConn(folders={"A/X", "B"})
-        conn.move_folder("A/X", "B", destination_is_parent=True)
+        conn.move_folder("A/X", new_parent="B")
         assert conn.relocated == [("A/X", "B", "B/X")]
 
-    def test_top_level_destination_has_no_parent(self):
+    def test_new_path_top_level_has_no_parent(self):
         conn = _FakeConn(folders={"A/X"})
-        conn.move_folder("A/X", "Y")
+        conn.move_folder("A/X", new_path="Y")
         assert conn.relocated == [("A/X", "", "Y")]
+
+    def test_new_parent_root_keeps_leaf(self):
+        conn = _FakeConn(folders={"A/X"})
+        conn.move_folder("A/X", new_parent="")
+        assert conn.relocated == [("A/X", "", "X")]
+
+    def test_requires_exactly_one_destination(self):
+        conn = _FakeConn(folders={"A/X"})
+        with pytest.raises(ValueError):
+            conn.move_folder("A/X")
+        with pytest.raises(ValueError):
+            conn.move_folder("A/X", new_path="B/Y", new_parent="B")
 
     def test_missing_source_raises(self):
         conn = _FakeConn(folders={"B"})
         with pytest.raises(FolderNotFoundError):
-            conn.move_folder("A/X", "B/Y")
+            conn.move_folder("A/X", new_path="B/Y")
 
     def test_missing_parent_raises_by_default(self):
         conn = _FakeConn(folders={"A/X"})
         with pytest.raises(FolderNotFoundError):
-            conn.move_folder("A/X", "B/Y")
+            conn.move_folder("A/X", new_path="B/Y")
         assert conn.relocated == []
 
     def test_missing_parent_created_when_requested(self):
         conn = _FakeConn(folders={"A/X"})
-        conn.move_folder("A/X", "B/Y", create=True)
+        conn.move_folder("A/X", new_parent="B", create=True)
         assert conn.created == ["B"]
-        assert conn.relocated == [("A/X", "B", "B/Y")]
+        assert conn.relocated == [("A/X", "B", "B/X")]
 
     def test_conflict_raises(self):
         conn = _FakeConn(folders={"A/X", "B", "B/Y"})
         with pytest.raises(FolderExistsError):
-            conn.move_folder("A/X", "B/Y")
+            conn.move_folder("A/X", new_path="B/Y")
         assert conn.relocated == []
 
 

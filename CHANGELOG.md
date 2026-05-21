@@ -6,7 +6,7 @@
   - `folder_exists(name)` — whether a folder/label (or `parent/child` path) exists.
   - `rename_folder(old, new)` — rename a folder/label in place.
   - `delete_folder(name)` — delete a folder/label.
-  - `move_folder(source, destination, destination_is_parent=False, create=False)` — relocate a folder and its contents; `create=True` makes a missing parent.
+  - `move_folder(source, new_path=… | new_parent=…, create=False)` — relocate a folder and its contents to an exact path (`new_path`) or under a parent (`new_parent`, keeping its name); `create=True` makes a missing parent.
   - `merge_folders(sources, destination, create=False, keep_source_folders=False)` — move one or more folders' messages into another; `create=True` makes the destination, and emptied sources are deleted unless kept.
   - Name collisions raise the new `FolderExistsError`; missing folders raise the new `FolderNotFoundError`.
   - Backend notes: Graph renames change the display name in place (moves use the native move action); on Gmail (flat labels) a "folder move" renames the label's path and doesn't relocate independent descendant labels.

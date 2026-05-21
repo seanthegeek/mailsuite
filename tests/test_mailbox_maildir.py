@@ -81,17 +81,17 @@ class TestMaildirConnection:
         assert conn.folder_exists("Reports") is False
         assert not os.path.isdir(os.path.join(maildir_path, ".Reports"))
 
-    def test_move_folder_full_path(self, maildir_path):
+    def test_move_folder_new_path(self, maildir_path):
         conn = MaildirConnection(maildir_path, maildir_create=True)
         conn.create_folder("Old")
-        conn.move_folder("Old", "New")
+        conn.move_folder("Old", new_path="New")
         assert conn.folder_exists("Old") is False
         assert conn.folder_exists("New") is True
 
     def test_move_folder_into_parent_creating_it(self, maildir_path):
         conn = MaildirConnection(maildir_path, maildir_create=True)
         conn.create_folder("Forensic")
-        conn.move_folder("Forensic", "Reports", destination_is_parent=True, create=True)
+        conn.move_folder("Forensic", new_parent="Reports", create=True)
         assert conn.folder_exists("Reports") is True
         assert conn.folder_exists("Reports/Forensic") is True
         assert conn.folder_exists("Forensic") is False
@@ -100,7 +100,7 @@ class TestMaildirConnection:
         conn = MaildirConnection(maildir_path, maildir_create=True)
         conn.create_folder("Forensic")
         with pytest.raises(FolderNotFoundError):
-            conn.move_folder("Forensic", "Reports/Forensic")
+            conn.move_folder("Forensic", new_path="Reports/Forensic")
 
     def test_merge_folders_moves_and_deletes_source(self, maildir_path):
         conn = MaildirConnection(maildir_path, maildir_create=True)
