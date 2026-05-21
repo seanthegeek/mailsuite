@@ -19,6 +19,16 @@ class MailboxConnection(ABC):
         """Create a folder/label in the mailbox"""
         raise NotImplementedError
 
+    def rename_folder(self, old_name: str, new_name: str) -> None:
+        """
+        Rename a folder/label in the mailbox
+
+        Args:
+            old_name: The current folder/label name (or path)
+            new_name: The new folder/label name
+        """
+        raise NotImplementedError
+
     def fetch_messages(self, reports_folder: str, **kwargs: Any) -> list:
         """Return a list of message identifiers in the given folder"""
         raise NotImplementedError

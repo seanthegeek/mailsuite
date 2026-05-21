@@ -30,6 +30,11 @@ class TestIMAPConnection:
         conn.create_folder("Reports")
         conn._client.create_folder.assert_called_once_with("Reports")
 
+    def test_rename_folder_delegates(self):
+        conn = _bare_connection()
+        conn.rename_folder("Reports", "Archive")
+        conn._client.rename_folder.assert_called_once_with("Reports", "Archive")
+
     def test_fetch_messages_no_since(self):
         conn = _bare_connection()
         conn._client.search.return_value = [1, 2, 3]

@@ -10,6 +10,7 @@ A Python package for retrieving, parsing, and sending emails.
 - Simplified IMAP client
   - Retrieve email from any folder
   - Create new folders
+  - Rename folders
   - Move messages to other folders
   - Delete messages
   - Monitor folders for new messages using the IMAP ``IDLE`` command

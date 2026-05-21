@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 2.1.0
 
+- Add `rename_folder(old_name, new_name)` to the `MailboxConnection` interface, implemented on every backend that supports it: `IMAPConnection` (native IMAP `RENAME`), `MaildirConnection` (renames the Maildir++ `.<folder>` directory), `MSGraphConnection` (PATCHes the mail folder's `displayName` in place), and `GmailConnection` (patches the label name). The base `MailboxConnection.rename_folder` raises `NotImplementedError`. Graph renames change the display name only and do not move the folder between parents; only the leaf segment of `new_name` is used.
 - Close the persistent event loop in `mailsuite.mailbox.graph` at interpreter shutdown via `atexit`. Prevents a `ResourceWarning: unclosed event loop` under `-W error` / `PYTHONDEVMODE=1` after the 2.0.2 fix retained the loop across calls.
 
 ## 2.0.2

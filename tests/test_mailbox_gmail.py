@@ -130,6 +130,16 @@ class TestCreateFolder:
             conn.create_folder("Reports")
 
 
+class TestRenameFolder:
+    def test_patches_label_name(self):
+        conn = _bare_connection()
+        conn._find_label_id_for_label = MagicMock(return_value="L42")
+        conn.rename_folder("Reports", "Archived Reports")
+        kwargs = conn.service.labels_obj.patch.call_args.kwargs
+        assert kwargs["id"] == "L42"
+        assert kwargs["body"] == {"name": "Archived Reports"}
+
+
 class TestFetchMessages:
     def test_single_page(self):
         conn = _bare_connection()

@@ -63,9 +63,14 @@ class FakeMailFolderItem:
     def __init__(self, child_pages=None):
         self.messages = FakeMessages()
         self._child_pages = child_pages or []
+        self.patched = None
 
     def get(self, request_configuration=None):
         return _coro(MagicMock(value=[MagicMock(id="folder123", display_name="x")]))
+
+    def patch(self, body):
+        self.patched = body
+        return _coro(None)
 
     @property
     def child_folders(self):
@@ -416,6 +421,33 @@ class TestCreateFolder:
         conn._client.users.by_user_id("x").mail_folders.post = lambda body: _raise()
         with pytest.raises(RuntimeError, match="explosion"):
             conn.create_folder("Reports")
+
+
+class TestRenameFolder:
+    def test_patches_display_name(self):
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="fid1", display_name="Old")]),
+        ]
+        conn._find_folder_id_from_folder_path.cache_clear()
+        conn.rename_folder("Old", "New")
+        item = folders.by_mail_folder_id("fid1")
+        assert item.patched is not None
+        assert item.patched.display_name == "New"
+
+    def test_uses_leaf_of_new_name(self):
+        """Graph renames in place — only the leaf segment becomes the new
+        display name; the folder keeps its parent."""
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="fid2", display_name="Old")]),
+        ]
+        conn._find_folder_id_from_folder_path.cache_clear()
+        conn.rename_folder("Old", "Parent/Renamed")
+        item = folders.by_mail_folder_id("fid2")
+        assert item.patched.display_name == "Renamed"
 
 
 class TestFetchMessagesPagination:

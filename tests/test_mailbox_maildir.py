@@ -32,6 +32,27 @@ class TestMaildirConnection:
         # subfolder is stored under .Reports per Maildir++ convention
         assert os.path.isdir(os.path.join(maildir_path, ".Reports"))
 
+    def test_rename_folder(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        conn.create_folder("Reports")
+        # Drop a message in so we can confirm contents survive the rename.
+        folder = mailbox.Maildir(maildir_path).get_folder("Reports")
+        msg = mailbox.MaildirMessage(b"From: a\r\nSubject: t\r\n\r\nbody\r\n")
+        msg.add_flag("S")
+        key = folder.add(msg)
+
+        conn.rename_folder("Reports", "Archive")
+
+        assert not os.path.isdir(os.path.join(maildir_path, ".Reports"))
+        assert os.path.isdir(os.path.join(maildir_path, ".Archive"))
+        # The message moved with the folder and is still readable.
+        assert key in conn.fetch_messages("Archive")
+
+    def test_rename_missing_folder_raises(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        with pytest.raises(OSError):
+            conn.rename_folder("DoesNotExist", "Whatever")
+
     def test_fetch_messages_inbox(self, maildir_path):
         conn = MaildirConnection(maildir_path, maildir_create=True)
         box = mailbox.Maildir(maildir_path)

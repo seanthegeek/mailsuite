@@ -76,6 +76,16 @@ class MaildirConnection(MailboxConnection):
     def create_folder(self, folder_name: str) -> None:
         self._get_folder(folder_name)
 
+    def rename_folder(self, old_name: str, new_name: str) -> None:
+        # Maildir++ stores each folder as a sibling directory named
+        # ".<folder>"; the stdlib mailbox.Maildir has no rename, so move the
+        # directory and drop the stale cached client for the old name.
+        old_path = os.path.join(self._maildir_path, "." + old_name)
+        new_path = os.path.join(self._maildir_path, "." + new_name)
+        os.rename(old_path, new_path)
+        self._subfolder_client.pop(old_name, None)
+        self._subfolder_client.pop(new_name, None)
+
     def fetch_messages(self, reports_folder: str, **kwargs: Any) -> list:
         if reports_folder and reports_folder != "INBOX":
             self._active_folder = self._get_folder(reports_folder)

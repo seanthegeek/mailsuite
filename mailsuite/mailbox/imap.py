@@ -86,6 +86,9 @@ class IMAPConnection(MailboxConnection):
     def create_folder(self, folder_name: str) -> None:
         self._client.create_folder(folder_name)
 
+    def rename_folder(self, old_name: str, new_name: str) -> None:
+        self._client.rename_folder(old_name, new_name)
+
     def fetch_messages(self, reports_folder: str, **kwargs: Any) -> list:
         self._client.select_folder(reports_folder)
         since = kwargs.get("since")

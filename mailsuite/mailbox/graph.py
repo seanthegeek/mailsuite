@@ -341,6 +341,20 @@ class MSGraphConnection(MailboxConnection):
                 return
             raise
 
+    def rename_folder(self, old_name: str, new_name: str) -> None:
+        # Graph renames a folder in place by PATCHing its displayName; it does
+        # not move the folder between parents. Only the leaf segment of
+        # ``new_name`` is used as the new display name.
+        folder_id = self._find_folder_id_from_folder_path(old_name)
+        display_name = new_name.split("/")[-1]
+        _run(
+            self._client.users.by_user_id(self.mailbox_name)
+            .mail_folders.by_mail_folder_id(folder_id)
+            .patch(MailFolder(display_name=display_name))
+        )
+        # The path→id cache now holds a stale name for this folder.
+        self._find_folder_id_from_folder_path.cache_clear()
+
     # — message reading —
 
     def fetch_messages(self, reports_folder: str, **kwargs: Any) -> List[str]:

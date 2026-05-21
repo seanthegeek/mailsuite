@@ -21,6 +21,10 @@ class TestABCDefaultMethods:
         with pytest.raises(NotImplementedError):
             conn.create_folder("Reports")
 
+    def test_rename_folder(self, conn):
+        with pytest.raises(NotImplementedError):
+            conn.rename_folder("Reports", "Archive")
+
     def test_fetch_messages(self, conn):
         with pytest.raises(NotImplementedError):
             conn.fetch_messages("INBOX")

@@ -122,6 +122,17 @@ class GmailConnection(MailboxConnection):
             else:
                 raise
 
+    def rename_folder(self, old_name: str, new_name: str) -> None:
+        # Gmail uses labels; renaming patches the label's name. System labels
+        # (INBOX, SPAM, etc.) can't be renamed and surface as an HttpError.
+        label_id = self._find_label_id_for_label(old_name)
+        logger.debug("Renaming label %s to %s", old_name, new_name)
+        self.service.users().labels().patch(
+            userId="me", id=label_id, body={"name": new_name}
+        ).execute()
+        # The id→name mapping is now stale; drop the lru_cache.
+        self._find_label_id_for_label.cache_clear()
+
     def _fetch_all_message_ids(
         self,
         reports_label_id: str,
