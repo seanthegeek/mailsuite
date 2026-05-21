@@ -86,6 +86,25 @@ class IMAPConnection(MailboxConnection):
     def create_folder(self, folder_name: str) -> None:
         self._client.create_folder(folder_name)
 
+    def rename_folder(self, old_name: str, new_name: str) -> None:
+        self._ensure_no_folder_conflict(new_name)
+        self._client.rename_folder(old_name, new_name)
+
+    def delete_folder(self, folder_name: str) -> None:
+        self._client.delete_folder(folder_name)
+
+    def folder_exists(self, folder_name: str) -> bool:
+        return bool(self._client.folder_exists(folder_name))
+
+    def _do_move_folder(
+        self, source: str, target_parent: str, target_path: str
+    ) -> None:
+        # IMAP RENAME relocates within the hierarchy in one step, so a move is
+        # just a rename to the full target path. _normalise_folder maps "/" to
+        # the server's delimiter. (target_parent is unused; the path carries it.)
+        del target_parent
+        self._client.rename_folder(source, target_path)
+
     def fetch_messages(self, reports_folder: str, **kwargs: Any) -> list:
         self._client.select_folder(reports_folder)
         since = kwargs.get("since")

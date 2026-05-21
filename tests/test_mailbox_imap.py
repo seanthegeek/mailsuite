@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 from imapclient.exceptions import IMAPClientError
 
+from mailsuite.mailbox import FolderExistsError
 from mailsuite.mailbox.imap import IMAPConnection
 
 
@@ -29,6 +30,43 @@ class TestIMAPConnection:
         conn = _bare_connection()
         conn.create_folder("Reports")
         conn._client.create_folder.assert_called_once_with("Reports")
+
+    def test_rename_folder_delegates(self):
+        conn = _bare_connection()
+        conn._client.folder_exists.return_value = False
+        conn.rename_folder("Reports", "Archive")
+        conn._client.rename_folder.assert_called_once_with("Reports", "Archive")
+
+    def test_rename_folder_conflict_raises(self):
+        conn = _bare_connection()
+        conn._client.folder_exists.return_value = True
+        with pytest.raises(FolderExistsError):
+            conn.rename_folder("Reports", "Archive")
+        conn._client.rename_folder.assert_not_called()
+
+    def test_folder_exists_delegates(self):
+        conn = _bare_connection()
+        conn._client.folder_exists.return_value = True
+        assert conn.folder_exists("Reports") is True
+        conn._client.folder_exists.assert_called_once_with("Reports")
+
+    def test_folder_exists_false(self):
+        conn = _bare_connection()
+        conn._client.folder_exists.return_value = False
+        assert conn.folder_exists("Nope") is False
+
+    def test_delete_folder_delegates(self):
+        conn = _bare_connection()
+        conn.delete_folder("Junk")
+        conn._client.delete_folder.assert_called_once_with("Junk")
+
+    def test_do_move_folder_renames_to_full_path(self):
+        # IMAP relocation is a RENAME to the full target path.
+        conn = _bare_connection()
+        conn._do_move_folder("Archive/Forensic", "Reports", "Reports/Forensic")
+        conn._client.rename_folder.assert_called_once_with(
+            "Archive/Forensic", "Reports/Forensic"
+        )
 
     def test_fetch_messages_no_since(self):
         conn = _bare_connection()

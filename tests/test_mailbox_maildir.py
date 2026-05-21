@@ -7,7 +7,12 @@ import os
 
 import pytest
 
-from mailsuite.mailbox import MailboxConnection, MaildirConnection
+from mailsuite.mailbox import (
+    FolderExistsError,
+    FolderNotFoundError,
+    MailboxConnection,
+    MaildirConnection,
+)
 
 
 @pytest.fixture
@@ -31,6 +36,99 @@ class TestMaildirConnection:
         conn.create_folder("Reports")
         # subfolder is stored under .Reports per Maildir++ convention
         assert os.path.isdir(os.path.join(maildir_path, ".Reports"))
+
+    def test_rename_folder(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        conn.create_folder("Reports")
+        # Drop a message in so we can confirm contents survive the rename.
+        folder = mailbox.Maildir(maildir_path).get_folder("Reports")
+        msg = mailbox.MaildirMessage(b"From: a\r\nSubject: t\r\n\r\nbody\r\n")
+        msg.add_flag("S")
+        key = folder.add(msg)
+
+        conn.rename_folder("Reports", "Archive")
+
+        assert not os.path.isdir(os.path.join(maildir_path, ".Reports"))
+        assert os.path.isdir(os.path.join(maildir_path, ".Archive"))
+        # The message moved with the folder and is still readable.
+        assert key in conn.fetch_messages("Archive")
+
+    def test_rename_missing_folder_raises(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        with pytest.raises(OSError):
+            conn.rename_folder("DoesNotExist", "Whatever")
+
+    def test_rename_conflict_raises(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        conn.create_folder("Reports")
+        conn.create_folder("Archive")
+        with pytest.raises(FolderExistsError):
+            conn.rename_folder("Reports", "Archive")
+        # Both folders are left intact (no destructive os.rename replace).
+        assert conn.folder_exists("Reports") is True
+        assert conn.folder_exists("Archive") is True
+
+    def test_folder_exists(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        assert conn.folder_exists("Reports") is False
+        conn.create_folder("Reports")
+        assert conn.folder_exists("Reports") is True
+
+    def test_delete_folder(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        conn.create_folder("Reports")
+        conn.delete_folder("Reports")
+        assert conn.folder_exists("Reports") is False
+        assert not os.path.isdir(os.path.join(maildir_path, ".Reports"))
+
+    def test_move_folder_new_path(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        conn.create_folder("Old")
+        conn.move_folder("Old", new_path="New")
+        assert conn.folder_exists("Old") is False
+        assert conn.folder_exists("New") is True
+
+    def test_move_folder_into_parent_creating_it(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        conn.create_folder("Forensic")
+        conn.move_folder("Forensic", new_parent="Reports", create=True)
+        assert conn.folder_exists("Reports") is True
+        assert conn.folder_exists("Reports/Forensic") is True
+        assert conn.folder_exists("Forensic") is False
+
+    def test_move_folder_missing_parent_raises(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        conn.create_folder("Forensic")
+        with pytest.raises(FolderNotFoundError):
+            conn.move_folder("Forensic", new_path="Reports/Forensic")
+
+    def test_merge_folders_moves_and_deletes_source(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        conn.create_folder("Forensic")
+        conn.create_folder("Failure")
+        src = mailbox.Maildir(maildir_path).get_folder("Forensic")
+        msg = mailbox.MaildirMessage(b"From: a\r\nSubject: t\r\n\r\nbody\r\n")
+        msg.add_flag("S")
+        src.add(msg)
+
+        conn.merge_folders("Forensic", "Failure")
+
+        assert conn.folder_exists("Forensic") is False
+        assert len(conn.fetch_messages("Failure")) == 1
+
+    def test_merge_folders_keep_source(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        conn.create_folder("Forensic")
+        conn.create_folder("Failure")
+        src = mailbox.Maildir(maildir_path).get_folder("Forensic")
+        msg = mailbox.MaildirMessage(b"From: a\r\nSubject: t\r\n\r\nbody\r\n")
+        msg.add_flag("S")
+        src.add(msg)
+
+        conn.merge_folders("Forensic", "Failure", keep_source_folders=True)
+
+        assert conn.folder_exists("Forensic") is True
+        assert len(conn.fetch_messages("Failure")) == 1
 
     def test_fetch_messages_inbox(self, maildir_path):
         conn = MaildirConnection(maildir_path, maildir_create=True)

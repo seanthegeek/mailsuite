@@ -76,6 +76,38 @@ class MaildirConnection(MailboxConnection):
     def create_folder(self, folder_name: str) -> None:
         self._get_folder(folder_name)
 
+    def rename_folder(self, old_name: str, new_name: str) -> None:
+        # Maildir++ stores each folder as a sibling directory named
+        # ".<folder>"; the stdlib mailbox.Maildir has no rename, so move the
+        # directory and drop the stale cached client for the old name. Guard
+        # first: os.rename would otherwise silently replace an empty target.
+        self._ensure_no_folder_conflict(new_name)
+        old_path = os.path.join(self._maildir_path, "." + old_name)
+        new_path = os.path.join(self._maildir_path, "." + new_name)
+        os.rename(old_path, new_path)
+        self._subfolder_client.pop(old_name, None)
+        self._subfolder_client.pop(new_name, None)
+
+    def folder_exists(self, folder_name: str) -> bool:
+        return os.path.isdir(os.path.join(self._maildir_path, "." + folder_name))
+
+    def delete_folder(self, folder_name: str) -> None:
+        # stdlib remove_folder requires the folder be empty of messages and
+        # subfolders; merge_folders empties it first.
+        self._client.remove_folder(folder_name)
+        self._subfolder_client.pop(folder_name, None)
+
+    def _do_move_folder(
+        self, source: str, target_parent: str, target_path: str
+    ) -> None:
+        del target_parent
+        os.rename(
+            os.path.join(self._maildir_path, "." + source),
+            os.path.join(self._maildir_path, "." + target_path),
+        )
+        self._subfolder_client.pop(source, None)
+        self._subfolder_client.pop(target_path, None)
+
     def fetch_messages(self, reports_folder: str, **kwargs: Any) -> list:
         if reports_folder and reports_folder != "INBOX":
             self._active_folder = self._get_folder(reports_folder)

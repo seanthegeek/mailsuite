@@ -10,6 +10,7 @@ A Python package for retrieving, parsing, and sending emails.
 - Simplified IMAP client
   - Retrieve email from any folder
   - Create new folders
+  - Rename folders
   - Move messages to other folders
   - Delete messages
   - Monitor folders for new messages using the IMAP ``IDLE`` command
@@ -36,6 +37,9 @@ A Python package for retrieving, parsing, and sending emails.
 - Provider-agnostic mailbox abstraction (`mailsuite.mailbox`)
   - Single `MailboxConnection` interface for IMAP, Microsoft Graph,
     Gmail, and on-disk Maildir
+  - Folder management across every backend — create, rename, move, merge,
+    delete, and existence checks, with consistent `FolderExistsError` /
+    `FolderNotFoundError` semantics
   - Unified `send_message()` on backends that support sending (Microsoft
     Graph, Gmail) — IMAP and Maildir users send through
     `mailsuite.smtp.send_email`

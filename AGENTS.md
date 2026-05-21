@@ -64,10 +64,24 @@ PR #22 history is the worst-case example to avoid re-creating.
 
 ## Working with vendor SDKs
 
-When the question is "does the SDK do X?" or "what does the SDK return for
-Y?", **read the SDK source**. Don't guess, don't rely on a prior port's
-behavior, don't trust an LLM summary. Vendor SDKs change shape between
-versions and the installed version is the only contract that matters.
+**Verify, don't assume — and never guess.** When the question is "does the
+SDK do X?", "what does the SDK return for Y?", or "what does this API
+guarantee?", **read the source or the official docs before you answer.**
+Don't rely on a prior port's behavior, don't trust an LLM summary (including
+your own recollection), don't reason from the API's name. Vendor SDKs change
+shape between versions and the installed version is the only contract that
+matters. A claim is cheap to check (`grep`, `inspect.getsource`, a doc
+fetch) and expensive to get wrong.
+
+This rule applies equally to anything you **write down**. A sentence in a
+docstring, changelog, PR description, or commit message is only as true as
+the source you checked it against — a confidently wrong doc is worse than
+none. Before stating how something behaves, confirm it against the actual
+code path, not the happy path you imagine. (Example from this codebase's
+history: a `MSGraphConnection.folder_exists` docstring claimed "auth/network
+errors propagate" when the path resolver actually wrapped them in the same
+`RuntimeError` it used for a clean miss and swallowed both — caught only by
+re-reading the resolver, not by testing the happy path.)
 
 In order of preference:
 
@@ -75,7 +89,8 @@ In order of preference:
    `grep` and `inspect.getsource` answer most questions in seconds.
 2. The vendor's **official documentation** (Microsoft Learn, Google API
    reference, etc.) for HTTP-level contracts the SDK wraps — error codes,
-   filter syntax, pagination semantics.
+   filter syntax, pagination semantics. Cite the exact page when a change
+   hinges on it.
 3. The SDK's **GitHub issues** for known bugs and maintainer-recommended
    patterns. Be wary of community workarounds in stale threads.
 
@@ -115,6 +130,34 @@ source of truth.
   Generated request builders expose `with_url(raw_url)` for following
   `@odata.nextLink`. Kiota's `PageIterator` is an alternative but not
   required.
+- **Folder rename and move are different operations.** Renaming is
+  `PATCH /mailFolders/{id}` with a new `displayName` ([update
+  mailFolder](https://learn.microsoft.com/en-us/graph/api/mailfolder-update)) —
+  it changes the name in place and `displayName` is the only writable
+  property, so it can't relocate a folder. Moving is `POST
+  /mailFolders/{id}/move` with `{"destinationId": <parent id or
+  well-known name>}` ([mailFolder:
+  move](https://learn.microsoft.com/en-us/graph/api/mailfolder-move)),
+  which moves the folder *and its contents/subfolders* under a new parent
+  and can change the folder's id — use the id from the move response for
+  any follow-up call. `msgfolderroot` is the well-known id for the mailbox
+  root.
+
+### Lessons learned (Gmail API — `google-api-python-client`)
+
+- **Gmail has no folders, only labels — and labels are flat.** The
+  `Label` resource has `name`/`id`/`type` and no parent field; nesting
+  (`Archive/Forensic`) is purely a `/` convention in the `name` string,
+  and a "sub-label" is an independent label resource. So a "folder move"
+  is just a `labels.patch` of the `name`; it does not relocate
+  independently-named descendant labels.
+- **A label's `id` is immutable across a rename.** `labels.patch` of the
+  `name` keeps the id, so message associations (and any cached id) survive
+  — but the name→id cache must be cleared. System labels (`INBOX`, `SENT`,
+  …, `type: system`) can't be renamed or deleted.
+- **`labels.patch` is a partial update.** Sending only `{"name": …}` won't
+  reset `messageListVisibility`/`labelListVisibility`; `labels.update`
+  (full replace) would. Use `patch` for renames.
 
 ## Optional extras (cloud backends)
 

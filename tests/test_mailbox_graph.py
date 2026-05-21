@@ -17,7 +17,7 @@ import pytest
 pytest.importorskip("msgraph")
 pytest.importorskip("azure.identity")
 
-from mailsuite.mailbox import MailboxConnection  # noqa: E402
+from mailsuite.mailbox import FolderExistsError, MailboxConnection  # noqa: E402
 from mailsuite.mailbox.graph import (  # noqa: E402
     DEFAULT_TOKEN_CACHE_NAME,
     AuthMethod,
@@ -63,9 +63,33 @@ class FakeMailFolderItem:
     def __init__(self, child_pages=None):
         self.messages = FakeMessages()
         self._child_pages = child_pages or []
+        self.patched = None
+        self.deleted = False
+        self.moved_to = None
+        self.move_returns_id = None  # id the move action's response carries
 
     def get(self, request_configuration=None):
         return _coro(MagicMock(value=[MagicMock(id="folder123", display_name="x")]))
+
+    def patch(self, body):
+        self.patched = body
+        return _coro(None)
+
+    def delete(self):
+        self.deleted = True
+        return _coro(None)
+
+    @property
+    def move(self):
+        outer = self
+
+        def _post(body):
+            outer.moved_to = body.destination_id
+            return _coro(MagicMock(id=outer.move_returns_id))
+
+        m = MagicMock()
+        m.post = _post
+        return m
 
     @property
     def child_folders(self):
@@ -416,6 +440,138 @@ class TestCreateFolder:
         conn._client.users.by_user_id("x").mail_folders.post = lambda body: _raise()
         with pytest.raises(RuntimeError, match="explosion"):
             conn.create_folder("Reports")
+
+
+class TestRenameFolder:
+    def test_patches_display_name(self):
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        # First page (empty) answers the new-name conflict check as "absent";
+        # the second resolves the old folder being renamed.
+        folders._listing_pages = [
+            MagicMock(value=[]),
+            MagicMock(value=[MagicMock(id="fid1", display_name="Old")]),
+        ]
+        conn._find_folder_id_from_folder_path.cache_clear()
+        conn.rename_folder("Old", "New")
+        item = folders.by_mail_folder_id("fid1")
+        assert item.patched is not None
+        assert item.patched.display_name == "New"
+
+    def test_uses_leaf_of_new_name(self):
+        """Graph renames in place — only the leaf segment becomes the new
+        display name; the folder keeps its parent."""
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        folders._listing_pages = [
+            MagicMock(value=[]),  # conflict check: Parent/Renamed absent
+            MagicMock(value=[MagicMock(id="fid2", display_name="Old")]),
+        ]
+        conn._find_folder_id_from_folder_path.cache_clear()
+        conn.rename_folder("Old", "Parent/Renamed")
+        item = folders.by_mail_folder_id("fid2")
+        assert item.patched.display_name == "Renamed"
+
+    def test_conflict_raises(self):
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        # The target name resolves to an existing folder → conflict.
+        folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="dup", display_name="New")]),
+        ]
+        conn._find_folder_id_from_folder_path.cache_clear()
+        with pytest.raises(FolderExistsError):
+            conn.rename_folder("Old", "New")
+
+
+class TestFolderExists:
+    def test_true_when_folder_resolves(self):
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="fid1", display_name="Reports")]),
+        ]
+        conn._find_folder_id_from_folder_path.cache_clear()
+        assert conn.folder_exists("Reports") is True
+
+    def test_false_when_not_found(self):
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        folders._listing_pages = [MagicMock(value=[])]
+        conn._find_folder_id_from_folder_path.cache_clear()
+        assert conn.folder_exists("Missing") is False
+
+    def test_listing_failure_propagates(self):
+        """A failed listing call (auth/network) must propagate, not be
+        reported as a missing folder."""
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+
+        async def _raise(*a, **k):
+            raise RuntimeError("network down")
+
+        folders.get = lambda request_configuration=None: _raise()
+        conn._find_folder_id_from_folder_path.cache_clear()
+        with pytest.raises(RuntimeError, match="Failed to list folders"):
+            conn.folder_exists("Whatever")
+
+
+class TestDeleteFolder:
+    def test_deletes_resolved_folder(self):
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="fid1", display_name="Junk")]),
+        ]
+        conn._find_folder_id_from_folder_path.cache_clear()
+        conn.delete_folder("Junk")
+        assert folders.by_mail_folder_id("fid1").deleted is True
+
+
+class TestDoMoveFolder:
+    def test_native_move_to_parent(self):
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        # Resolve the source, then the destination parent.
+        folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="fid_src", display_name="Forensic")]),
+            MagicMock(value=[MagicMock(id="fid_parent", display_name="Reports")]),
+        ]
+        conn._find_folder_id_from_folder_path.cache_clear()
+        conn._do_move_folder("Forensic", "Reports", "Reports/Forensic")
+        src_item = folders.by_mail_folder_id("fid_src")
+        assert src_item.moved_to == "fid_parent"
+        # Same leaf name → no follow-up rename.
+        assert src_item.patched is None
+
+    def test_top_level_uses_msgfolderroot(self):
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="fid_src", display_name="Forensic")]),
+        ]
+        conn._find_folder_id_from_folder_path.cache_clear()
+        # Empty target_parent ("") means the mailbox root.
+        conn._do_move_folder("Forensic", "", "Forensic")
+        assert folders.by_mail_folder_id("fid_src").moved_to == "msgfolderroot"
+
+    def test_renames_leaf_on_returned_id(self):
+        """When the move changes the leaf name, the follow-up rename uses the
+        id from the move response (a move can change the folder id)."""
+        conn = _make_conn()
+        folders = conn._client.users.by_user_id("x").mail_folders
+        folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="fid_src", display_name="Forensic")]),
+            MagicMock(value=[MagicMock(id="fid_parent", display_name="Reports")]),
+        ]
+        # The move response carries a new id.
+        src_item = folders.by_mail_folder_id("fid_src")
+        src_item.move_returns_id = "fid_new"
+        conn._find_folder_id_from_folder_path.cache_clear()
+        conn._do_move_folder("Forensic", "Reports", "Reports/Failure")
+        # Rename landed on the new id, not the old one.
+        assert folders.by_mail_folder_id("fid_new").patched.display_name == "Failure"
+        assert src_item.patched is None
 
 
 class TestFetchMessagesPagination:
