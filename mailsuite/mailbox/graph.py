@@ -371,8 +371,10 @@ class MSGraphConnection(MailboxConnection):
 
     def folder_exists(self, folder_name: str) -> bool:
         """Return ``True`` if the folder (by name or ``parent/child`` path)
-        resolves to an id. A missing folder surfaces as the resolver's
-        ``RuntimeError``; any other failure (auth, network) propagates."""
+        resolves to an id, ``False`` if it can't be resolved. Note that the
+        path resolver raises ``RuntimeError`` both for an absent folder and
+        for a failed listing call (auth/network), so any resolution failure
+        is reported as ``False`` here rather than propagated."""
         try:
             return bool(self._find_folder_id_from_folder_path(folder_name))
         except RuntimeError:
