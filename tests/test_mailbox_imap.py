@@ -55,6 +55,19 @@ class TestIMAPConnection:
         conn._client.folder_exists.return_value = False
         assert conn.folder_exists("Nope") is False
 
+    def test_delete_folder_delegates(self):
+        conn = _bare_connection()
+        conn.delete_folder("Junk")
+        conn._client.delete_folder.assert_called_once_with("Junk")
+
+    def test_do_move_folder_renames_to_full_path(self):
+        # IMAP relocation is a RENAME to the full target path.
+        conn = _bare_connection()
+        conn._do_move_folder("Archive/Forensic", "Reports", "Reports/Forensic")
+        conn._client.rename_folder.assert_called_once_with(
+            "Archive/Forensic", "Reports/Forensic"
+        )
+
     def test_fetch_messages_no_since(self):
         conn = _bare_connection()
         conn._client.search.return_value = [1, 2, 3]

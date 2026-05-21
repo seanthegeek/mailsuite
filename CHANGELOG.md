@@ -2,7 +2,7 @@
 
 ## 2.1.0
 
-- Add `rename_folder(old_name, new_name)` and `folder_exists(folder_name)` to the `MailboxConnection` interface, implemented for the IMAP, Maildir, Microsoft Graph, and Gmail backends — enabling conditional folder migrations (rename only when the target is free). `rename_folder` raises the new `FolderExistsError` when the target name is already taken, giving consistent conflict behavior across backends. Graph renames change a folder's display name in place and do not move it between parents.
+- Expand the `MailboxConnection` folder-management API — `folder_exists`, `rename_folder`, `delete_folder`, `move_folder`, and `merge_folders` — across the IMAP, Maildir, Microsoft Graph, and Gmail backends. `move_folder` relocates a folder and its contents (opt-in `create` for a missing parent); `merge_folders` moves one or more folders' messages into another (opt-in `create`, and source folders are deleted unless `keep_source_folders=True`). Name collisions raise the new `FolderExistsError`; missing folders raise the new `FolderNotFoundError`. Together these support folder migrations such as renaming or merging a legacy folder into its replacement. Graph renames change a folder's display name in place (moves use the native move action); on Gmail (flat labels) a "folder move" renames the label's path and does not relocate independent descendant labels.
 - Close the persistent event loop in `mailsuite.mailbox.graph` at interpreter shutdown via `atexit`. Prevents a `ResourceWarning: unclosed event loop` under `-W error` / `PYTHONDEVMODE=1` after the 2.0.2 fix retained the loop across calls.
 
 ## 2.0.2

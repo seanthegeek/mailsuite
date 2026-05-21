@@ -11,7 +11,11 @@ but referencing the class will surface a clear error if they aren't.
 
 from typing import TYPE_CHECKING
 
-from mailsuite.mailbox.base import FolderExistsError, MailboxConnection
+from mailsuite.mailbox.base import (
+    FolderExistsError,
+    FolderNotFoundError,
+    MailboxConnection,
+)
 from mailsuite.mailbox.imap import IMAPConnection
 from mailsuite.mailbox.maildir import MaildirConnection
 
@@ -22,6 +26,7 @@ if TYPE_CHECKING:
 __all__ = [
     "MailboxConnection",
     "FolderExistsError",
+    "FolderNotFoundError",
     "IMAPConnection",
     "MaildirConnection",
     "MSGraphConnection",

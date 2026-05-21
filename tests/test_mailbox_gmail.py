@@ -18,7 +18,11 @@ pytest.importorskip("google.oauth2.credentials")
 
 from googleapiclient.errors import HttpError  # noqa: E402
 
-from mailsuite.mailbox import FolderExistsError, MailboxConnection  # noqa: E402
+from mailsuite.mailbox import (  # noqa: E402
+    FolderExistsError,
+    FolderNotFoundError,
+    MailboxConnection,
+)
 from mailsuite.mailbox.gmail import GmailConnection, _get_creds  # noqa: E402
 
 
@@ -170,6 +174,47 @@ class TestFolderExists:
         conn = _bare_connection()
         conn._find_label_id_for_label = MagicMock(return_value="")
         assert conn.folder_exists("Nope") is False
+
+
+class TestDeleteFolder:
+    def test_deletes_label(self):
+        conn = _bare_connection()
+        conn._find_label_id_for_label = MagicMock(return_value="L9")
+        conn.delete_folder("Junk")
+        conn.service.labels_obj.delete.assert_called_once_with(userId="me", id="L9")
+
+    def test_missing_label_raises(self):
+        conn = _bare_connection()
+        conn._find_label_id_for_label = MagicMock(return_value="")
+        with pytest.raises(FolderNotFoundError):
+            conn.delete_folder("Nope")
+        conn.service.labels_obj.delete.assert_not_called()
+
+
+class TestDoMoveFolder:
+    def test_renames_label_path(self):
+        # Gmail "move" is a label-path rename.
+        conn = _bare_connection()
+        conn._find_label_id_for_label = MagicMock(return_value="L1")
+        conn._do_move_folder("Archive/Forensic", "Reports", "Reports/Forensic")
+        kwargs = conn.service.labels_obj.patch.call_args.kwargs
+        assert kwargs["id"] == "L1"
+        assert kwargs["body"] == {"name": "Reports/Forensic"}
+
+
+class TestMoveMessageFrom:
+    def test_drops_source_label_adds_destination(self):
+        conn = _bare_connection()
+        conn._find_label_id_for_label = MagicMock(
+            side_effect=lambda n: {"Forensic": "LS", "Failure": "LD"}[n]
+        )
+        conn._move_message_from("m1", "Forensic", "Failure")
+        kwargs = conn.service.messages_obj.modify.call_args.kwargs
+        assert kwargs["id"] == "m1"
+        assert kwargs["body"] == {
+            "addLabelIds": ["LD"],
+            "removeLabelIds": ["LS"],
+        }
 
 
 class TestFetchMessages:

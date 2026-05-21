@@ -11,7 +11,7 @@ from pathlib import Path
 from time import sleep
 from typing import Any, Callable, List, Optional, Tuple, Union
 
-from mailsuite.mailbox.base import MailboxConnection
+from mailsuite.mailbox.base import FolderNotFoundError, MailboxConnection
 
 try:
     from azure.identity import (
@@ -42,6 +42,9 @@ try:
     )
     from msgraph.generated.users.item.mail_folders.item.messages.messages_request_builder import (  # noqa: E501
         MessagesRequestBuilder,
+    )
+    from msgraph.generated.users.item.mail_folders.item.move.move_post_request_body import (  # noqa: E501
+        MovePostRequestBody as FolderMovePostRequestBody,
     )
     from msgraph.generated.users.item.messages.item.move.move_post_request_body import (
         MovePostRequestBody,
@@ -375,14 +378,51 @@ class MSGraphConnection(MailboxConnection):
 
     def folder_exists(self, folder_name: str) -> bool:
         """Return ``True`` if the folder (by name or ``parent/child`` path)
-        resolves to an id, ``False`` if it can't be resolved. Note that the
-        path resolver raises ``RuntimeError`` both for an absent folder and
-        for a failed listing call (auth/network), so any resolution failure
-        is reported as ``False`` here rather than propagated."""
+        resolves to an id, ``False`` if no such folder exists. A failed
+        listing call (auth/network) propagates as ``RuntimeError`` rather than
+        being reported as a missing folder."""
         try:
             return bool(self._find_folder_id_from_folder_path(folder_name))
-        except RuntimeError:
+        except FolderNotFoundError:
             return False
+
+    def delete_folder(self, folder_name: str) -> None:
+        folder_id = self._find_folder_id_from_folder_path(folder_name)
+        _run(
+            self._client.users.by_user_id(self.mailbox_name)
+            .mail_folders.by_mail_folder_id(folder_id)
+            .delete()
+        )
+        self._find_folder_id_from_folder_path.cache_clear()
+
+    def _do_move_folder(
+        self, source: str, target_parent: str, target_path: str
+    ) -> None:
+        # Graph's native move action relocates the folder and its contents
+        # under a new parent (destinationId), preserving the display name.
+        # Moving can change the folder id, so use the id from the response for
+        # any follow-up rename. "" parent means the mailbox root.
+        folder_id = self._find_folder_id_from_folder_path(source)
+        if target_parent:
+            parent_id = self._find_folder_id_from_folder_path(target_parent)
+        else:
+            parent_id = "msgfolderroot"
+        moved = _run(
+            self._client.users.by_user_id(self.mailbox_name)
+            .mail_folders.by_mail_folder_id(folder_id)
+            .move.post(FolderMovePostRequestBody(destination_id=parent_id))
+        )
+        if moved is not None and moved.id:
+            folder_id = moved.id
+        # Full-path moves may also rename the leaf; the native move doesn't.
+        target_leaf = target_path.rpartition("/")[2]
+        if target_leaf != source.rpartition("/")[2]:
+            _run(
+                self._client.users.by_user_id(self.mailbox_name)
+                .mail_folders.by_mail_folder_id(folder_id)
+                .patch(MailFolder(display_name=target_leaf))
+            )
+        self._find_folder_id_from_folder_path.cache_clear()
 
     # — message reading —
 
@@ -585,7 +625,10 @@ class MSGraphConnection(MailboxConnection):
             well_known = self._get_well_known_folder_id(folder_name)
             if well_known:
                 return well_known
-        raise RuntimeError(f"folder {folder_name} not found")
+        # Distinct type from the "Failed to list folders" RuntimeError above,
+        # so folder_exists can treat a genuine miss as False while letting
+        # listing failures (auth/network) propagate.
+        raise FolderNotFoundError(f"folder {folder_name} not found")
 
     def _list_folders_filtered(
         self, folder_name: str, parent_folder_id: Optional[str]

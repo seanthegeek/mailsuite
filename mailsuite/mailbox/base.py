@@ -3,12 +3,20 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 
 class FolderExistsError(RuntimeError):
-    """Raised by :meth:`MailboxConnection.rename_folder` when the target
-    name is already taken by another folder/label."""
+    """Raised when a folder/label operation targets a name that is already
+    taken — e.g. :meth:`MailboxConnection.rename_folder` or
+    :meth:`MailboxConnection.move_folder` onto an existing name."""
+
+
+class FolderNotFoundError(RuntimeError):
+    """Raised when a folder/label referenced by an operation does not exist —
+    e.g. the source of a :meth:`MailboxConnection.move_folder` /
+    :meth:`MailboxConnection.merge_folders`, or a destination when its
+    ``create`` parameter is left ``False``."""
 
 
 class MailboxConnection(ABC):
@@ -22,6 +30,10 @@ class MailboxConnection(ABC):
 
     def create_folder(self, folder_name: str) -> None:
         """Create a folder/label in the mailbox"""
+        raise NotImplementedError
+
+    def delete_folder(self, folder_name: str) -> None:
+        """Delete a folder/label from the mailbox"""
         raise NotImplementedError
 
     def rename_folder(self, old_name: str, new_name: str) -> None:
@@ -65,6 +77,132 @@ class MailboxConnection(ABC):
                 f"cannot rename to {folder_name!r}: a folder or label with "
                 "that name already exists"
             )
+
+    def move_folder(
+        self,
+        source: str,
+        destination: str,
+        destination_is_parent: bool = False,
+        create: bool = False,
+    ) -> None:
+        """
+        Relocate a folder (and its contents) to a new location
+
+        By default ``destination`` is the folder's full new path. Set
+        ``destination_is_parent=True`` to instead treat ``destination`` as
+        the parent folder to move ``source`` under, keeping ``source``'s own
+        leaf name (e.g. ``move_folder("Archive/Forensic", "Reports",
+        destination_is_parent=True)`` yields ``Reports/Forensic``).
+
+        Args:
+            source: Path of the folder to move. Must exist.
+            destination: New full path, or the parent path when
+                ``destination_is_parent`` is set.
+            destination_is_parent: Interpret ``destination`` as the parent
+                folder rather than the full target path.
+            create: Create the destination's parent path if it doesn't
+                already exist. When ``False`` (default), a missing parent
+                raises :class:`FolderNotFoundError`.
+
+        Raises:
+            FolderNotFoundError: If ``source`` (or, with ``create=False``,
+                the destination parent) does not exist.
+            FolderExistsError: If the target path is already taken.
+
+        Note:
+            On Gmail there are no real folders — only labels nested by a
+            ``/`` naming convention — so a move renames the label's path and
+            does not relocate independent descendant labels.
+        """
+        if not self.folder_exists(source):
+            raise FolderNotFoundError(f"folder {source!r} not found")
+
+        src_leaf = source.rpartition("/")[2]
+        if destination_is_parent:
+            target_parent = destination
+            target_path = f"{destination}/{src_leaf}" if destination else src_leaf
+        else:
+            target_parent = destination.rpartition("/")[0]
+            target_path = destination
+
+        if target_parent and not self.folder_exists(target_parent):
+            if create:
+                self.create_folder(target_parent)
+            else:
+                raise FolderNotFoundError(
+                    f"destination parent {target_parent!r} not found "
+                    "(pass create=True to create it)"
+                )
+
+        self._ensure_no_folder_conflict(target_path)
+        self._do_move_folder(source, target_parent, target_path)
+
+    def merge_folders(
+        self,
+        sources: Union[str, List[str]],
+        destination: str,
+        create: bool = False,
+        keep_source_folders: bool = False,
+    ) -> None:
+        """
+        Move the contents of one or more folders into another
+
+        Every message in each source folder is moved into ``destination``.
+
+        Args:
+            sources: A source folder path, or a list of them.
+            destination: The folder to move messages into.
+            create: Create ``destination`` if it doesn't already exist. When
+                ``False`` (default), a missing destination raises
+                :class:`FolderNotFoundError`.
+            keep_source_folders: Leave the emptied source folders in place.
+                When ``False`` (default), each source folder is deleted after
+                its messages have been moved.
+
+        Raises:
+            FolderNotFoundError: If a source (or, with ``create=False``, the
+                destination) does not exist.
+        """
+        if isinstance(sources, str):
+            sources = [sources]
+
+        if not self.folder_exists(destination):
+            if create:
+                self.create_folder(destination)
+            else:
+                raise FolderNotFoundError(
+                    f"destination {destination!r} not found "
+                    "(pass create=True to create it)"
+                )
+
+        for source in sources:
+            if source == destination:
+                continue
+            if not self.folder_exists(source):
+                raise FolderNotFoundError(f"folder {source!r} not found")
+            for message_id in self.fetch_messages(source):
+                self._move_message_from(message_id, source, destination)
+            if not keep_source_folders:
+                self.delete_folder(source)
+
+    def _do_move_folder(
+        self, source: str, target_parent: str, target_path: str
+    ) -> None:
+        """Backend-specific folder relocation, called by :meth:`move_folder`
+        after it has validated existence, created any missing parent, and
+        checked for a conflict. ``target_parent`` is ``""`` for the mailbox
+        root."""
+        raise NotImplementedError
+
+    def _move_message_from(
+        self, message_id: Any, source: str, destination: str
+    ) -> None:
+        """Move a single message from ``source`` to ``destination`` during a
+        :meth:`merge_folders`. Defaults to :meth:`move_message`; backends
+        whose ``move_message`` doesn't key off the message's current folder
+        (Gmail labels) override this to drop the source label explicitly."""
+        del source
+        self.move_message(message_id, destination)
 
     def fetch_messages(self, reports_folder: str, **kwargs: Any) -> list:
         """Return a list of message identifiers in the given folder"""

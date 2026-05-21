@@ -9,7 +9,10 @@ from pathlib import Path
 from time import sleep
 from typing import Any, Callable, List, Optional, Tuple
 
-from mailsuite.mailbox.base import MailboxConnection
+from mailsuite.mailbox.base import (
+    FolderNotFoundError,
+    MailboxConnection,
+)
 from mailsuite.utils import create_email
 
 try:
@@ -149,9 +152,8 @@ class GmailConnection(MailboxConnection):
         label_id = self._find_label_id_for_label(old_name)
         if not label_id:
             # Without this guard we'd PATCH id="" and get a confusing API error
-            # instead of a clear "doesn't exist" signal. Mirrors the Graph
-            # backend's "folder not found" RuntimeError.
-            raise RuntimeError(f"label {old_name} not found")
+            # instead of a clear "doesn't exist" signal.
+            raise FolderNotFoundError(f"label {old_name} not found")
         logger.debug("Renaming label %s to %s", old_name, new_name)
         self.service.users().labels().patch(
             userId="me", id=label_id, body={"name": new_name}
@@ -159,9 +161,47 @@ class GmailConnection(MailboxConnection):
         # Only the name→id cache is stale now; the label id itself is unchanged.
         self._find_label_id_for_label.cache_clear()
 
+    def delete_folder(self, folder_name: str) -> None:
+        label_id = self._find_label_id_for_label(folder_name)
+        if not label_id:
+            raise FolderNotFoundError(f"label {folder_name} not found")
+        logger.debug("Deleting label %s", folder_name)
+        self.service.users().labels().delete(userId="me", id=label_id).execute()
+        self._find_label_id_for_label.cache_clear()
+
     def folder_exists(self, folder_name: str) -> bool:
         # _find_label_id_for_label returns "" when no label matches the name/id.
         return bool(self._find_label_id_for_label(folder_name))
+
+    def _do_move_folder(
+        self, source: str, target_parent: str, target_path: str
+    ) -> None:
+        # Gmail has no real folders: relocating is just renaming the label's
+        # "/"-path string. The label keeps its (immutable) id, so its messages
+        # follow, but any independently-named descendant labels do not.
+        del target_parent
+        label_id = self._find_label_id_for_label(source)
+        if not label_id:
+            raise FolderNotFoundError(f"label {source} not found")
+        self.service.users().labels().patch(
+            userId="me", id=label_id, body={"name": target_path}
+        ).execute()
+        self._find_label_id_for_label.cache_clear()
+
+    def _move_message_from(
+        self, message_id: Any, source: str, destination: str
+    ) -> None:
+        # move_message drops the configured reports label; for a merge we must
+        # drop the actual source label instead.
+        src_label = self._find_label_id_for_label(source)
+        dest_label = self._find_label_id_for_label(destination)
+        request_body = {
+            "addLabelIds": [dest_label],
+            "removeLabelIds": [src_label],
+        }
+        self.service.users().messages().modify(
+            userId="me", id=message_id, body=request_body
+        ).execute()
 
     def _fetch_all_message_ids(
         self,
