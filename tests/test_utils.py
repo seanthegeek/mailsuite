@@ -93,6 +93,11 @@ class TestParseEmailAddress:
         result = parse_email_address("garbage <weird@@example.com>")
         assert result["compliant"] is False or result["address"] != ""
 
+    def test_invalid_type_raises_type_error(self):
+        # Neither str nor tuple — must raise a clear TypeError, not UnboundLocalError
+        with pytest.raises(TypeError):
+            parse_email_address(None)  # type: ignore[arg-type]
+
 
 class TestIsOutlookMsg:
     def test_recognises_ole_signature(self):
@@ -197,6 +202,34 @@ class TestParseEmail:
         )
         parsed = parse_email(raw)
         assert parsed["automatic_reply"] is True
+
+    def test_reply_to_preserved(self):
+        raw = (
+            "From: Alice <alice@example.com>\r\n"
+            "Reply-To: Carol <carol@example.com>, dave@example.com\r\n"
+            "To: bob@example.com\r\n"
+            "Subject: Hello\r\n"
+            "\r\n"
+            "body\r\n"
+        )
+        parsed = parse_email(raw)
+        addresses = {addr["address"] for addr in parsed["reply-to"]}
+        assert addresses == {"carol@example.com", "dave@example.com"}
+
+    def test_subject_with_regex_metacharacters(self):
+        # A subject containing backslash sequences must not be treated as a
+        # regex replacement (previously raised re.error / corrupted the value).
+        for subject in (r"Backup \1 done", r"Price \g<0> off", r"100\% \8 \k"):
+            raw = (
+                "From: a@example.com\r\n"
+                "To: b@example.org\r\n"
+                f"Subject: {subject}\r\n"
+                "\r\n"
+                "body\r\n"
+            )
+            parsed = parse_email(raw)
+            assert parsed["subject"] == subject
+            assert f"Subject: {subject}" in parsed["headers_string"]
 
 
 class TestParseAuthenticationResults:
@@ -303,3 +336,124 @@ class TestFromTrustedDomain:
         msg = self._msg_with_dmarc_pass("example.com")
         parsed = parse_email(msg)
         assert from_trusted_domain(parsed, ["example.com"]) is True
+
+    # — DMARC-only dict path (existing tests match via the DKIM branch) —
+
+    def _msg_dmarc_only(self, domain: str = "example.com") -> str:
+        return (
+            f"From: a@{domain}\r\n"
+            "To: b@example.org\r\n"
+            f"Authentication-Results: mx.example.org; dmarc=pass header.from={domain}\r\n"
+            "Subject: hi\r\n\r\nbody\r\n"
+        )
+
+    def test_dmarc_only_trusted(self):
+        assert from_trusted_domain(self._msg_dmarc_only("example.com"), ["example.com"]) is True
+
+    def test_dmarc_only_untrusted(self):
+        assert from_trusted_domain(self._msg_dmarc_only("evil.example"), ["example.com"]) is False
+
+    def test_dmarc_only_sld(self):
+        msg = self._msg_dmarc_only("mail.example.com")
+        assert from_trusted_domain(msg, ["example.com"], include_sld=True) is True
+
+    # — multiple Authentication-Results headers —
+
+    def _msg_multi_ar(self, *ar_results: str) -> str:
+        headers = "".join(
+            f"Authentication-Results: mx.example.org; {r}\r\n" for r in ar_results
+        )
+        return (
+            "From: a@example.com\r\nTo: b@example.org\r\n"
+            f"{headers}Subject: hi\r\n\r\nbody\r\n"
+        )
+
+    def test_multiple_results_trusted(self):
+        # Regression: this used to raise TypeError because parse_email returns
+        # raw strings (not dicts) for multiple Authentication-Results headers.
+        msg = self._msg_multi_ar(
+            "spf=pass smtp.mailfrom=example.com",
+            "dmarc=pass header.from=example.com",
+        )
+        assert (
+            from_trusted_domain(
+                msg, ["example.com"], allow_multiple_authentication_results=True
+            )
+            is True
+        )
+
+    def test_multiple_results_untrusted(self):
+        msg = self._msg_multi_ar(
+            "spf=pass smtp.mailfrom=evil.example",
+            "dmarc=pass header.from=evil.example",
+        )
+        assert (
+            from_trusted_domain(
+                msg, ["example.com"], allow_multiple_authentication_results=True
+            )
+            is False
+        )
+
+    def test_multiple_results_sld(self):
+        msg = self._msg_multi_ar(
+            "spf=pass smtp.mailfrom=mail.example.com",
+            "dmarc=pass header.from=mail.example.com",
+        )
+        assert (
+            from_trusted_domain(
+                msg,
+                ["example.com"],
+                include_sld=True,
+                allow_multiple_authentication_results=True,
+            )
+            is True
+        )
+
+    def test_multiple_results_requires_flag(self):
+        # Without the opt-in flag, multiple AR headers are not consulted
+        msg = self._msg_multi_ar(
+            "spf=pass smtp.mailfrom=example.com",
+            "dmarc=pass header.from=example.com",
+        )
+        assert from_trusted_domain(msg, ["example.com"]) is False
+
+    def test_multiple_results_two_dmarc_rejected(self):
+        # Two DMARC stamps across the headers is ambiguous and rejected, even
+        # though one of them is trusted.
+        msg = self._msg_multi_ar(
+            "dmarc=pass header.from=other.example",
+            "dmarc=pass header.from=example.com",
+        )
+        assert (
+            from_trusted_domain(
+                msg, ["example.com"], allow_multiple_authentication_results=True
+            )
+            is False
+        )
+
+    # — Authentication-Results-Original (Proofpoint / Cisco gateways) —
+
+    def _msg_ar_original(self) -> str:
+        return (
+            "From: a@example.com\r\nTo: b@example.org\r\n"
+            "Authentication-Results: mx.example.org; "
+            "dmarc=fail header.from=spoof.example\r\n"
+            "Authentication-Results-Original: gw.example.org; "
+            "dmarc=pass header.from=example.com\r\n"
+            "Subject: hi\r\n\r\nbody\r\n"
+        )
+
+    def test_authentication_results_original_used(self):
+        # With the flag, the -Original header (dmarc=pass example.com) is used
+        msg = self._msg_ar_original()
+        assert (
+            from_trusted_domain(
+                msg, ["example.com"], use_authentication_results_original=True
+            )
+            is True
+        )
+
+    def test_authentication_results_original_ignored_by_default(self):
+        # Without the flag, the regular header (dmarc=fail spoof.example) is used
+        msg = self._msg_ar_original()
+        assert from_trusted_domain(msg, ["example.com"]) is False

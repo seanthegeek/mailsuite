@@ -175,13 +175,16 @@ def send_email(
             server.login(username, password)
         if envelope_from is None:
             envelope_from = message_from
-        if message_to is None and message_to is None:
-            raise ValueError("message_to and envelope_to cannot both be None")
-        envelope_to = message_to.copy()
+        if message_to is None:
+            raise ValueError("message_to cannot be None")
+        # The SMTP envelope must list every recipient — To, Cc, and Bcc — or
+        # the omitted ones never receive the message. (Bcc is intentionally
+        # absent from the message headers, so the envelope is its only path.)
+        envelope_to = list(message_to)
         if message_cc is not None:
-            message_to += message_cc
+            envelope_to += message_cc
         if message_bcc is not None:
-            message_to += message_bcc
+            envelope_to += message_bcc
         envelope_to = list(set(envelope_to))
         server.sendmail(envelope_from, envelope_to, msg)
     except smtplib.SMTPException as error:
