@@ -595,23 +595,30 @@ def from_trusted_domain(
                     return True
         return False
     if isinstance(results, list) and allow_multiple_authentication_results:
-        dmarc_result = False
         dmarc = None
         for header in results:
-            if "dmarc" in header:
-                if dmarc is not None:
-                    return False
-                dmarc = header["dmarc"]
-                dmarc_result = dmarc["result"]
-                domain = dmarc["header.from"]
-                sld = publicsuffix2.get_sld(domain)
-                if dmarc_result == "pass" and domain in trusted_domains:
-                    dmarc_result = True
-                    return dmarc_result
-                if include_sld:
-                    if dmarc_result == "pass" and sld in trusted_domains:
-                        dmarc_result = True
-                        return dmarc_result
+            # parse_email yields raw strings for multiple Authentication-Results
+            # headers; parse each into the same dict shape as the single-header
+            # path before inspecting it.
+            if isinstance(header, str):
+                try:
+                    header = parse_authentication_results(header)
+                except ValueError:
+                    continue
+            if not isinstance(header, dict) or "dmarc" not in header:
+                continue
+            if dmarc is not None:
+                # More than one DMARC result across the headers is ambiguous
+                return False
+            dmarc = header["dmarc"]
+            if dmarc.get("result") != "pass" or "header.from" not in dmarc:
+                continue
+            domain = dmarc["header.from"].lower().strip()
+            sld = publicsuffix2.get_sld(domain)
+            if domain in trusted_domains:
+                return True
+            if include_sld and sld in trusted_domains:
+                return True
     return False
 
 
