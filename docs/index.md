@@ -94,7 +94,7 @@ mailbox, grant `Mail.ReadWrite` and `Mail.Send`.
 
 Delegated flows (`DeviceCode`, `UsernamePassword`) targeting a shared
 mailbox — i.e. when the `mailbox` argument differs from `username` —
-use the `.Shared` variants. App-only flows (`ClientSecret`,
+use the `.Shared` variants. App-only flows (`ClientAssertion`, `ClientSecret`,
 `Certificate`) do not need the `.Shared` variants since application
 permissions span every mailbox in the tenant (unless restricted by an
 [Application Access Policy](https://learn.microsoft.com/en-us/graph/auth-limit-mailbox-access)).
