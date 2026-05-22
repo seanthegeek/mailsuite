@@ -88,6 +88,8 @@ def parse_email_address(email_address: Union[tuple, str]) -> dict:
             )
     elif isinstance(email_address, tuple):
         parsed_address = email_address
+    else:
+        raise TypeError("email_address must be a str or a (display_name, address) tuple")
     if parsed_address[0] != "":
         display_name = parsed_address[0]
     address = parsed_address[1]
@@ -365,14 +367,18 @@ def parse_email(
     if "to_domains" in parsed_email and "" in parsed_email["to_domains"]:
         parsed_email["to_domains"].remove("")
     if "subject" in parsed_email:
+        # Use a function replacement so backslash sequences in the decoded
+        # subject (e.g. "\1", "\g<0>") aren't interpreted as group references.
         headers_str = re.sub(
-            r"Subject: .+", f"Subject: {parsed_email['subject']}", headers_str
+            r"Subject: .+",
+            lambda _m: f"Subject: {parsed_email['subject']}",
+            headers_str,
         )
 
     if "thread-topic" in parsed_email:
         headers_str = re.sub(
             r"Thread-Topic: .+",
-            f"Thread-Topic: {parsed_email['thread-topic']}",
+            lambda _m: f"Thread-Topic: {parsed_email['thread-topic']}",
             headers_str,
         )
     parsed_email["headers_string"] = headers_str
@@ -455,13 +461,6 @@ def parse_email(
 
     else:
         parsed_email["date"] = None
-    if "reply_to" in parsed_email:
-        parsed_email["reply-to"] = list(
-            map(lambda x: parse_email_address(x), parsed_email["reply_to"])
-        )
-    else:
-        parsed_email["reply-to"] = []
-
     if "attachments" not in parsed_email:
         parsed_email["attachments"] = []
     else:

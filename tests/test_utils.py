@@ -93,6 +93,11 @@ class TestParseEmailAddress:
         result = parse_email_address("garbage <weird@@example.com>")
         assert result["compliant"] is False or result["address"] != ""
 
+    def test_invalid_type_raises_type_error(self):
+        # Neither str nor tuple — must raise a clear TypeError, not UnboundLocalError
+        with pytest.raises(TypeError):
+            parse_email_address(None)  # type: ignore[arg-type]
+
 
 class TestIsOutlookMsg:
     def test_recognises_ole_signature(self):
@@ -197,6 +202,34 @@ class TestParseEmail:
         )
         parsed = parse_email(raw)
         assert parsed["automatic_reply"] is True
+
+    def test_reply_to_preserved(self):
+        raw = (
+            "From: Alice <alice@example.com>\r\n"
+            "Reply-To: Carol <carol@example.com>, dave@example.com\r\n"
+            "To: bob@example.com\r\n"
+            "Subject: Hello\r\n"
+            "\r\n"
+            "body\r\n"
+        )
+        parsed = parse_email(raw)
+        addresses = {addr["address"] for addr in parsed["reply-to"]}
+        assert addresses == {"carol@example.com", "dave@example.com"}
+
+    def test_subject_with_regex_metacharacters(self):
+        # A subject containing backslash sequences must not be treated as a
+        # regex replacement (previously raised re.error / corrupted the value).
+        for subject in (r"Backup \1 done", r"Price \g<0> off", r"100\% \8 \k"):
+            raw = (
+                "From: a@example.com\r\n"
+                "To: b@example.org\r\n"
+                f"Subject: {subject}\r\n"
+                "\r\n"
+                "body\r\n"
+            )
+            parsed = parse_email(raw)
+            assert parsed["subject"] == subject
+            assert f"Subject: {subject}" in parsed["headers_string"]
 
 
 class TestParseAuthenticationResults:
