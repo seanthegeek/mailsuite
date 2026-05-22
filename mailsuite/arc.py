@@ -13,7 +13,7 @@ number (``i=``):
 * ``ARC-Seal`` (AS) — a signature over the ARC header fields, binding the
   chain together and recording its cumulative validity (``cv=``).
 
-This module wraps :mod:`dkimpy`'s ARC implementation behind an API shaped
+This module wraps ``dkimpy``'s ARC implementation behind an API shaped
 like :mod:`mailsuite.dkim`.
 """
 
@@ -49,9 +49,10 @@ def seal_email(
     The message **must** contain an ``Authentication-Results`` header whose
     authserv-id equals ``authserv_id`` — that is the authentication this hop
     is attesting to, and it is copied into the ``ARC-Authentication-Results``
-    header. Per RFC 8617 the chain is only sealed when such results exist; if
-    none match (or the existing chain has already been terminated as failed),
-    no ARC set can be produced and :class:`ARCError` is raised.
+    header. Per RFC 8617 the chain is sealed only when such results exist. If
+    none match — or, when extending an existing chain, the matching results
+    record no prior ARC result (``arc=``) to continue from — no ARC set is
+    produced and :class:`ARCError` is raised.
 
     Args:
         message: An RFC 822 message
@@ -63,8 +64,10 @@ def seal_email(
             the receiving host's name). Only ``Authentication-Results``
             headers carrying this id are folded into the seal.
         signed_headers: Header names the ``ARC-Message-Signature`` should
-            cover. Defaults to dkimpy's recommended set (all present headers
-            that are not in the ARC "should not sign" list). ``From`` must be
+            cover. Defaults to dkimpy's recommended set — the headers present
+            in the message that it lists as SHOULD-sign (``From``, ``To``,
+            ``Cc``, ``Subject``, ``Date``, ``Message-ID``, the ``List-*``
+            headers, etc.), with ``From`` oversigned. ``From`` must be
             included.
         timestamp: The ``t=`` value (epoch seconds) stamped into the AMS and
             AS. Defaults to the current time.
@@ -74,8 +77,9 @@ def seal_email(
 
     Raises:
         ARCError: If the message has no matching ``Authentication-Results``
-            header (nothing to seal), the chain is already terminated, or the
-            inputs are otherwise malformed (e.g. ``From`` is not signed).
+            header (nothing to seal), an existing chain cannot be continued,
+            or the inputs are otherwise malformed (e.g. ``From`` is not
+            signed).
     """
     if isinstance(message, str):
         message_bytes: bytes = message.encode("utf-8")
@@ -120,7 +124,6 @@ def seal_email(
 
 def verify_arc_chain(
     message: Union[str, bytes],
-    timeout: float = 5.0,
     minkey: int = 1024,
     dns_func: Optional[Callable[[str], bytes]] = None,
 ) -> dict:
@@ -139,7 +142,6 @@ def verify_arc_chain(
 
     Args:
         message: An RFC 822 message
-        timeout: DNS lookup timeout in seconds
         minkey: The minimum acceptable RSA key size in bits
         dns_func: An optional function taking a DNS name and returning the
             raw TXT record value as bytes. Useful for testing or for using a
@@ -168,7 +170,7 @@ def verify_arc_chain(
     else:
         message_bytes = bytes(message)
 
-    verify_kwargs = {"minkey": minkey, "timeout": int(timeout), "logger": logger}
+    verify_kwargs = {"minkey": minkey, "logger": logger}
     if dns_func is not None:
         verify_kwargs["dnsfunc"] = dns_func
     cv, results, reason = _dkim.arc_verify(message_bytes, **verify_kwargs)
