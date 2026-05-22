@@ -10,6 +10,7 @@
   - Pass `oauth2_token=` (or `oauth2_token_provider=` for a fresh token at send time) with `username=` to authenticate without a password.
   - `oauth2_mechanism=` selects `XOAUTH2` (default) or `OAUTHBEARER`; `oauth2_vendor=` supplies Yahoo's vendor string.
 - Add `ClientAssertion` auth to `MSGraphConnection` for federated / workload-identity scenarios that avoid a long-lived client secret. Pass `client_assertion=` with a signed-JWT assertion, or `client_assertion_provider=` (a zero-arg callable) to supply a fresh assertion each time `azure-identity` acquires a token. The assertion is exchanged for an access token via the JWT-bearer client-credentials grant — it is not itself a Graph access token (#31).
+- Fix `from_trusted_domain()` raising `TypeError` when `allow_multiple_authentication_results=True` and the message carries multiple `Authentication-Results` headers (which `parse_email` represents as raw strings). Each header is now parsed before inspection, and the matched DMARC domain is lower-cased/stripped to match the single-header path.
 
 ## 2.1.0
 
