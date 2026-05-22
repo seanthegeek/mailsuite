@@ -20,7 +20,7 @@ A Python package for retrieving, parsing, and sending emails.
   - Unified `send_message()` on backends that support sending (Microsoft
     Graph, Gmail) — IMAP and Maildir users send through
     `mailsuite.smtp.send_email`
-  - Username/password or OAuth2 (XOAUTH2 / OAUTHBEARER) login for IMAP
+  - Username/password or OAuth2 (XOAUTH2 / OAUTHBEARER) login for IMAP and SMTP
   - Automatic IMAP reconnection after dropped connections and timeouts
   - Always uses `/` as the folder hierarchy separator, converting to the
     server's separator and prepending its namespace automatically, and
@@ -39,8 +39,7 @@ A Python package for retrieving, parsing, and sending emails.
   - Uses opportunistic encryption (`STARTTLS`) with SMTP by default
 - DKIM signing and verification
   - Generate RSA keypairs and the matching DNS TXT record
-  - Sign outbound mail with a sensible default header set (with `From`,
-    `To`, `Cc`, `Subject` oversigned)
+  - Sign outbound mail with a sensible default header set
   - Verify one or many `DKIM-Signature` headers on a received message
 - ARC (Authenticated Received Chain) sealing and verification
   - Seal forwarded mail with an ARC set, extending an existing chain
@@ -53,6 +52,11 @@ Base install (IMAP, SMTP, DKIM, Maildir, parsing):
 ```bash
 pip install mailsuite
 ```
+
+If you would like to be able to parse Microsoft Outlook `.msg` files, install
+`msgconvert`. On Debian-based Linux distributions, `msgconvert` can be installed
+via `sudo apt-get install libemail-outlook-message-perl`. Other systems can use
+`cpan -i Email::Outlook::Message`.
 
 The Microsoft Graph and Gmail backends are optional extras — the cloud
 SDKs aren't pulled in unless you ask for them:

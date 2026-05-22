@@ -6,6 +6,9 @@
   - `seal_email()` — add an ARC set to a message, extending any existing chain.
   - `verify_arc_chain()` — verify the chain and report the `cv` result.
   - Errors raise the new `ARCError`. Adds `authres` as a dependency (required by dkimpy's ARC sealing).
+- Add OAuth2 authentication to `mailsuite.smtp.send_email`, matching the IMAP client:
+  - Pass `oauth2_token=` (or `oauth2_token_provider=` for a fresh token at send time) with `username=` to authenticate without a password.
+  - `oauth2_mechanism=` selects `XOAUTH2` (default) or `OAUTHBEARER`; `oauth2_vendor=` supplies Yahoo's vendor string.
 - Add `ClientAssertion` auth to `MSGraphConnection` for federated / workload-identity scenarios that avoid a long-lived client secret. Pass `client_assertion=` with a signed-JWT assertion, or `client_assertion_provider=` (a zero-arg callable) to supply a fresh assertion each time `azure-identity` acquires a token. The assertion is exchanged for an access token via the JWT-bearer client-credentials grant — it is not itself a Graph access token (#31).
 
 ## 2.1.0

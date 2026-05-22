@@ -35,6 +35,7 @@ class FakeSMTPServer:
         self.starttls_called = False
         self.ehlo_count = 0
         self.login_args = None
+        self.auth_args = None
         self.sendmail_args = None
         FakeSMTPServer.instances.append(self)
 
@@ -57,6 +58,10 @@ class FakeSMTPServer:
 
     def login(self, user, password):
         self.login_args = (user, password)
+
+    def auth(self, mechanism, authobject, **kwargs):
+        # smtplib calls the authobject to get the (pre-base64) SASL string
+        self.auth_args = (mechanism, authobject())
 
     def sendmail(self, sender, to, body):
         self.sendmail_args = (sender, list(to), body)
@@ -159,6 +164,97 @@ class TestSendEmailBasic:
         _, recipients, body = fake_smtp.instances[-1].sendmail_args
         # Cc must appear in the envelope (not necessarily in the To header)
         assert "c@example.org" in recipients or "c@example.org" in body
+
+
+class TestSendEmailOAuth:
+    def test_xoauth2_is_default(self, fake_smtp):
+        send_email(
+            host="smtp.example.com",
+            message_from="a@example.com",
+            message_to=["b@example.org"],
+            username="user@example.com",
+            oauth2_token="tok123",
+        )
+        srv = fake_smtp.instances[-1]
+        assert srv.login_args is None  # password login path not taken
+        mechanism, auth_string = srv.auth_args
+        assert mechanism == "XOAUTH2"
+        assert auth_string == "user=user@example.com\x01auth=Bearer tok123\x01\x01"
+        # smtplib base64-encodes the string, so it must be ASCII-safe
+        auth_string.encode("ascii")
+
+    def test_oauthbearer_mechanism(self, fake_smtp):
+        send_email(
+            host="smtp.example.com",
+            message_from="a@example.com",
+            message_to=["b@example.org"],
+            username="user@example.com",
+            oauth2_token="tok123",
+            oauth2_mechanism="OAUTHBEARER",
+        )
+        mechanism, auth_string = fake_smtp.instances[-1].auth_args
+        assert mechanism == "OAUTHBEARER"
+        assert auth_string == "n,a=user@example.com,\x01auth=Bearer tok123\x01\x01"
+
+    def test_token_provider_invoked(self, fake_smtp):
+        calls = []
+
+        def provider():
+            calls.append(1)
+            return "fresh-token"
+
+        send_email(
+            host="smtp.example.com",
+            message_from="a@example.com",
+            message_to=["b@example.org"],
+            username="user@example.com",
+            oauth2_token_provider=provider,
+        )
+        assert calls  # provider was called at send time
+        assert "auth=Bearer fresh-token" in fake_smtp.instances[-1].auth_args[1]
+
+    def test_provider_takes_precedence_over_static_token(self, fake_smtp):
+        send_email(
+            host="smtp.example.com",
+            message_from="a@example.com",
+            message_to=["b@example.org"],
+            username="user@example.com",
+            oauth2_token="static",
+            oauth2_token_provider=lambda: "dynamic",
+        )
+        assert "Bearer dynamic" in fake_smtp.instances[-1].auth_args[1]
+
+    def test_vendor_included_for_xoauth2(self, fake_smtp):
+        send_email(
+            host="smtp.example.com",
+            message_from="a@example.com",
+            message_to=["b@example.org"],
+            username="user@example.com",
+            oauth2_token="tok123",
+            oauth2_vendor="vendorX",
+        )
+        assert "vendor=vendorX\x01" in fake_smtp.instances[-1].auth_args[1]
+
+    def test_username_required_with_oauth(self, fake_smtp):
+        with pytest.raises(ValueError, match="username is required"):
+            send_email(
+                host="smtp.example.com",
+                message_from="a@example.com",
+                message_to=["b@example.org"],
+                oauth2_token="tok123",
+            )
+
+    def test_password_login_unaffected(self, fake_smtp):
+        send_email(
+            host="smtp.example.com",
+            message_from="a@example.com",
+            message_to=["b@example.org"],
+            username="user",
+            password="pw",
+        )
+        srv = fake_smtp.instances[-1]
+        assert srv.login_args == ("user", "pw")
+        assert srv.auth_args is None  # OAuth path not taken
 
 
 class TestSendEmailDKIM:
