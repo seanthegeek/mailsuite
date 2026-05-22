@@ -7,38 +7,44 @@ A Python package for retrieving, parsing, and sending emails.
 
 ## Features
 
-- Simplified IMAP client
-  - Retrieve email from any folder
-  - Create new folders
-  - Move messages to other folders
-  - Delete messages
-  - Monitor folders for new messages using the IMAP ``IDLE`` command
-  - Always use ``/`` as the folder hierarchy separator, and convert to the
-    server's hierarchy separator in the background
-  - Always remove folder name characters that conflict with the server's
-    hierarchy separators
-  - Prepend the namespace to the folder path when required
-  - Automatically reconnect when needed
-  - Work around quirks in Gmail, Microsoft 365, Exchange, Dovecot, and
-    DavMail
+- Provider-agnostic mailbox abstraction (`mailsuite.mailbox`)
+  - Single `MailboxConnection` interface for IMAP, Microsoft Graph, Gmail,
+    and on-disk Maildir
+  - Fetch message identifiers from any folder, retrieve their raw RFC 822
+    content, and move or delete messages
+  - Folder management across every backend — create, rename, move, merge,
+    delete, and existence checks, with consistent `FolderExistsError` /
+    `FolderNotFoundError` semantics
+  - Watch a folder for new messages — the IMAP `IDLE` command (with periodic
+    session refresh) on the IMAP backend, polling on the cloud backends
+  - Unified `send_message()` on backends that support sending (Microsoft
+    Graph, Gmail) — IMAP and Maildir users send through
+    `mailsuite.smtp.send_email`
+  - Username/password or OAuth2 (XOAUTH2 / OAUTHBEARER) login for IMAP
+  - Automatic IMAP reconnection after dropped connections and timeouts
+  - Always uses `/` as the folder hierarchy separator, converting to the
+    server's separator and prepending its namespace automatically, and
+    stripping folder-name characters that collide with the separator
+  - Works around backend quirks across Gmail, Microsoft 365, Exchange,
+    Dovecot, and DavMail, including:
+    - Gmail / Google Workspace returning an empty `IDLE` response
+    - Random Microsoft 365 / Exchange `BAD` / "unexpected response" errors
+    - Nonstandard hierarchy separators and namespaces
 - Consistent email parsing
   - SHA256 hashes of attachments
-  - Parsed ``Authentication-Results`` and ``DKIM-Signature`` headers
-  - Parse Microsoft Outlook ``.msg`` files using `msgconvert`
+  - Parsed `Authentication-Results` and `DKIM-Signature` headers
+  - Parse Microsoft Outlook `.msg` files using `msgconvert`
 - Simplified email creation and sending
   - Easily add attachments, plain text, and HTML
-  - Uses opportunistic encryption (``STARTTLS``) with SMTP by default
+  - Uses opportunistic encryption (`STARTTLS`) with SMTP by default
 - DKIM signing and verification
   - Generate RSA keypairs and the matching DNS TXT record
   - Sign outbound mail with a sensible default header set (with `From`,
     `To`, `Cc`, `Subject` oversigned)
   - Verify one or many `DKIM-Signature` headers on a received message
-- Provider-agnostic mailbox abstraction (`mailsuite.mailbox`)
-  - Single `MailboxConnection` interface for IMAP, Microsoft Graph,
-    Gmail, and on-disk Maildir
-  - Unified `send_message()` on backends that support sending (Microsoft
-    Graph, Gmail) — IMAP and Maildir users send through
-    `mailsuite.smtp.send_email`
+- ARC (Authenticated Received Chain) sealing and verification
+  - Seal forwarded mail with an ARC set, extending an existing chain
+  - Verify the ARC chain on a received message and read its `cv` result
 
 ## Installation
 

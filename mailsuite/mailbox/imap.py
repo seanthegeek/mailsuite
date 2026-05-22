@@ -23,9 +23,9 @@ class IMAPConnection(MailboxConnection):
     :class:`MailboxConnection` semantics (folder/label management, polling
     via IDLE, etc.).
 
-    IMAP is a receive-only protocol — :meth:`send_message` raises
-    :class:`NotImplementedError`. Use :func:`mailsuite.smtp.send_email` for
-    sending.
+    IMAP is a mail-access protocol with no send capability —
+    :meth:`send_message` raises :class:`NotImplementedError`. Use
+    :func:`mailsuite.smtp.send_email` for sending.
     """
 
     def __init__(

@@ -14,6 +14,8 @@ email. Modules:
   `Authentication-Results` / `DKIM-Signature` parsing, trusted-domain checks
 - `mailsuite.dkim` — DKIM keypair generation, TXT record building, signing,
   signature verification
+- `mailsuite.arc` — ARC (RFC 8617) chain sealing and verification, wrapping
+  dkimpy's `arc_sign` / `arc_verify`
 - `mailsuite.mailbox` — provider-agnostic mailbox abstraction
   (`MailboxConnection` ABC) with backends:
   - `IMAPConnection`, `MaildirConnection` (always available)

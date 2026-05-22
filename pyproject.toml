@@ -28,6 +28,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "authres>=1.2.0",
     "cryptography>=41.0.0",
     "dkimpy>=1.1.0",
     "dnspython>=2.0.0",
