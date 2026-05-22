@@ -10,6 +10,9 @@
   - Pass `oauth2_token=` (or `oauth2_token_provider=` for a fresh token at send time) with `username=` to authenticate without a password.
   - `oauth2_mechanism=` selects `XOAUTH2` (default) or `OAUTHBEARER`; `oauth2_vendor=` supplies Yahoo's vendor string.
 - Add `ClientAssertion` auth to `MSGraphConnection` for federated / workload-identity scenarios that avoid a long-lived client secret. Pass `client_assertion=` with a signed-JWT assertion, or `client_assertion_provider=` (a zero-arg callable) to supply a fresh assertion each time `azure-identity` acquires a token. The assertion is exchanged for an access token via the JWT-bearer client-credentials grant — it is not itself a Graph access token (#31).
+- Fix two `GmailConnection` bugs:
+  - `fetch_messages(..., since=…)` dropped the date filter on every page after the first, so paginated fetches returned messages older than `since`. The filter is now carried through pagination.
+  - `create_folder()` did not clear the label-id cache, so a label looked up before creation stayed cached as missing — `merge_folders(create=True)` could then move messages to an empty destination label and orphan them. It now clears the cache like `rename_folder` / `delete_folder` / `move_folder`.
 
 ## 2.1.0
 

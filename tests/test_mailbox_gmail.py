@@ -133,6 +133,21 @@ class TestCreateFolder:
         with pytest.raises(HttpError):
             conn.create_folder("Reports")
 
+    def test_create_folder_clears_label_cache(self):
+        # Regression: a prior lookup of a missing label caches "" (lru_cache);
+        # create_folder must clear that cache or later lookups (e.g. during
+        # merge_folders) resolve to "" and orphan messages.
+        conn = _bare_connection()
+        execute = conn.service.labels_obj.list.return_value.execute
+        execute.return_value = {"labels": [{"id": "INBOX", "name": "INBOX"}]}
+        assert conn._find_label_id_for_label("Reports") == ""  # caches the miss
+        conn.service.labels_obj.create.return_value.execute.return_value = {}
+        execute.return_value = {
+            "labels": [{"id": "INBOX", "name": "INBOX"}, {"id": "R1", "name": "Reports"}]
+        }
+        conn.create_folder("Reports")
+        assert conn._find_label_id_for_label("Reports") == "R1"
+
 
 class TestRenameFolder:
     def test_patches_label_name(self):
@@ -258,6 +273,23 @@ class TestFetchMessages:
         # The list call was made with q="after:..."
         kwargs = conn.service.messages_obj.list.call_args.kwargs
         assert kwargs["q"] == "after:2026/04/01"
+
+    def test_since_filter_applied_to_every_page(self):
+        # Regression: the since filter was dropped on every page after the
+        # first, so paginated fetches returned messages older than `since`.
+        conn = _bare_connection()
+        conn._find_label_id_for_label = MagicMock(return_value="L42")
+        conn.service.messages_obj.list.return_value.execute.side_effect = [
+            {"messages": [{"id": "m1"}], "nextPageToken": "tok"},
+            {"messages": [{"id": "m2"}]},
+        ]
+        ids = conn.fetch_messages("Reports", since="2026/04/01")
+        assert ids == ["m1", "m2"]
+        qs = [
+            c.kwargs.get("q")
+            for c in conn.service.messages_obj.list.call_args_list
+        ]
+        assert qs == ["after:2026/04/01", "after:2026/04/01"]
 
 
 class TestFetchMessage:
