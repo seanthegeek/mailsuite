@@ -275,6 +275,7 @@ class TestDeleteMessages:
     def _client(self):
         client = _bare_client()
         client.reset_connection = MagicMock()
+        client.has_capability = MagicMock(return_value=True)
         return client
 
     def test_int_coerced_to_list(self, monkeypatch):
@@ -319,6 +320,38 @@ class TestDeleteMessages:
         client.max_retries = 2
         with pytest.raises(MaxRetriesExceeded):
             client.delete_messages([1])
+
+    def test_uid_expunge_when_uidplus(self, monkeypatch):
+        # With UIDPLUS, expunge only the given UIDs (UID EXPUNGE).
+        expunged = {}
+        monkeypatch.setattr(
+            imapclient.IMAPClient, "delete_messages", lambda *a, **k: None
+        )
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "expunge",
+            lambda self, *a: expunged.setdefault("args", a),
+        )
+        client = self._client()  # has_capability -> True
+        client.delete_messages([1, 2])
+        assert expunged["args"] == ([1, 2],)
+
+    def test_plain_expunge_without_uidplus(self, monkeypatch):
+        # Without UIDPLUS, UID EXPUNGE isn't supported; fall back to plain
+        # EXPUNGE (no UIDs) rather than raising an IMAPClientError.
+        expunged = {}
+        monkeypatch.setattr(
+            imapclient.IMAPClient, "delete_messages", lambda *a, **k: None
+        )
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "expunge",
+            lambda self, *a: expunged.setdefault("args", a),
+        )
+        client = self._client()
+        client.has_capability = MagicMock(return_value=False)
+        client.delete_messages([1, 2])
+        assert expunged["args"] == ()
 
 
 class TestCreateFolder:
@@ -366,6 +399,7 @@ class TestMoveMessages:
         client.reset_connection = MagicMock()
         client.move = MagicMock()
         client.copy = MagicMock()
+        client.has_capability = MagicMock(return_value=True)
         return client
 
     def test_move_when_supported(self, monkeypatch):
