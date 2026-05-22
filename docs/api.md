@@ -25,6 +25,14 @@ mailsuite.dkim
    :members:
 ```
 
+mailsuite.arc
+-------------
+
+```{eval-rst}
+.. automodule:: mailsuite.arc
+   :members:
+```
+
 mailsuite.mailbox
 -----------------
 

@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 2.2.0
 
+- Add a `mailsuite.arc` module for Authenticated Received Chain (RFC 8617):
+  - `seal_email()` — add an ARC set to a message, extending any existing chain.
+  - `verify_arc_chain()` — verify the chain and report the `cv` result.
+  - Errors raise the new `ARCError`. Adds `authres` as a dependency (required by dkimpy's ARC sealing).
 - Add `ClientAssertion` auth to `MSGraphConnection` for federated / workload-identity scenarios that avoid a long-lived client secret. Pass `client_assertion=` with a signed-JWT assertion, or `client_assertion_provider=` (a zero-arg callable) to supply a fresh assertion each time `azure-identity` acquires a token. The assertion is exchanged for an access token via the JWT-bearer client-credentials grant — it is not itself a Graph access token (#31).
 
 ## 2.1.0

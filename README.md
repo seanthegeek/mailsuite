@@ -34,6 +34,9 @@ A Python package for retrieving, parsing, and sending emails.
   - Sign outbound mail with a sensible default header set (with `From`,
     `To`, `Cc`, `Subject` oversigned)
   - Verify one or many `DKIM-Signature` headers on a received message
+- ARC (Authenticated Received Chain) sealing and verification
+  - Seal forwarded mail with an ARC set, extending an existing chain
+  - Verify the ARC chain on a received message and read its `cv` result
 - Provider-agnostic mailbox abstraction (`mailsuite.mailbox`)
   - Single `MailboxConnection` interface for IMAP, Microsoft Graph,
     Gmail, and on-disk Maildir
