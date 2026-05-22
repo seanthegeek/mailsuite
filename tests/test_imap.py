@@ -169,6 +169,42 @@ class TestNormaliseFolder:
         )
         assert client._normalise_folder("Reports") == "INBOX/Reports"
 
+    def test_prefix_inside_path_not_stripped(self, monkeypatch):
+        # The personal-namespace prefix must only be stripped from the start of
+        # the path, not wherever it happens to appear inside it.
+        client = _bare_client(hierarchy_separator="/", path_prefix="INBOX/")
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "_normalise_folder",
+            lambda self, name: name,
+        )
+        assert (
+            client._normalise_folder("Projects/INBOX/old")
+            == "INBOX/Projects/INBOX/old"
+        )
+
+    def test_prefix_as_segment_substring_not_stripped(self, monkeypatch):
+        # A prefix that is a substring of a path segment must be left intact.
+        client = _bare_client(hierarchy_separator="/", path_prefix="mail/")
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "_normalise_folder",
+            lambda self, name: name,
+        )
+        assert (
+            client._normalise_folder("Work/sendmail/logs")
+            == "mail/Work/sendmail/logs"
+        )
+
+    def test_already_prefixed_path_round_trips(self, monkeypatch):
+        client = _bare_client(hierarchy_separator="/", path_prefix="INBOX/")
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "_normalise_folder",
+            lambda self, name: name,
+        )
+        assert client._normalise_folder("INBOX/Archive/2024") == "INBOX/Archive/2024"
+
 
 class TestFetchMessage:
     def _client(self):

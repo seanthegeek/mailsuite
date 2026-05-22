@@ -19,6 +19,7 @@
   - `parse_email_address()` raised `UnboundLocalError` on input that was neither a `str` nor a tuple; it now raises a clear `TypeError`.
 - Fix `mailsuite.smtp.send_email()` not delivering to `Cc` and `Bcc` recipients. The SMTP envelope was built from `message_to` only — Cc/Bcc were appended after the envelope was captured — so the MTA delivered to the `To` addresses alone. The envelope now includes every recipient, and the caller's recipient lists are no longer mutated in place.
 - Fix `from_trusted_domain()` raising `TypeError` when `allow_multiple_authentication_results=True` and the message carries multiple `Authentication-Results` headers (which `parse_email` represents as raw strings). Each header is now parsed before inspection, and the matched DMARC domain is lower-cased/stripped to match the single-header path.
+- Fix `IMAPClient` folder normalization removing the personal-namespace prefix wherever it appeared inside a path rather than only at the start, so e.g. `Projects/INBOX/old` (prefix `INBOX/`) became `INBOX/Projects/old`. Only a leading prefix is now stripped before it is re-applied.
 
 ## 2.1.0
 
