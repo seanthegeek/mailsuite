@@ -124,6 +124,9 @@ class GmailConnection(MailboxConnection):
                 logger.debug("Folder %s already exists, skipping creation", folder_name)
             else:
                 raise
+        # The label now exists; drop any cached "missing" (empty-id) result so
+        # subsequent lookups resolve it (matches rename/delete/move_folder).
+        self._find_label_id_for_label.cache_clear()
 
     def rename_folder(self, old_name: str, new_name: str) -> None:
         """
@@ -239,7 +242,7 @@ class GmailConnection(MailboxConnection):
 
         if "nextPageToken" in results and self.paginate_messages:
             yield from self._fetch_all_message_ids(
-                reports_label_id, results["nextPageToken"]
+                reports_label_id, results["nextPageToken"], since=since
             )
 
     def fetch_messages(self, reports_folder: str, **kwargs: Any) -> List[str]:
