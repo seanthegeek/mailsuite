@@ -54,6 +54,11 @@ Base install (IMAP, SMTP, DKIM, Maildir, parsing):
 pip install mailsuite
 ```
 
+If you would like to be able to parse Microsoft Outlook `.msg` files, install
+`msgconvert`. On Debian-based Linux distributions, `msgconvert` can be installed
+via `sudo apt-get install libemail-outlook-message-perl`. Other systems can use
+`cpan -i Email::Outlook::Message`.
+
 The Microsoft Graph and Gmail backends are optional extras — the cloud
 SDKs aren't pulled in unless you ask for them:
 
