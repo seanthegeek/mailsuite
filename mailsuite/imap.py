@@ -69,7 +69,13 @@ class IMAPClient(imapclient.IMAPClient):
                 return result.decode("utf-8", "replace")
             return str(result)
 
-        folder_name = folder_name.replace(self._path_prefix, "")
+        # Strip only a leading namespace prefix before re-adding it below. An
+        # unanchored replace() would also delete the prefix where it appears
+        # inside the path, relocating the folder: with prefix "INBOX/",
+        # "Projects/INBOX/old" would normalize to "INBOX/Projects/old" instead
+        # of the correct "INBOX/Projects/INBOX/old".
+        if self._path_prefix and folder_name.startswith(self._path_prefix):
+            folder_name = folder_name[len(self._path_prefix):]
         if not self._hierarchy_separator == "/":
             folder_name = folder_name.replace(self._hierarchy_separator, "")
             folder_name = folder_name.replace("/", self._hierarchy_separator)
