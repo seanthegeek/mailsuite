@@ -162,8 +162,29 @@ class TestSendEmailBasic:
             message_bcc=["d@example.org"],
         )
         _, recipients, body = fake_smtp.instances[-1].sendmail_args
-        # Cc must appear in the envelope (not necessarily in the To header)
-        assert "c@example.org" in recipients or "c@example.org" in body
+        # Every recipient — To, Cc, and Bcc — must be in the SMTP envelope, or
+        # the omitted ones never receive the message.
+        assert "b@example.org" in recipients
+        assert "c@example.org" in recipients
+        assert "d@example.org" in recipients
+        # Bcc must not leak into the message headers
+        assert "d@example.org" not in body
+
+    def test_recipient_lists_not_mutated(self, fake_smtp):
+        # Building the envelope must not mutate the caller's lists in place
+        to = ["b@example.org"]
+        cc = ["c@example.org"]
+        bcc = ["d@example.org"]
+        send_email(
+            host="smtp.example.com",
+            message_from="a@example.com",
+            message_to=to,
+            message_cc=cc,
+            message_bcc=bcc,
+        )
+        assert to == ["b@example.org"]
+        assert cc == ["c@example.org"]
+        assert bcc == ["d@example.org"]
 
 
 class TestSendEmailOAuth:
