@@ -210,8 +210,8 @@ class MSGraphConnection(MailboxConnection):
 
     Supports DeviceCode, UsernamePassword, ClientSecret, ClientAssertion,
     and Certificate auth via :mod:`azure.identity`. Send mail goes through
-    ``/users/{mailbox}/sendMail`` with a structured ``Message`` body (Graph
-    automatically saves a copy to Sent Items).
+    ``/users/{mailbox}/sendMail`` with a structured ``Message`` body; the
+    request sets ``saveToSentItems``, so a copy is saved to Sent Items.
 
     Required Microsoft Graph **API permissions** on the app registration
     (combine as needed):

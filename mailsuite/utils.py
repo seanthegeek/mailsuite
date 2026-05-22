@@ -145,7 +145,7 @@ def is_outlook_msg(content: bytes) -> bool:
     Args:
         content: Content to check
 
-    Returns: A flag the indicates if a file is an Outlook MSG file
+    Returns: A flag that indicates if a file is an Outlook MSG file
     """
     return type(content) is bytes and content.startswith(
         b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
@@ -170,8 +170,8 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
     if not is_outlook_msg(msg_bytes):
         raise ValueError("The supplied bytes are not an Outlook .msg file")
     logger.warning(
-        f"Converting Outlook .msg file for parsing. Results are not"
-        f"suitable for forensics  See {url} for more details."
+        f"Converting Outlook .msg file for parsing. Results are not "
+        f"suitable for forensics. See {url} for more details."
     )
     orig_dir = os.getcwd()
     tmp_dir = tempfile.mkdtemp()
@@ -326,7 +326,7 @@ def parse_email(
 
     .. note::
       Attachment dictionaries with binary payloads contain the value
-      ``binary: True`` use ``mailsuite.utils.decode_base64`` to convert the
+      ``binary: True``. Use ``mailsuite.utils.decode_base64`` to convert the
       payload to bytes.
     """
 
@@ -538,7 +538,7 @@ def from_trusted_domain(
         include_sld: Also return ``True`` if the Second-Level Domain (SLD) \
         of an authenticated domain is in ``trusted_domains``
         allow_multiple_authentication_results: Allow multiple
-         ``Authentication-Results-Original`` headers
+         ``Authentication-Results`` headers
         use_authentication_results_original: Use the
          ``Authentication-Results-Original`` header instead of the
          ``Authentication-Results`` header

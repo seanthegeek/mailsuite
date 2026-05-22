@@ -18,11 +18,11 @@ logger = logging.getLogger(__name__)
 
 
 class MaxRetriesExceeded(RuntimeError):
-    """Raised when the maximum number of retries in exceeded"""
+    """Raised when the maximum number of retries is exceeded"""
 
 
 def _chunks(list_like_object, n: int):
-    """Yield successive n-sized chunks from l."""
+    """Yield successive n-sized chunks from list_like_object."""
     for i in range(0, len(list_like_object), n):
         yield list_like_object[i : i + n]
 
@@ -168,8 +168,7 @@ class IMAPClient(imapclient.IMAPClient):
             max_retries: The maximum number of retries after a timeout
             initial_folder: The initial folder to select
             idle_callback: The function to call when new messages are detected
-            idle_timeout: Number of seconds to wait for an IDLE
-                                  response
+            idle_timeout: Number of seconds to wait for an IDLE response
             oauth2_token: A static OAuth2 access token. For long-running
                 connections (IDLE, reconnects after timeouts) prefer
                 ``oauth2_token_provider`` so a fresh token is fetched on

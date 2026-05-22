@@ -42,10 +42,10 @@ def send_email(
 
     Args:
         host: Mail server hostname or IP address
-        message_from: The value of the message from header
+        message_from: The value of the message "From" header
         message_to: A list of addresses to send mail to
-        message_cc: A List of addresses to Carbon Copy (CC)
-        message_bcc:  A list of addresses to Blind Carbon Copy (BCC)
+        message_cc: A list of addresses to Carbon Copy (CC)
+        message_bcc: A list of addresses to Blind Carbon Copy (BCC)
         port: Port to use
         require_encryption: Require a SSL/TLS connection from the start
         verify: Verify the SSL/TLS certificate
