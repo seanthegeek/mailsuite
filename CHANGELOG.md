@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add OAuth2 authentication to `mailsuite.smtp.send_email`, matching the IMAP client:
+  - Pass `oauth2_token=` (or `oauth2_token_provider=` for a fresh token at send time) with `username=` to authenticate without a password.
+  - `oauth2_mechanism=` selects `XOAUTH2` (default) or `OAUTHBEARER`; `oauth2_vendor=` supplies Yahoo's vendor string.
+
 ## 2.2.0
 
 - Add a `mailsuite.arc` module for Authenticated Received Chain (RFC 8617):

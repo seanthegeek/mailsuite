@@ -20,7 +20,7 @@ A Python package for retrieving, parsing, and sending emails.
   - Unified `send_message()` on backends that support sending (Microsoft
     Graph, Gmail) — IMAP and Maildir users send through
     `mailsuite.smtp.send_email`
-  - Username/password or OAuth2 (XOAUTH2 / OAUTHBEARER) login for IMAP
+  - Username/password or OAuth2 (XOAUTH2 / OAUTHBEARER) login for IMAP and SMTP
   - Automatic IMAP reconnection after dropped connections and timeouts
   - Always uses `/` as the folder hierarchy separator, converting to the
     server's separator and prepending its namespace automatically, and

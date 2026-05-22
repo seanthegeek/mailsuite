@@ -3,7 +3,7 @@ import logging
 import socket
 import smtplib
 from ssl import SSLError, CertificateError, create_default_context, CERT_NONE
-from typing import Tuple, Optional
+from typing import Callable, Optional, Tuple, cast
 
 from mailsuite.utils import create_email
 from mailsuite.dkim import sign_email as _dkim_sign_email
@@ -13,6 +13,27 @@ logger = logging.getLogger(__name__)
 
 class SMTPError(RuntimeError):
     """Raised when a SMTP error occurs"""
+
+
+def _xoauth2_auth_string(
+    username: str, token: str, vendor: Optional[str] = None
+) -> str:
+    """Build the SASL ``XOAUTH2`` initial-response string.
+
+    Gmail and Microsoft 365 accept the base form; Yahoo additionally
+    requires the ``vendor`` portion.
+    """
+    auth_string = f"user={username}\x01auth=Bearer {token}\x01"
+    if vendor:
+        auth_string += f"vendor={vendor}\x01"
+    auth_string += "\x01"
+    return auth_string
+
+
+def _oauthbearer_auth_string(username: str, token: str) -> str:
+    """Build the SASL ``OAUTHBEARER`` initial-response string (RFC 7628)."""
+    identity = username.replace("=", "=3D").replace(",", "=2C")
+    return f"n,a={identity},\x01auth=Bearer {token}\x01\x01"
 
 
 def send_email(
@@ -26,6 +47,10 @@ def send_email(
     verify: bool = True,
     username: Optional[str] = None,
     password: Optional[str] = None,
+    oauth2_token: Optional[str] = None,
+    oauth2_token_provider: Optional[Callable[[], str]] = None,
+    oauth2_mechanism: str = "XOAUTH2",
+    oauth2_vendor: Optional[str] = None,
     envelope_from: Optional[str] = None,
     subject: Optional[str] = None,
     message_headers: Optional[dict] = None,
@@ -50,7 +75,17 @@ def send_email(
         require_encryption: Require a SSL/TLS connection from the start
         verify: Verify the SSL/TLS certificate
         username: An optional username
-        password: An optional password
+        password: An optional password (omit when using OAuth2)
+        oauth2_token: A static OAuth2 access token. Provide this (or
+            ``oauth2_token_provider``) together with ``username`` to
+            authenticate with OAuth2 instead of a password.
+        oauth2_token_provider: A zero-arg callable returning a current
+            OAuth2 access token, invoked at send time so a fresh token is
+            used. Takes precedence over ``oauth2_token``.
+        oauth2_mechanism: ``"XOAUTH2"`` (default — Gmail / Microsoft 365 /
+            Yahoo) or ``"OAUTHBEARER"`` (Gmail's standards-track variant)
+        oauth2_vendor: Optional vendor string required by Yahoo's XOAUTH2
+            implementation (XOAUTH2 only)
         envelope_from: Overrides the SMTP envelope "mail from" header
         subject: The message subject
         message_headers: Custom message headers
@@ -67,6 +102,10 @@ def send_email(
         dkim_additional_headers: Additional header names to include in the
             DKIM signature. Headers not present in the message are skipped.
     """
+
+    using_oauth = oauth2_token is not None or oauth2_token_provider is not None
+    if using_oauth and not username:
+        raise ValueError("username is required when authenticating with OAuth2")
 
     msg = create_email(
         message_from=message_from,
@@ -117,7 +156,22 @@ def send_email(
                 logger.warning(
                     "SMTP server does not support STARTTLS. Proceeding in plain text!"
                 )
-        if username and password:
+        if using_oauth:
+            token = (
+                oauth2_token_provider()
+                if oauth2_token_provider is not None
+                else cast(str, oauth2_token)
+            )
+            if oauth2_mechanism.upper() == "OAUTHBEARER":
+                auth_string = _oauthbearer_auth_string(cast(str, username), token)
+                mechanism = "OAUTHBEARER"
+            else:
+                auth_string = _xoauth2_auth_string(
+                    cast(str, username), token, oauth2_vendor
+                )
+                mechanism = oauth2_mechanism.upper()
+            server.auth(mechanism, lambda challenge=None: auth_string)
+        elif username and password:
             server.login(username, password)
         if envelope_from is None:
             envelope_from = message_from
