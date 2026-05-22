@@ -502,16 +502,16 @@ class IMAPClient(imapclient.IMAPClient):
                             ",".join(str(uid) for uid in chunk), folder_path
                         )
                     )
-                    self.copy(msg_uids, folder_path)
-                    self.delete_messages(msg_uids)
+                    self.copy(chunk, folder_path)
+                    self.delete_messages(chunk)
             else:
                 logger.info(
                     "Moving message UID(s) {0} to {1} by copy".format(
                         ",".join(str(uid) for uid in chunk), folder_path
                     )
                 )
-                self.copy(msg_uids, folder_path)
-                self.delete_messages(msg_uids)
+                self.copy(chunk, folder_path)
+                self.delete_messages(chunk)
 
     def move_messages(
         self, msg_uids: Union[int, List[int]], folder_path: str, _attempt: int = 1

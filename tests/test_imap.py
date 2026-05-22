@@ -362,6 +362,20 @@ class TestMoveMessages:
         # falls back to copy + delete
         client.copy.assert_called_once()
 
+    def test_copy_delete_use_per_chunk_uids(self):
+        # On a no-MOVE server the copy/delete fallback must act on each
+        # 100-UID chunk, not the full list per chunk (which duplicated every
+        # message once per chunk).
+        client = _bare_client(move_supported=False)
+        client.copy = MagicMock()
+        client.delete_messages = MagicMock()
+        uids = list(range(150))
+        client._move_messages(uids, "Archive")
+        copied = [c.args[0] for c in client.copy.call_args_list]
+        deleted = [c.args[0] for c in client.delete_messages.call_args_list]
+        assert copied == [list(range(100)), list(range(100, 150))]
+        assert deleted == [list(range(100)), list(range(100, 150))]
+
 
 class TestExceptions:
     def test_max_retries_is_runtime_error(self):
