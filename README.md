@@ -39,8 +39,7 @@ A Python package for retrieving, parsing, and sending emails.
   - Uses opportunistic encryption (`STARTTLS`) with SMTP by default
 - DKIM signing and verification
   - Generate RSA keypairs and the matching DNS TXT record
-  - Sign outbound mail with a sensible default header set (with `From`,
-    `To`, `Cc`, `Subject` oversigned)
+  - Sign outbound mail with a sensible default header set
   - Verify one or many `DKIM-Signature` headers on a received message
 - ARC (Authenticated Received Chain) sealing and verification
   - Seal forwarded mail with an ARC set, extending an existing chain
