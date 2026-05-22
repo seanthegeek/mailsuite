@@ -254,6 +254,29 @@ class TestAuthMethodNames:
                 tenant_id="t",
             )
 
+    def test_client_assertion_wires_provider(self, tmp_path):
+        from azure.identity import ClientAssertionCredential
+
+        cred = _generate_credential(
+            AuthMethod.ClientAssertion.name,
+            tmp_path / "tok",
+            client_id="c",
+            tenant_id="t",
+            client_assertion_provider=lambda: "the-assertion",
+        )
+        assert isinstance(cred, ClientAssertionCredential)
+        # The credential calls func() to obtain the assertion it exchanges.
+        assert cred._func() == "the-assertion"
+
+    def test_client_assertion_requires_provider(self, tmp_path):
+        with pytest.raises(ValueError, match="client_assertion"):
+            _generate_credential(
+                AuthMethod.ClientAssertion.name,
+                tmp_path / "tok",
+                client_id="c",
+                tenant_id="t",
+            )
+
 
 class TestSubclass:
     def test_is_mailbox_connection(self):
@@ -670,6 +693,60 @@ class TestGraphUrl:
         base = str(conn._client.request_adapter._http_client.base_url)
         assert url.rstrip("/") in base
         assert base.endswith("/v1.0") or base.endswith("/v1.0/")
+
+
+class TestClientAssertionAuth:
+    """ClientAssertion wraps a static assertion and skips ``authenticate()``."""
+
+    def _build(self, monkeypatch, **kwargs):
+        # ClientAssertionCredential is app-only and has no authenticate();
+        # the constructor must branch on its type to skip that step. Capture
+        # the provider that __init__ forwards to _generate_credential.
+        from azure.identity import ClientAssertionCredential
+        from mailsuite.mailbox import graph as graph_mod
+
+        captured = {}
+
+        class FakeCred(ClientAssertionCredential):
+            def __init__(self):
+                pass  # bypass real Azure SDK init
+
+            def authenticate(self, *a, **k):  # pragma: no cover
+                raise AssertionError("authenticate() must not run for app-only auth")
+
+            def get_token(self, *a, **k):
+                return None
+
+        def fake_generate(auth_method, token_path, **kw):
+            captured["provider"] = kw.get("client_assertion_provider")
+            return FakeCred()
+
+        monkeypatch.setattr(graph_mod, "_generate_credential", fake_generate)
+        conn = MSGraphConnection(
+            auth_method=AuthMethod.ClientAssertion.name,
+            mailbox="user@example.com",
+            client_id="c",
+            client_secret=None,
+            username=None,
+            password=None,
+            tenant_id="t",
+            token_file="/tmp/unused-token",
+            allow_unencrypted_storage=False,
+            graph_url="https://graph.example.test",
+            **kwargs,
+        )
+        return conn, captured
+
+    def test_static_assertion_wrapped_in_provider(self, monkeypatch):
+        # A static client_assertion is turned into a zero-arg provider.
+        _, captured = self._build(monkeypatch, client_assertion="abc")
+        assert captured["provider"]() == "abc"
+
+    def test_skips_authenticate(self, monkeypatch):
+        # FakeCred.authenticate() raises if reached; a clean build proves the
+        # isinstance branch excludes ClientAssertion from authenticate().
+        conn, _ = self._build(monkeypatch, client_assertion="abc")
+        assert conn.mailbox_name == "user@example.com"
 
 
 class TestCacheName:

@@ -133,10 +133,16 @@ def _generate_credential(auth_method: str, token_path: Path, **kwargs):
             ),
         )
     if auth_method == AuthMethod.ClientAssertion.name:
+        provider = kwargs.get("client_assertion_provider")
+        if provider is None:
+            raise ValueError(
+                "client_assertion or client_assertion_provider is required "
+                "when auth_method is 'ClientAssertion'"
+            )
         return ClientAssertionCredential(
             tenant_id=kwargs["tenant_id"],
             client_id=kwargs["client_id"],
-            func=kwargs["oauth2_token_provider"],
+            func=provider,
         )
     if auth_method == AuthMethod.ClientSecret.name:
         return ClientSecretCredential(
@@ -202,10 +208,10 @@ class MSGraphConnection(MailboxConnection):
     """
     A :class:`MailboxConnection` backed by Microsoft Graph
 
-    Supports DeviceCode, UsernamePassword, ClientSecret, ClientAssertion
-    (OAuth2) and Certificate auth via :mod:`azure.identity`. Send mail
-    goes through ``/users/{mailbox}/sendMail`` with a structured ``Message``
-    body (Graph automatically saves a copy to Sent Items).
+    Supports DeviceCode, UsernamePassword, ClientSecret, ClientAssertion,
+    and Certificate auth via :mod:`azure.identity`. Send mail goes through
+    ``/users/{mailbox}/sendMail`` with a structured ``Message`` body (Graph
+    automatically saves a copy to Sent Items).
 
     Required Microsoft Graph **API permissions** on the app registration
     (combine as needed):
@@ -218,9 +224,10 @@ class MSGraphConnection(MailboxConnection):
     Delegated flows (``DeviceCode``, ``UsernamePassword``) targeting a
     shared mailbox (i.e. ``mailbox != username``) use the ``.Shared``
     variants — ``Mail.Read.Shared``, ``Mail.ReadWrite.Shared``,
-    ``Mail.Send.Shared``. App-only flows (``ClientSecret``, ``ClientAssertion``
-    ``Certificate``) do not need the ``.Shared`` variants. See the
-    README "Microsoft Graph permissions" section for the full mapping.
+    ``Mail.Send.Shared``. App-only flows (``ClientSecret``,
+    ``ClientAssertion``, ``Certificate``) do not need the ``.Shared``
+    variants. See the README "Microsoft Graph permissions" section for the
+    full mapping.
 
     Note: delegated flows always request ``Mail.ReadWrite`` at
     authenticate time, so even read-only callers must consent to at
@@ -255,8 +262,8 @@ class MSGraphConnection(MailboxConnection):
         certificate_password: Optional[Union[str, bytes]] = None,
         graph_url: Optional[str] = None,
         token_cache_name: str = DEFAULT_TOKEN_CACHE_NAME,
-        oauth2_token: Optional[str] = None,
-        oauth2_token_provider: Optional[Callable[[], str]] = None,
+        client_assertion: Optional[str] = None,
+        client_assertion_provider: Optional[Callable[[], str]] = None,
     ):
         """
         Args:
@@ -282,18 +289,27 @@ class MSGraphConnection(MailboxConnection):
                 from a previous installation can pass the old cache name
                 (e.g. ``"parsedmarc"``) so existing cached
                 ``AuthenticationRecord``s and tokens continue to work.
-            oauth2_token: A static OAuth2 access token for ClientAssertion
-                auth. For long-running connections prefer
-                ``oauth2_token_provider`` so a fresh token is fetched on
-                reconnect.
-            oauth2_token_provider: A zero-arg callable returning a current
-                OAuth2 access token. Invoked on every (re)connect, so the
-                callable is responsible for refreshing the token when
-                needed.
+            client_assertion: A static client assertion for ClientAssertion
+                auth — a signed JWT (e.g. a federated credential) that
+                ``azure-identity`` exchanges for an access token via the
+                JWT-bearer client-credentials grant, *not* a Graph access
+                token. For long-running connections prefer
+                ``client_assertion_provider`` so a fresh assertion is
+                available when the credential needs a new token.
+            client_assertion_provider: A zero-arg callable returning a
+                current client assertion (signed JWT).
+                :class:`~azure.identity.ClientAssertionCredential` calls it
+                each time it acquires a new access token, so the callable is
+                responsible for returning a valid (unexpired) assertion.
         """
         token_path = Path(token_file)
-        if oauth2_token_provider is None and oauth2_token is not None:
-            oauth2_token_provider = lambda: oauth2_token
+        if client_assertion is not None and client_assertion_provider is None:
+            static_assertion = client_assertion
+
+            def _static_assertion_provider() -> str:
+                return static_assertion
+
+            client_assertion_provider = _static_assertion_provider
         credential = _generate_credential(
             auth_method,
             client_id=client_id,
@@ -306,7 +322,7 @@ class MSGraphConnection(MailboxConnection):
             token_path=token_path,
             allow_unencrypted_storage=allow_unencrypted_storage,
             cache_name=token_cache_name,
-            oauth2_token_provider=oauth2_token_provider,
+            client_assertion_provider=client_assertion_provider,
         )
 
         scopes: Optional[List[str]] = None
