@@ -196,6 +196,40 @@ class TestSignEmail:
         for name in ("From", "To", "Cc", "Subject"):
             assert DEFAULT_SIGNED_HEADERS.count(name) == 2
 
+    @staticmethod
+    def _h_tag(signed: str) -> list[str]:
+        """The lower-cased header names from the signature's ``h=`` tag."""
+        header_block = signed.split("\r\n\r\n", 1)[0]
+        sig = header_block.split("DKIM-Signature:", 1)[1].replace("\r\n", " ")
+        h_value = [
+            seg for seg in sig.split(";") if seg.strip().startswith("h=")
+        ][0].split("h=", 1)[1]
+        return [name.strip().lower() for name in h_value.split(":")]
+
+    def test_sign_only_from_header(self, dkim_keypair):
+        # A message with only a From header still signs and verifies; the other
+        # default headers are simply absent from the h= tag (no phantom entry
+        # is added for a missing header, even an oversigned one).
+        priv, pub = dkim_keypair
+        signed = sign_email(
+            "From: a@example.com\r\n\r\nbody\r\n", "ms1", "example.com", priv
+        )
+        assert _dkim.verify(signed.encode(), dnsfunc=self._dns_func_for(pub)) is True
+        assert self._h_tag(signed) == ["from", "from"]
+
+    def test_missing_default_headers_are_skipped(self, dkim_keypair):
+        # Defaults that aren't present (To, Cc, Date, ...) are dropped from the
+        # signature; present ones — including oversigned From/Subject — are kept.
+        priv, pub = dkim_keypair
+        msg = "From: a@example.com\r\nSubject: hi\r\n\r\nbody\r\n"
+        signed = sign_email(msg, "ms1", "example.com", priv)
+        assert _dkim.verify(signed.encode(), dnsfunc=self._dns_func_for(pub)) is True
+        h = self._h_tag(signed)
+        assert h.count("from") == 2
+        assert h.count("subject") == 2
+        for absent in ("to", "cc", "date", "message-id", "mime-version"):
+            assert absent not in h
+
 
 class TestVerifyEmail:
     def _signed_with(self, priv: str, msg: str, **kwargs) -> str:
