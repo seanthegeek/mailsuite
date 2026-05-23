@@ -24,6 +24,7 @@
 - Fix `IMAPClient.delete_messages()` raising on servers without the `UIDPLUS` capability. It always issued a `UID EXPUNGE` (expunge of specific UIDs), which requires UIDPLUS; on servers lacking it the error was uncaught. It now falls back to a plain `EXPUNGE` when UIDPLUS is unavailable.
 - Fix the IMAP IDLE watch loop ignoring new mail on servers that signal it with an untagged `EXISTS` but no `RECENT`. The loop reacted only to `RECENT`; it now also reacts to `EXISTS` (the standard new-message signal).
 - Fix the IMAP IDLE watch loop stacking a nested IDLE loop on every reconnect. A connection drop during `watch()` called `reset_connection()`, which re-ran `__init__` and restarted IDLE recursively (duplicated callbacks, ever-deepening recursion on a long-running watch). Reconnects now re-arm the existing loop in place via a re-entrancy guard.
+- Fix `create_email()` emitting an empty `Cc:` header when `message_cc=[]`. It now adds the header only when there are Cc addresses, matching the `To` handling.
 
 ## 2.1.0
 

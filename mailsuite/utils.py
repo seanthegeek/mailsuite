@@ -741,7 +741,7 @@ def create_email(
     msg["From"] = message_from
     if message_to:
         msg["To"] = ", ".join(message_to)
-    if message_cc is not None:
+    if message_cc:
         msg["Cc"] = ", ".join(message_cc)
     msg["Date"] = email.utils.formatdate(localtime=True)
     if subject:
