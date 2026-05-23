@@ -23,6 +23,10 @@
 - Fix `IMAPClient.move_messages()` duplicating messages on servers without the `MOVE` capability. The copy/delete fallback operated on the full UID list inside the per-100 chunk loop, so moving more than 100 messages copied every message once per chunk. Each chunk is now copied and deleted on its own.
 - Fix `IMAPClient.delete_messages()` raising on servers without the `UIDPLUS` capability. It always issued a `UID EXPUNGE` (expunge of specific UIDs), which requires UIDPLUS; on servers lacking it the error was uncaught. It now falls back to a plain `EXPUNGE` when UIDPLUS is unavailable.
 - Fix `parse_email()` auto-reply detection (`automatic_reply`). It matched the literal `auto_generated` (underscore) and required *both* an `Auto-Submitted` and an `X-Auto-Response-Suppress` header, so it never flagged real auto-replies (Gmail sends `Auto-Submitted: auto-replied`, Microsoft 365 / Exchange sends `auto-generated`). It now follows RFC 3834 — any `Auto-Submitted` value other than `no`, or the presence of Exchange's `X-Auto-Response-Suppress` header.
+- Fix the IMAP IDLE watch loop ignoring new mail on servers that signal it with an untagged `EXISTS` but no `RECENT`. The loop reacted only to `RECENT`; it now also reacts to `EXISTS` (the standard new-message signal).
+- Fix `MSGraphConnection.fetch_messages()` ignoring `batch_size` whenever `since` was set, so a date-filtered fetch pulled every matching page regardless of the requested cap. `batch_size` and `since` are independent now — the caller controls both.
+- Fix the IMAP IDLE watch loop stacking a nested IDLE loop on every reconnect. A connection drop during `watch()` called `reset_connection()`, which re-ran `__init__` and restarted IDLE recursively (duplicated callbacks, ever-deepening recursion on a long-running watch). Reconnects now re-arm the existing loop in place via a re-entrancy guard.
+- Fix `create_email()` emitting an empty `Cc:` header when `message_cc=[]`. It now adds the header only when there are Cc addresses, matching the `To` handling.
 
 ## 2.1.0
 
