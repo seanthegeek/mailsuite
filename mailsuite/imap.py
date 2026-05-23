@@ -34,25 +34,20 @@ class IMAPClient(imapclient.IMAPClient):
         self, folder_name: Union[str, bytes, bytearray, memoryview]
     ) -> str:
         """
-        Normalise a ``/``-delimited folder path for the server.
+        Translate a caller's ``/``-delimited folder path to the server's form.
 
-        Callers always use ``/`` as the hierarchy separator; it is converted
-        to the server's native separator and the personal-namespace prefix is
-        applied.
-
-        Because the native separator can't appear literally inside a folder
-        name, any occurrence of it in the input is stripped — e.g. on a server
-        whose separator is ``.``, a folder named ``Q1.2024`` becomes
-        ``Q12024``. This is intentional, not a bug: as a consequence a path
-        that already uses the server's native separator will not round-trip,
-        so always pass ``/``-delimited paths (never feed a server-native path
-        back in).
+        The point of this method is that callers can always use ``/`` as the
+        hierarchy separator, even on servers whose native separator is
+        something else (e.g. ``.`` on some Dovecot/Courier setups): it maps
+        ``/`` onto the server's native separator and applies the
+        personal-namespace prefix, so the same folder paths work unchanged
+        across servers.
 
         Args:
-            folder_name: The ``/``-delimited folder path to normalise
+            folder_name: A ``/``-delimited folder path
 
         Returns:
-            The folder path using the server's native separator and namespace
+            The path using the server's native separator and namespace prefix
         """
         if isinstance(folder_name, memoryview):
             folder_name = folder_name.tobytes()
@@ -88,9 +83,10 @@ class IMAPClient(imapclient.IMAPClient):
         if self._path_prefix and folder_name.startswith(self._path_prefix):
             folder_name = folder_name[len(self._path_prefix):]
         if not self._hierarchy_separator == "/":
-            # Strip the native separator from the name (it can't appear
-            # literally in a folder name) and map the "/" convention onto it.
-            # Intentional — native-separator paths are not meant to round-trip.
+            # Map the caller's "/" delimiter onto the server's native separator
+            # so "/" works regardless of what the server uses. (Any literal
+            # native-separator characters are dropped first, since "/" is the
+            # delimiter callers are expected to use.)
             folder_name = folder_name.replace(self._hierarchy_separator, "")
             folder_name = folder_name.replace("/", self._hierarchy_separator)
         folder_name = "{0}{1}".format(self._path_prefix, folder_name)
