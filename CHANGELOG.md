@@ -2,31 +2,36 @@
 
 ## 2.2.0
 
-- Add a `mailsuite.arc` module for Authenticated Received Chain (RFC 8617):
+### Enhancements
+
+- Add a `mailsuite.arc` module for Authenticated Received Chain (RFC 8617) ([#32](https://github.com/seanthegeek/mailsuite/pull/32)):
   - `seal_email()` — add an ARC set to a message, extending any existing chain.
   - `verify_arc_chain()` — verify the chain and report the `cv` result.
   - Errors raise the new `ARCError`. Adds `authres` as a dependency (required by dkimpy's ARC sealing).
-- Add OAuth2 authentication to `mailsuite.smtp.send_email`, matching the IMAP client:
+- Add OAuth2 authentication to `mailsuite.smtp.send_email`, matching the IMAP client ([#33](https://github.com/seanthegeek/mailsuite/pull/33)):
   - Pass `oauth2_token=` (or `oauth2_token_provider=` for a fresh token at send time) with `username=` to authenticate without a password.
   - `oauth2_mechanism=` selects `XOAUTH2` (default) or `OAUTHBEARER`; `oauth2_vendor=` supplies Yahoo's vendor string.
-- Add `ClientAssertion` auth to `MSGraphConnection` for federated / workload-identity scenarios that avoid a long-lived client secret. Pass `client_assertion=` with a signed-JWT assertion, or `client_assertion_provider=` (a zero-arg callable) to supply a fresh assertion each time `azure-identity` acquires a token. The assertion is exchanged for an access token via the JWT-bearer client-credentials grant — it is not itself a Graph access token (#31).
-- Fix two `GmailConnection` bugs:
+- Add `ClientAssertion` auth to `MSGraphConnection` for federated / workload-identity scenarios that avoid a long-lived client secret. Pass `client_assertion=` with a signed-JWT assertion, or `client_assertion_provider=` (a zero-arg callable) to supply a fresh assertion each time `azure-identity` acquires a token. The assertion is exchanged for an access token via the JWT-bearer client-credentials grant — it is not itself a Graph access token ([#31](https://github.com/seanthegeek/mailsuite/pull/31)).
+
+### Fixes
+
+- Fix two `GmailConnection` bugs ([#38](https://github.com/seanthegeek/mailsuite/pull/38)):
   - `fetch_messages(..., since=…)` dropped the date filter on every page after the first, so paginated fetches returned messages older than `since`. The filter is now carried through pagination.
   - `create_folder()` did not clear the label-id cache, so a label looked up before creation stayed cached as missing — `merge_folders(create=True)` could then move messages to an empty destination label and orphan them. It now clears the cache like `rename_folder` / `delete_folder` / `move_folder`.
-- Fix several `mailsuite.utils` parsing bugs:
+- Fix several `mailsuite.utils` parsing bugs ([#37](https://github.com/seanthegeek/mailsuite/pull/37)):
   - `parse_email()` always returned `reply-to` as `[]`, discarding the parsed Reply-To addresses; they are now preserved.
   - `parse_email()` raised `re.error` (or corrupted `headers_string`) when the `Subject` or `Thread-Topic` contained a backslash sequence such as `\1`; the value is now inserted literally.
   - `parse_email_address()` raised `UnboundLocalError` on input that was neither a `str` nor a tuple; it now raises a clear `TypeError`.
-- Fix `mailsuite.smtp.send_email()` not delivering to `Cc` and `Bcc` recipients. The SMTP envelope was built from `message_to` only — Cc/Bcc were appended after the envelope was captured — so the MTA delivered to the `To` addresses alone. The envelope now includes every recipient, and the caller's recipient lists are no longer mutated in place.
-- Fix `from_trusted_domain()` raising `TypeError` when `allow_multiple_authentication_results=True` and the message carries multiple `Authentication-Results` headers (which `parse_email` represents as raw strings). Each header is now parsed before inspection, and the matched DMARC domain is lower-cased/stripped to match the single-header path.
-- Fix `IMAPClient` folder normalization removing the personal-namespace prefix wherever it appeared inside a path rather than only at the start, so e.g. `Projects/INBOX/old` (prefix `INBOX/`) became `INBOX/Projects/old`. Only a leading prefix is now stripped before it is re-applied.
-- Fix `IMAPClient.move_messages()` duplicating messages on servers without the `MOVE` capability. The copy/delete fallback operated on the full UID list inside the per-100 chunk loop, so moving more than 100 messages copied every message once per chunk. Each chunk is now copied and deleted on its own.
-- Fix `IMAPClient.delete_messages()` raising on servers without the `UIDPLUS` capability. It always issued a `UID EXPUNGE` (expunge of specific UIDs), which requires UIDPLUS; on servers lacking it the error was uncaught. It now falls back to a plain `EXPUNGE` when UIDPLUS is unavailable.
-- Fix `parse_email()` auto-reply detection (`automatic_reply`). It matched the literal `auto_generated` (underscore) and required *both* an `Auto-Submitted` and an `X-Auto-Response-Suppress` header, so it never flagged real auto-replies (Gmail sends `Auto-Submitted: auto-replied`, Microsoft 365 / Exchange sends `auto-generated`). It now follows RFC 3834 — any `Auto-Submitted` value other than `no`, or the presence of Exchange's `X-Auto-Response-Suppress` header.
-- Fix the IMAP IDLE watch loop ignoring new mail on servers that signal it with an untagged `EXISTS` but no `RECENT`. The loop reacted only to `RECENT`; it now also reacts to `EXISTS` (the standard new-message signal).
-- Fix `MSGraphConnection.fetch_messages()` ignoring `batch_size` whenever `since` was set, so a date-filtered fetch pulled every matching page regardless of the requested cap. `batch_size` and `since` are independent now — the caller controls both.
-- Fix the IMAP IDLE watch loop stacking a nested IDLE loop on every reconnect. A connection drop during `watch()` called `reset_connection()`, which re-ran `__init__` and restarted IDLE recursively (duplicated callbacks, ever-deepening recursion on a long-running watch). Reconnects now re-arm the existing loop in place via a re-entrancy guard.
-- Fix `create_email()` emitting an empty `Cc:` header when `message_cc=[]`. It now adds the header only when there are Cc addresses, matching the `To` handling.
+- Fix `mailsuite.smtp.send_email()` not delivering to `Cc` and `Bcc` recipients. The SMTP envelope was built from `message_to` only — Cc/Bcc were appended after the envelope was captured — so the MTA delivered to the `To` addresses alone. The envelope now includes every recipient, and the caller's recipient lists are no longer mutated in place ([#36](https://github.com/seanthegeek/mailsuite/pull/36)).
+- Fix `from_trusted_domain()` raising `TypeError` when `allow_multiple_authentication_results=True` and the message carries multiple `Authentication-Results` headers (which `parse_email` represents as raw strings). Each header is now parsed before inspection, and the matched DMARC domain is lower-cased/stripped to match the single-header path ([#35](https://github.com/seanthegeek/mailsuite/pull/35)).
+- Fix `IMAPClient` folder normalization removing the personal-namespace prefix wherever it appeared inside a path rather than only at the start, so e.g. `Projects/INBOX/old` (prefix `INBOX/`) became `INBOX/Projects/old`. Only a leading prefix is now stripped before it is re-applied ([#39](https://github.com/seanthegeek/mailsuite/pull/39)).
+- Fix `IMAPClient.move_messages()` duplicating messages on servers without the `MOVE` capability. The copy/delete fallback operated on the full UID list inside the per-100 chunk loop, so moving more than 100 messages copied every message once per chunk. Each chunk is now copied and deleted on its own ([#40](https://github.com/seanthegeek/mailsuite/pull/40)).
+- Fix `IMAPClient.delete_messages()` raising on servers without the `UIDPLUS` capability. It always issued a `UID EXPUNGE` (expunge of specific UIDs), which requires UIDPLUS; on servers lacking it the error was uncaught. It now falls back to a plain `EXPUNGE` when UIDPLUS is unavailable ([#42](https://github.com/seanthegeek/mailsuite/pull/42)).
+- Fix `parse_email()` auto-reply detection (`automatic_reply`). It matched the literal `auto_generated` (underscore) and required *both* an `Auto-Submitted` and an `X-Auto-Response-Suppress` header, so it never flagged real auto-replies (Gmail sends `Auto-Submitted: auto-replied`, Microsoft 365 / Exchange sends `auto-generated`). It now follows RFC 3834 — any `Auto-Submitted` value other than `no`, or the presence of Exchange's `X-Auto-Response-Suppress` header ([#47](https://github.com/seanthegeek/mailsuite/pull/47)).
+- Fix the IMAP IDLE watch loop ignoring new mail on servers that signal it with an untagged `EXISTS` but no `RECENT`. The loop reacted only to `RECENT`; it now also reacts to `EXISTS` (the standard new-message signal) ([#41](https://github.com/seanthegeek/mailsuite/pull/41)).
+- Fix `MSGraphConnection.fetch_messages()` ignoring `batch_size` whenever `since` was set, so a date-filtered fetch pulled every matching page regardless of the requested cap. `batch_size` and `since` are independent now — the caller controls both ([#46](https://github.com/seanthegeek/mailsuite/pull/46)).
+- Fix the IMAP IDLE watch loop stacking a nested IDLE loop on every reconnect. A connection drop during `watch()` called `reset_connection()`, which re-ran `__init__` and restarted IDLE recursively (duplicated callbacks, ever-deepening recursion on a long-running watch). Reconnects now re-arm the existing loop in place via a re-entrancy guard ([#45](https://github.com/seanthegeek/mailsuite/pull/45)).
+- Fix `create_email()` emitting an empty `Cc:` header when `message_cc=[]`. It now adds the header only when there are Cc addresses, matching the `To` handling ([#44](https://github.com/seanthegeek/mailsuite/pull/44)).
 
 ## 2.1.0
 
