@@ -23,6 +23,7 @@
 - Fix `IMAPClient.move_messages()` duplicating messages on servers without the `MOVE` capability. The copy/delete fallback operated on the full UID list inside the per-100 chunk loop, so moving more than 100 messages copied every message once per chunk. Each chunk is now copied and deleted on its own.
 - Fix `IMAPClient.delete_messages()` raising on servers without the `UIDPLUS` capability. It always issued a `UID EXPUNGE` (expunge of specific UIDs), which requires UIDPLUS; on servers lacking it the error was uncaught. It now falls back to a plain `EXPUNGE` when UIDPLUS is unavailable.
 - Fix the IMAP IDLE watch loop ignoring new mail on servers that signal it with an untagged `EXISTS` but no `RECENT`. The loop reacted only to `RECENT`; it now also reacts to `EXISTS` (the standard new-message signal).
+- Fix `MSGraphConnection.fetch_messages()` ignoring `batch_size` whenever `since` was set, so a date-filtered fetch pulled every matching page regardless of the requested cap. `batch_size` and `since` are independent now — the caller controls both.
 
 ## 2.1.0
 

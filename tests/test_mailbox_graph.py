@@ -615,6 +615,46 @@ class TestFetchMessagesPagination:
         ids = conn.fetch_messages("Reports")
         assert ids == ["m1", "m2"]
 
+    def test_batch_size_caps_even_with_since(self):
+        # Regression: `since` used to disable the batch_size cap entirely, so a
+        # filtered fetch pulled every page. The caller should control both
+        # independently — batch_size must still cap when `since` is set.
+        conn = _make_conn()
+        conn._client.users.by_user_id("x").mail_folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="f1", display_name="Reports")]),
+        ]
+        item = conn._client.users.by_user_id("x").mail_folders.by_mail_folder_id("f1")
+        item.messages.next_pages = [
+            MagicMock(value=[MagicMock(id="m1"), MagicMock(id="m2")],
+                      odata_next_link="L2"),
+            MagicMock(value=[MagicMock(id="m3"), MagicMock(id="m4")],
+                      odata_next_link=None),
+        ]
+        ids = conn.fetch_messages(
+            "Reports", batch_size=2, since="2024-01-01T00:00:00Z"
+        )
+        assert ids == ["m1", "m2"]  # stopped after the cap, didn't fetch page 2
+        # the since filter was still applied to the query
+        cfg = item.messages.get_calls[0]
+        assert cfg.query_parameters.filter == "receivedDateTime ge 2024-01-01T00:00:00Z"
+
+    def test_batch_size_zero_fetches_all_with_since(self):
+        # batch_size=0 means "no cap"; combined with `since` it fetches every
+        # matching page.
+        conn = _make_conn()
+        conn._client.users.by_user_id("x").mail_folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="f1", display_name="Reports")]),
+        ]
+        item = conn._client.users.by_user_id("x").mail_folders.by_mail_folder_id("f1")
+        item.messages.next_pages = [
+            MagicMock(value=[MagicMock(id="m1"), MagicMock(id="m2")],
+                      odata_next_link="L2"),
+            MagicMock(value=[MagicMock(id="m3"), MagicMock(id="m4")],
+                      odata_next_link=None),
+        ]
+        ids = conn.fetch_messages("Reports", batch_size=0, since="2024-01-01T00:00:00Z")
+        assert ids == ["m1", "m2", "m3", "m4"]
+
 
 class TestWatch:
     def test_exits_on_config_reload(self):
