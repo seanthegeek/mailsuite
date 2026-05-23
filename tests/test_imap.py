@@ -206,6 +206,47 @@ class TestNormaliseFolder:
         assert client._normalise_folder("INBOX/Archive/2024") == "INBOX/Archive/2024"
 
 
+class TestStartIdle:
+    def _idle_client(self):
+        client = _bare_client()
+        client._idle_supported = True
+        client.idle = MagicMock()
+        client.idle_done = MagicMock()
+        return client
+
+    def test_fires_callback_on_exists(self):
+        # An untagged EXISTS must trigger the callback (RECENT is optional and
+        # many servers never send it).
+        client = self._idle_client()
+        client.idle_check = MagicMock(
+            side_effect=[[(1, b"EXISTS")], KeyboardInterrupt()]
+        )
+        calls = []
+        client._start_idle(lambda c: calls.append(c), idle_timeout=1)
+        # one call at startup + one for the EXISTS response
+        assert len(calls) == 2
+
+    def test_fires_callback_on_recent(self):
+        client = self._idle_client()
+        client.idle_check = MagicMock(
+            side_effect=[[(1, b"RECENT")], KeyboardInterrupt()]
+        )
+        calls = []
+        client._start_idle(lambda c: calls.append(c), idle_timeout=1)
+        assert len(calls) == 2
+
+    def test_ignores_keepalive_responses(self):
+        # A non-mail response (e.g. "still here") must not fire the callback.
+        client = self._idle_client()
+        client.idle_check = MagicMock(
+            side_effect=[[(b"OK", b"Still here")], KeyboardInterrupt()]
+        )
+        calls = []
+        client._start_idle(lambda c: calls.append(c), idle_timeout=1)
+        # only the startup call
+        assert len(calls) == 1
+
+
 class TestFetchMessage:
     def _client(self):
         client = _bare_client()

@@ -119,7 +119,12 @@ class IMAPClient(imapclient.IMAPClient):
                         self.idle()
                     else:
                         for r in responses:
-                            if r[0] != 0 and r[1] == b"RECENT":
+                            # New mail is signalled by an untagged EXISTS (the
+                            # new message count); RECENT is optional and many
+                            # servers never send it, so react to either.
+                            if r[1] == b"EXISTS" or (
+                                r[1] == b"RECENT" and r[0] != 0
+                            ):
                                 self.idle_done()
                                 idle_callback(self)
                                 idle_start_time = time.monotonic()
