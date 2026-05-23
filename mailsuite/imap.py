@@ -446,7 +446,13 @@ class IMAPClient(imapclient.IMAPClient):
         )
         try:
             imapclient.IMAPClient.delete_messages(self, messages, silent=silent)
-            imapclient.IMAPClient.expunge(self, messages)
+            # Expunging specific UIDs (UID EXPUNGE) requires the UIDPLUS
+            # capability; on servers without it, fall back to a plain EXPUNGE,
+            # which removes all messages flagged \\Deleted in the folder.
+            if self.has_capability("UIDPLUS"):
+                imapclient.IMAPClient.expunge(self, messages)
+            else:
+                imapclient.IMAPClient.expunge(self)
         except (socket.timeout, imaplib.IMAP4.abort):
             _attempt = _attempt + 1
             if _attempt > self.max_retries:
