@@ -332,20 +332,6 @@ def parse_email(
       payload to bytes.
     """
 
-    def _test_header_value(
-        header_name: str, header_value: Union[str, int, float], startswith: bool = False
-    ) -> bool:
-        header_name = header_name.lower()
-        if header_name not in parsed_email:
-            return False
-        if parsed_email[header_name] is None:
-            return False
-        if startswith and all(
-            [isinstance(header_value, str), isinstance(parsed_email[header_name], str)]
-        ):
-            return parsed_email[header_name].startswith(header_value)
-        return parsed_email[header_name] == header_value
-
     data_str: str
     if isinstance(data, bytes):
         if is_outlook_msg(data):
@@ -491,12 +477,16 @@ def parse_email(
     if "body" not in parsed_email:
         parsed_email["body"] = None
         parsed_email["body_markdown"] = None
-    auto_reply = all(
-        [
-            _test_header_value("x-auto-response-suppress", "All"),
-            _test_header_value("auto-submitted", "auto_generated"),
-        ]
-    )
+    # RFC 3834: a message is an automatic response/submission when it carries
+    # an Auto-Submitted header with any value other than "no" — e.g. Gmail's
+    # "auto-replied", Microsoft 365 / Exchange's "auto-generated", and MTA
+    # bounces/DSNs. Exchange's X-Auto-Response-Suppress (set on Out-of-Office
+    # replies) is a secondary, vendor-specific signal.
+    auto_submitted = parsed_email.get("auto-submitted")
+    auto_reply = (
+        auto_submitted is not None
+        and str(auto_submitted).split(";")[0].strip().lower() not in ("", "no")
+    ) or parsed_email.get("x-auto-response-suppress") is not None
     parsed_email["automatic_reply"] = auto_reply
 
     return parsed_email

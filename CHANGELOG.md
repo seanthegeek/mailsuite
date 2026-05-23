@@ -22,7 +22,7 @@
 - Fix `IMAPClient` folder normalization removing the personal-namespace prefix wherever it appeared inside a path rather than only at the start, so e.g. `Projects/INBOX/old` (prefix `INBOX/`) became `INBOX/Projects/old`. Only a leading prefix is now stripped before it is re-applied.
 - Fix `IMAPClient.move_messages()` duplicating messages on servers without the `MOVE` capability. The copy/delete fallback operated on the full UID list inside the per-100 chunk loop, so moving more than 100 messages copied every message once per chunk. Each chunk is now copied and deleted on its own.
 - Fix `IMAPClient.delete_messages()` raising on servers without the `UIDPLUS` capability. It always issued a `UID EXPUNGE` (expunge of specific UIDs), which requires UIDPLUS; on servers lacking it the error was uncaught. It now falls back to a plain `EXPUNGE` when UIDPLUS is unavailable.
-- Fix the IMAP IDLE watch loop ignoring new mail on servers that signal it with an untagged `EXISTS` but no `RECENT`. The loop reacted only to `RECENT`; it now also reacts to `EXISTS` (the standard new-message signal).
+- Fix `parse_email()` auto-reply detection (`automatic_reply`). It matched the literal `auto_generated` (underscore) and required *both* an `Auto-Submitted` and an `X-Auto-Response-Suppress` header, so it never flagged real auto-replies (Gmail sends `Auto-Submitted: auto-replied`, Microsoft 365 / Exchange sends `auto-generated`). It now follows RFC 3834 — any `Auto-Submitted` value other than `no`, or the presence of Exchange's `X-Auto-Response-Suppress` header.
 
 ## 2.1.0
 

@@ -190,18 +190,36 @@ class TestParseEmail:
         assert "Hello" in parsed["body"]
         assert "Hello" in parsed["body_markdown"]
 
-    def test_automatic_reply_detection(self):
-        raw = (
+    def _msg_with_headers(self, extra_headers: str) -> str:
+        return (
             "From: a@example.com\r\n"
             "To: b@example.org\r\n"
             "Subject: Out of office\r\n"
-            "X-Auto-Response-Suppress: All\r\n"
-            "Auto-Submitted: auto_generated\r\n"
+            f"{extra_headers}"
             "\r\n"
             "I'm away.\r\n"
         )
-        parsed = parse_email(raw)
-        assert parsed["automatic_reply"] is True
+
+    @pytest.mark.parametrize(
+        ("headers", "expected"),
+        [
+            # Exchange / Microsoft 365 Out-of-Office
+            ("Auto-Submitted: auto-generated\r\nX-Auto-Response-Suppress: All\r\n", True),
+            # Gmail vacation responder
+            ("Auto-Submitted: auto-replied\r\n", True),
+            # Auto-Submitted with a parameter (RFC 3834 syntax)
+            ("Auto-Submitted: auto-generated; type=vacation\r\n", True),
+            # X-Auto-Response-Suppress alone (Exchange secondary signal)
+            ("X-Auto-Response-Suppress: OOF\r\n", True),
+            # Explicitly human-submitted
+            ("Auto-Submitted: no\r\n", False),
+            # No auto-reply headers at all
+            ("", False),
+        ],
+    )
+    def test_automatic_reply_detection(self, headers, expected):
+        parsed = parse_email(self._msg_with_headers(headers))
+        assert parsed["automatic_reply"] is expected
 
     def test_reply_to_preserved(self):
         raw = (
