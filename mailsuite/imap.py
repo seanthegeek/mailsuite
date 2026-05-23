@@ -111,6 +111,9 @@ class IMAPClient(imapclient.IMAPClient):
         idle_callback(self)
         idle_start_time = time.monotonic()
         self.idle()
+        # Mark the loop active so a reconnect (reset_connection -> __init__)
+        # re-arms this loop in place instead of starting a nested IDLE loop.
+        self._idle_running = True
         while True:
             try:
                 # Refresh the IDLE session every 5 minutes to stay connected
@@ -143,13 +146,20 @@ class IMAPClient(imapclient.IMAPClient):
             except (KeyError, socket.error, BrokenPipeError, ConnectionResetError):
                 logger.debug("IMAP error: Connection reset")
                 self.reset_connection()
+                idle_callback(self)
+                idle_start_time = time.monotonic()
+                self.idle()
             except imapclient.exceptions.IMAPClientError as error:
                 error = error.__str__().lstrip("b'").rstrip("'").rstrip(".")
                 # Workaround for random Exchange/Microsoft 365 IMAP errors
                 if "unexpected response" in error or "BAD" in error:
                     self.reset_connection()
+                    idle_callback(self)
+                    idle_start_time = time.monotonic()
+                    self.idle()
             except KeyboardInterrupt:
                 break
+        self._idle_running = False
         try:
             self.idle_done()
         except BrokenPipeError:
@@ -325,7 +335,10 @@ class IMAPClient(imapclient.IMAPClient):
         ) as error:
             error = error.__str__().lstrip("b'").rstrip("'").rstrip(".")
             raise imapclient.exceptions.IMAPClientError(error)
-        if idle_callback is not None:
+        # Skip starting IDLE if a loop is already running on this connection:
+        # reset_connection() re-runs __init__ from inside the loop, and a
+        # nested _start_idle would stack IDLE loops on every reconnect.
+        if idle_callback is not None and not getattr(self, "_idle_running", False):
             self._start_idle(idle_callback, idle_timeout=idle_timeout)
 
     def reset_connection(self):

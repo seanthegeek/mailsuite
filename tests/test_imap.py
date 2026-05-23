@@ -246,6 +246,24 @@ class TestStartIdle:
         # only the startup call
         assert len(calls) == 1
 
+    def test_reconnects_and_rearms_on_connection_error(self):
+        # A dropped connection mid-IDLE must reconnect and re-arm the *same*
+        # loop in place (re-issue idle()), rather than crash or leave it
+        # un-idled. (The reconnect also sets _idle_running so __init__ won't
+        # start a nested loop — see the integration test for that path.)
+        client = self._idle_client()
+        client.reset_connection = MagicMock()
+        client.idle_check = MagicMock(
+            side_effect=[socket.error("dropped"), KeyboardInterrupt()]
+        )
+        calls = []
+        client._start_idle(lambda c: calls.append(c), idle_timeout=1)
+        client.reset_connection.assert_called_once()
+        # idle() re-armed after reconnecting: once at startup + once after
+        assert client.idle.call_count == 2
+        # callback fired again after reconnecting (re-check for missed mail)
+        assert len(calls) == 2
+
 
 class TestFetchMessage:
     def _client(self):
