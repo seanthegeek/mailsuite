@@ -34,14 +34,20 @@ class IMAPClient(imapclient.IMAPClient):
         self, folder_name: Union[str, bytes, bytearray, memoryview]
     ) -> str:
         """
-        Returns an appropriate path based on the namespace (if any) and
-        hierarchy separator
+        Translate a caller's ``/``-delimited folder path to the server's form.
+
+        The point of this method is that callers can always use ``/`` as the
+        hierarchy separator, even on servers whose native separator is
+        something else (e.g. ``.`` on some Dovecot/Courier setups): it maps
+        ``/`` onto the server's native separator and applies the
+        personal-namespace prefix, so the same folder paths work unchanged
+        across servers.
 
         Args:
-            folder_name: The path to correct
+            folder_name: A ``/``-delimited folder path
 
         Returns:
-            A corrected path
+            The path using the server's native separator and namespace prefix
         """
         if isinstance(folder_name, memoryview):
             folder_name = folder_name.tobytes()
@@ -77,6 +83,10 @@ class IMAPClient(imapclient.IMAPClient):
         if self._path_prefix and folder_name.startswith(self._path_prefix):
             folder_name = folder_name[len(self._path_prefix):]
         if not self._hierarchy_separator == "/":
+            # Map the caller's "/" delimiter onto the server's native separator
+            # so "/" works regardless of what the server uses. (Any literal
+            # native-separator characters are dropped first, since "/" is the
+            # delimiter callers are expected to use.)
             folder_name = folder_name.replace(self._hierarchy_separator, "")
             folder_name = folder_name.replace("/", self._hierarchy_separator)
         folder_name = "{0}{1}".format(self._path_prefix, folder_name)
