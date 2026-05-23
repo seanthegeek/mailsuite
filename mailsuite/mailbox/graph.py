@@ -493,7 +493,7 @@ class MSGraphConnection(MailboxConnection):
         while page is not None and page.value:
             ids.extend(m.id for m in page.value if m.id)
             next_link = page.odata_next_link
-            keep_going = since is not None or batch_size == 0 or len(ids) < batch_size
+            keep_going = batch_size == 0 or len(ids) < batch_size
             if not next_link or not keep_going:
                 break
             page = (
