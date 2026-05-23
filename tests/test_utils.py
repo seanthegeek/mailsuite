@@ -138,6 +138,15 @@ class TestCreateEmail:
         )
         assert "Cc: c@example.org, d@example.org" in msg
 
+    def test_empty_cc_list_omits_header(self):
+        # An empty Cc list must not emit a bare "Cc:" header (matches To).
+        msg = create_email(
+            message_from="a@example.com",
+            message_to=["b@example.org"],
+            message_cc=[],
+        )
+        assert "Cc:" not in msg
+
     def test_custom_headers(self):
         msg = create_email(
             message_from="a@example.com",

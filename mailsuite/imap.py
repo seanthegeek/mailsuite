@@ -34,14 +34,20 @@ class IMAPClient(imapclient.IMAPClient):
         self, folder_name: Union[str, bytes, bytearray, memoryview]
     ) -> str:
         """
-        Returns an appropriate path based on the namespace (if any) and
-        hierarchy separator
+        Translate a caller's ``/``-delimited folder path to the server's form.
+
+        The point of this method is that callers can always use ``/`` as the
+        hierarchy separator, even on servers whose native separator is
+        something else (e.g. ``.`` on some Dovecot/Courier setups): it maps
+        ``/`` onto the server's native separator and applies the
+        personal-namespace prefix, so the same folder paths work unchanged
+        across servers.
 
         Args:
-            folder_name: The path to correct
+            folder_name: A ``/``-delimited folder path
 
         Returns:
-            A corrected path
+            The path using the server's native separator and namespace prefix
         """
         if isinstance(folder_name, memoryview):
             folder_name = folder_name.tobytes()
@@ -77,6 +83,10 @@ class IMAPClient(imapclient.IMAPClient):
         if self._path_prefix and folder_name.startswith(self._path_prefix):
             folder_name = folder_name[len(self._path_prefix):]
         if not self._hierarchy_separator == "/":
+            # Map the caller's "/" delimiter onto the server's native separator
+            # so "/" works regardless of what the server uses. (Any literal
+            # native-separator characters are dropped first, since "/" is the
+            # delimiter callers are expected to use.)
             folder_name = folder_name.replace(self._hierarchy_separator, "")
             folder_name = folder_name.replace("/", self._hierarchy_separator)
         folder_name = "{0}{1}".format(self._path_prefix, folder_name)
@@ -101,6 +111,9 @@ class IMAPClient(imapclient.IMAPClient):
         idle_callback(self)
         idle_start_time = time.monotonic()
         self.idle()
+        # Mark the loop active so a reconnect (reset_connection -> __init__)
+        # re-arms this loop in place instead of starting a nested IDLE loop.
+        self._idle_running = True
         while True:
             try:
                 # Refresh the IDLE session every 5 minutes to stay connected
@@ -133,13 +146,20 @@ class IMAPClient(imapclient.IMAPClient):
             except (KeyError, socket.error, BrokenPipeError, ConnectionResetError):
                 logger.debug("IMAP error: Connection reset")
                 self.reset_connection()
+                idle_callback(self)
+                idle_start_time = time.monotonic()
+                self.idle()
             except imapclient.exceptions.IMAPClientError as error:
                 error = error.__str__().lstrip("b'").rstrip("'").rstrip(".")
                 # Workaround for random Exchange/Microsoft 365 IMAP errors
                 if "unexpected response" in error or "BAD" in error:
                     self.reset_connection()
+                    idle_callback(self)
+                    idle_start_time = time.monotonic()
+                    self.idle()
             except KeyboardInterrupt:
                 break
+        self._idle_running = False
         try:
             self.idle_done()
         except BrokenPipeError:
@@ -315,7 +335,10 @@ class IMAPClient(imapclient.IMAPClient):
         ) as error:
             error = error.__str__().lstrip("b'").rstrip("'").rstrip(".")
             raise imapclient.exceptions.IMAPClientError(error)
-        if idle_callback is not None:
+        # Skip starting IDLE if a loop is already running on this connection:
+        # reset_connection() re-runs __init__ from inside the loop, and a
+        # nested _start_idle would stack IDLE loops on every reconnect.
+        if idle_callback is not None and not getattr(self, "_idle_running", False):
             self._start_idle(idle_callback, idle_timeout=idle_timeout)
 
     def reset_connection(self):
