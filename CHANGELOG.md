@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.1
+
+- Require `mail-parser>=4.2.1` (was `>=4.1.2`). 4.2.1 stops returning a phantom `('', '')` entry for absent address headers and adds the CVE-2023-27043 strict address-parsing hardening. `parse_email()` already re-parsed these headers itself, so mailsuite's own output is unchanged — this guarantees the fixed dependency for code that reads the underlying mail-parser object.
+
 ## 2.2.0
 
 ### Enhancements
