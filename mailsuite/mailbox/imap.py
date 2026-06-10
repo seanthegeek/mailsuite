@@ -174,6 +174,7 @@ class IMAPConnection(MailboxConnection):
                     oauth2_token_provider=self._oauth2_token_provider,
                     oauth2_mechanism=self._oauth2_mechanism,
                     oauth2_vendor=self._oauth2_vendor,
+                    config_reloading=config_reloading,
                 )
             except (timeout, IMAPClientError):
                 logger.warning("IMAP connection timeout. Reconnecting...")
