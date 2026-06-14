@@ -96,13 +96,17 @@ class IMAPClient(imapclient.IMAPClient):
             return result.decode("utf-8", "replace")
         return str(result)
 
-    def _start_idle(self, idle_callback, idle_timeout: int = 30):
+    def _start_idle(self, idle_callback, idle_timeout: int = 30, config_reloading=None):
         """
         Starts an IMAP IDLE session
 
         Args:
             idle_callback: A callback function
             idle_timeout: Number of seconds to wait for an IDLE response
+            config_reloading: Optional zero-arg callable; when it returns a
+                truthy value the IDLE loop exits cleanly so the caller can
+                reload config or shut down. Checked at the top of each cycle,
+                while IDLE is active, so idle_done() stays valid.
         """
         if self._idle_supported is False:
             raise imapclient.exceptions.IMAPClientError(
@@ -115,6 +119,8 @@ class IMAPClient(imapclient.IMAPClient):
         # re-arms this loop in place instead of starting a nested IDLE loop.
         self._idle_running = True
         while True:
+            if config_reloading and config_reloading():
+                break
             try:
                 # Refresh the IDLE session every 5 minutes to stay connected
                 if time.monotonic() - idle_start_time > 5 * 60:
@@ -183,6 +189,7 @@ class IMAPClient(imapclient.IMAPClient):
         oauth2_token_provider: Optional[Callable[[], str]] = None,
         oauth2_mechanism: str = "XOAUTH2",
         oauth2_vendor: Optional[str] = None,
+        config_reloading: Optional[Callable[[], bool]] = None,
     ):
         """
         Connects to an IMAP server
@@ -339,7 +346,11 @@ class IMAPClient(imapclient.IMAPClient):
         # reset_connection() re-runs __init__ from inside the loop, and a
         # nested _start_idle would stack IDLE loops on every reconnect.
         if idle_callback is not None and not getattr(self, "_idle_running", False):
-            self._start_idle(idle_callback, idle_timeout=idle_timeout)
+            self._start_idle(
+                idle_callback,
+                idle_timeout=idle_timeout,
+                config_reloading=config_reloading,
+            )
 
     def reset_connection(self):
         """Resets the connection to the IMAP server"""

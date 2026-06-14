@@ -264,6 +264,47 @@ class TestStartIdle:
         # callback fired again after reconnecting (re-check for missed mail)
         assert len(calls) == 2
 
+    def test_config_reloading_truthy_exits_cleanly(self):
+        # A truthy config_reloading at the top of a cycle breaks the loop
+        # cleanly: idle_check is never consulted and the trailing idle_done()
+        # still runs (it was checked while IDLE was active).
+        client = self._idle_client()
+        client.idle_check = MagicMock()
+        calls = []
+        client._start_idle(
+            lambda c: calls.append(c),
+            idle_timeout=1,
+            config_reloading=lambda: True,
+        )
+        # only the startup call — the loop broke before any idle_check
+        assert len(calls) == 1
+        client.idle_check.assert_not_called()
+        client.idle_done.assert_called_once()
+        assert client._idle_running is False
+
+    def test_config_reloading_falsy_keeps_watching(self):
+        # A falsy config_reloading must not disturb normal IDLE processing.
+        client = self._idle_client()
+        client.idle_check = MagicMock(
+            side_effect=[[(1, b"EXISTS")], KeyboardInterrupt()]
+        )
+        reload_calls = []
+
+        def config_reloading():
+            reload_calls.append(1)
+            return False
+
+        calls = []
+        client._start_idle(
+            lambda c: calls.append(c),
+            idle_timeout=1,
+            config_reloading=config_reloading,
+        )
+        # startup call + EXISTS call: the loop ran as usual
+        assert len(calls) == 2
+        # config_reloading was consulted at the top of each cycle
+        assert len(reload_calls) >= 2
+
 
 class TestFetchMessage:
     def _client(self):
@@ -616,6 +657,38 @@ class TestOAuth2Login:
             oauth2_vendor="yahoo",
         )
         assert seen == {"vendor": "yahoo"}
+
+    def test_init_forwards_config_reloading_to_start_idle(self, monkeypatch):
+        # __init__ must pass config_reloading through to the IDLE loop so a
+        # long-running watcher can reload config / shut down while idle.
+        _stub_network(monkeypatch)
+        monkeypatch.setattr(
+            imapclient.IMAPClient, "login", lambda self, u, p: None
+        )
+        captured = {}
+        monkeypatch.setattr(
+            IMAPClient,
+            "_start_idle",
+            lambda self, cb, idle_timeout=30, config_reloading=None: captured.update(
+                cb=cb, idle_timeout=idle_timeout, config_reloading=config_reloading
+            ),
+        )
+
+        def reloader() -> bool:
+            return False
+
+        def on_idle(client):
+            pass
+
+        IMAPClient(
+            "host",
+            "u@example.com",
+            "secret",
+            idle_callback=on_idle,
+            config_reloading=reloader,
+        )
+        assert captured["cb"] is on_idle
+        assert captured["config_reloading"] is reloader
 
     def test_missing_credentials_raises(self):
         with pytest.raises(ValueError, match="password or an OAuth2"):
