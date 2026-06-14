@@ -126,6 +126,36 @@ class TestIMAPConnection:
         with pytest.raises(NotImplementedError, match="IMAP"):
             conn.send_message("a@example.com")
 
+    def test_watch_returns_when_config_reloading_truthy(self, monkeypatch):
+        # A truthy config_reloading at the top of the loop returns before any
+        # IMAPClient connection is attempted.
+        conn = _bare_connection()
+        client_calls = []
+        monkeypatch.setattr(
+            "mailsuite.mailbox.imap.IMAPClient",
+            lambda *a, **kw: client_calls.append(kw),
+        )
+        conn.watch(lambda c: None, 1, config_reloading=lambda: True)
+        assert client_calls == []
+
+    def test_watch_forwards_config_reloading_to_client(self, monkeypatch):
+        # config_reloading must thread through to the IMAPClient so the IDLE
+        # loop itself can honor it. Return False once (enter the loop, build a
+        # client) then True (exit after the connection returns).
+        conn = _bare_connection()
+        captured = {}
+        monkeypatch.setattr(
+            "mailsuite.mailbox.imap.IMAPClient",
+            lambda *a, **kw: captured.update(kw),
+        )
+        states = iter([False, True])
+
+        def config_reloading() -> bool:
+            return next(states)
+
+        conn.watch(lambda c: None, 1, config_reloading=config_reloading)
+        assert captured["config_reloading"] is config_reloading
+
     def test_oauth2_kwargs_forwarded_to_client(self, monkeypatch):
         captured = {}
 
