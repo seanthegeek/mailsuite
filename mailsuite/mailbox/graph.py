@@ -211,7 +211,8 @@ class MSGraphConnection(MailboxConnection):
     Supports DeviceCode, UsernamePassword, ClientSecret, ClientAssertion,
     and Certificate auth via :mod:`azure.identity`. Send mail goes through
     ``/users/{mailbox}/sendMail`` with a structured ``Message`` body; the
-    request sets ``saveToSentItems``, so a copy is saved to Sent Items.
+    request sets ``saveToSentItems``, so a copy is saved to Sent Items
+    by default. Pass ``save_to_sent_items=False`` to skip saving a copy.
 
     Required Microsoft Graph **API permissions** on the app registration
     (combine as needed):
@@ -571,6 +572,7 @@ class MSGraphConnection(MailboxConnection):
         attachments: Optional[List[Tuple[str, bytes]]] = None,
         plain_message: Optional[str] = None,
         html_message: Optional[str] = None,
+        save_to_sent_items: bool = True,
     ) -> Optional[str]:
         # Graph derives ``From`` from the authenticated mailbox; ``message_from``
         # and ``message_headers`` are accepted for API parity but not used by
@@ -608,7 +610,7 @@ class MSGraphConnection(MailboxConnection):
             bcc_recipients=_to_recipients(message_bcc),
             attachments=graph_attachments,
         )
-        request = SendMailPostRequestBody(message=message, save_to_sent_items=True)
+        request = SendMailPostRequestBody(message=message, save_to_sent_items=save_to_sent_items)
         _run(
             self._client.users.by_user_id(self.mailbox_name).send_mail.post(request)
         )
