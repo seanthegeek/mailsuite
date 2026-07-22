@@ -610,7 +610,9 @@ class MSGraphConnection(MailboxConnection):
             bcc_recipients=_to_recipients(message_bcc),
             attachments=graph_attachments,
         )
-        request = SendMailPostRequestBody(message=message, save_to_sent_items=save_to_sent_items)
+        request = SendMailPostRequestBody(
+            message=message, save_to_sent_items=save_to_sent_items
+        )
         _run(
             self._client.users.by_user_id(self.mailbox_name).send_mail.post(request)
         )

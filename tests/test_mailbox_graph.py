@@ -306,7 +306,7 @@ class TestSendMessage:
         assert body.message.body.content == "hello"
         assert body.save_to_sent_items is True
 
-    def test_send_without_save_to_sent(self):
+    def test_send_without_save_to_sent_items(self):
         """save_to_sent_items=False should be passed through to the request."""
         conn = _make_conn()
         conn.send_message(
@@ -316,6 +316,7 @@ class TestSendMessage:
             save_to_sent_items=False,
         )
         body = conn._client.users.by_user_id("x").send_mail.last_body
+        assert body is not None
         assert body.save_to_sent_items is False
 
     def test_send_with_html(self):

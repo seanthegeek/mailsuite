@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add a `save_to_sent_items` parameter to `send_message()` ([#51](https://github.com/seanthegeek/mailsuite/pull/51)). Microsoft Graph passes it through as the `saveToSentItems` flag on the `/sendMail` request (default `True`, matching prior behavior); Gmail accepts it for API parity but ignores it, since the Gmail API always saves a copy to Sent Mail.
+
 ## 2.2.2
 
 - Honor config_reloading in the IDLE loop ([#50](https://github.com/seanthegeek/mailsuite/pull/50))

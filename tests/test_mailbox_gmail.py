@@ -356,6 +356,21 @@ class TestSendMessage:
         raw = base64.urlsafe_b64decode(body["raw"]).decode()
         assert "file.txt" in raw
 
+    def test_send_accepts_save_to_sent_items(self):
+        """save_to_sent_items is accepted for API parity and the send still works."""
+        conn = _bare_connection()
+        conn.service.messages_obj.send.return_value.execute.return_value = {"id": "s3"}
+        result = conn.send_message(
+            message_from="a@example.com",
+            message_to=["b@example.org"],
+            plain_message="hello",
+            save_to_sent_items=False,
+        )
+        assert result == "s3"
+        body = conn.service.messages_obj.send.call_args.kwargs["body"]
+        raw = base64.urlsafe_b64decode(body["raw"]).decode()
+        assert "hello" in raw
+
 
 class TestKeepalive:
     def test_no_op(self):
