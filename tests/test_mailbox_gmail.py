@@ -99,6 +99,38 @@ class TestGetCreds:
         assert called["scopes"] == ["scope1"]
         assert creds._with_subject == "user@example.com"
 
+    def test_installed_app_uses_configured_port(self, tmp_path, monkeypatch):
+        """Regression: _get_creds must pass oauth2_port as run_local_server's
+        `port` kwarg. run_local_server has no `oauth2_port` parameter, so an
+        `oauth2_port=` call previously fell into **kwargs and was silently
+        forwarded to authorization_url() as a meaningless query parameter —
+        the WSGI listener always bound the library's own default (8080)
+        regardless of the configured value."""
+        from mailsuite.mailbox import gmail as gmail_mod
+
+        token_path = tmp_path / "token.json"
+        creds_file = tmp_path / "client_secrets.json"
+        creds_file.write_text("{}")
+
+        fake_creds = MagicMock()
+        fake_creds.valid = True
+        fake_creds.to_json.return_value = "{}"
+        fake_flow = MagicMock()
+        fake_flow.run_local_server.return_value = fake_creds
+        monkeypatch.setattr(
+            gmail_mod.InstalledAppFlow,
+            "from_client_secrets_file",
+            classmethod(lambda cls, f, s: fake_flow),
+        )
+
+        gmail_mod._get_creds(
+            str(token_path), str(creds_file), ["scope"], oauth2_port=9999
+        )
+
+        fake_flow.run_local_server.assert_called_once_with(
+            open_browser=False, port=9999
+        )
+
 
 class TestCreateFolder:
     def test_archive_skipped(self):

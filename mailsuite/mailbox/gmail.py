@@ -62,7 +62,7 @@ def _get_creds(
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(credentials_file, scopes)
-            creds = flow.run_local_server(open_browser=False, oauth2_port=oauth2_port)
+            creds = flow.run_local_server(open_browser=False, port=oauth2_port)
         Path(token_file).parent.mkdir(parents=True, exist_ok=True)
         with Path(token_file).open("w") as token:
             token.write(creds.to_json())
