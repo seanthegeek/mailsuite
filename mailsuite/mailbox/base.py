@@ -262,6 +262,7 @@ class MailboxConnection(ABC):
         attachments: Optional[list[Tuple[str, bytes]]] = None,
         plain_message: Optional[str] = None,
         html_message: Optional[str] = None,
+        save_to_sent_items: bool = True,
     ) -> Optional[str]:
         """
         Send a message through this mailbox's native send API (when supported)
@@ -280,6 +281,9 @@ class MailboxConnection(ABC):
             attachments: A list of ``(filename, bytes)`` tuples
             plain_message: The plain-text body
             html_message: The HTML body
+            save_to_sent_items: Whether to save a copy to Sent Items
+                (Microsoft Graph only; Gmail always saves a copy).
+                Default ``True`` for backward compatibility.
 
         Returns:
             A provider-specific message identifier when available, otherwise

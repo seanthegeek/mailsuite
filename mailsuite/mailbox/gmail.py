@@ -304,7 +304,15 @@ class GmailConnection(MailboxConnection):
         attachments: Optional[List[Tuple[str, bytes]]] = None,
         plain_message: Optional[str] = None,
         html_message: Optional[str] = None,
+        save_to_sent_items: bool = True,
     ) -> Optional[str]:
+        """Send a message through the Gmail API.
+
+        The ``save_to_sent_items`` parameter is accepted for API parity
+        with :meth:`MSGraphConnection.send_message` but is ignored —
+        Gmail always saves a copy to Sent Mail.
+        """
+        del save_to_sent_items  # Gmail always saves to Sent Mail
         raw = create_email(
             message_from=message_from,
             message_to=message_to,
