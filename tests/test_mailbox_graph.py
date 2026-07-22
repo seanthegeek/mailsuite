@@ -382,6 +382,16 @@ class TestMessageOps:
         item = conn._client.users.by_user_id("x").messages.by_message_id("m5")
         assert item.deleted is True
 
+    def test_move_message(self):
+        conn = _make_conn()
+        conn._client.users.by_user_id("x").mail_folders._listing_pages = [
+            MagicMock(value=[MagicMock(id="folder-abc", display_name="Archive")]),
+        ]
+        conn.move_message("m6", "Archive")
+        item = conn._client.users.by_user_id("x").messages.by_message_id("m6")
+        assert item.moved_body is not None
+        assert item.moved_body.destination_id == "folder-abc"
+
 
 class TestFolderResolution:
     def test_finds_folder_by_display_name(self):
