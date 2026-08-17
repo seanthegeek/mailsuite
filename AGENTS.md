@@ -40,7 +40,7 @@ pip install pytest pytest-cov ruff pyright
 - **Tests**: `pytest` (config in `pyproject.toml`). `pytest --cov=mailsuite`
   for coverage.
 - **CI**: `.github/workflows/ci.yml` runs ruff + pyright + pytest matrix
-  across Python 3.10, 3.11, 3.12, 3.13 on every PR.
+  across Python 3.10, 3.11, 3.12, 3.13, 3.14 on every PR.
 
 ## Code conventions
 
