@@ -73,6 +73,12 @@ include = [
 [tool.hatch.build.targets.wheel]
 packages = ["mailsuite"]
 
+[tool.ruff.lint]
+# Pin to ruff's historic default rules. The codebase intentionally uses
+# Optional[X] / List[X] / Union[X, Y] (see AGENTS.md, Python >= 3.9 support),
+# which newer ruff defaults (UP*, FA100) would flag.
+select = ["E4", "E7", "E9", "F"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
