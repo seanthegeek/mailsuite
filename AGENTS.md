@@ -212,5 +212,5 @@ friendly message, plus a lazy `__getattr__` entry in
 
 - Branches: `feat/...`, `fix/...`, `docs/...`.
 - PR titles ≤ ~70 chars; detail in body.
-- Commits authored by Claude include
-  `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`.
+- Commits authored by Claude include a `Co-Authored-By` trailer naming the
+  current model, e.g. `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
