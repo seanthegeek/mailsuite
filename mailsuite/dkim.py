@@ -3,7 +3,7 @@
 import base64
 import email
 import logging
-from typing import Callable, Optional, Tuple, Union
+from collections.abc import Callable
 
 import dkim as _dkim
 from cryptography.hazmat.primitives import serialization
@@ -58,7 +58,7 @@ def generate_dkim_private_key(key_size: int = 2048) -> str:
     return pem.decode("ascii")
 
 
-def get_dkim_public_key(private_key: Union[str, bytes]) -> str:
+def get_dkim_public_key(private_key: str | bytes) -> str:
     """
     Derives the DKIM public key from a private key
 
@@ -74,7 +74,7 @@ def get_dkim_public_key(private_key: Union[str, bytes]) -> str:
         key_bytes = bytes(private_key)
     try:
         key = serialization.load_pem_private_key(key_bytes, password=None)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise DKIMError(f"Failed to load private key: {e}")
     der = key.public_key().public_bytes(
         encoding=serialization.Encoding.DER,
@@ -83,7 +83,7 @@ def get_dkim_public_key(private_key: Union[str, bytes]) -> str:
     return base64.b64encode(der).decode("ascii")
 
 
-def generate_dkim_keypair(key_size: int = 2048) -> Tuple[str, str]:
+def generate_dkim_keypair(key_size: int = 2048) -> tuple[str, str]:
     """
     Generates a DKIM RSA keypair
 
@@ -98,11 +98,11 @@ def generate_dkim_keypair(key_size: int = 2048) -> Tuple[str, str]:
 
 
 def generate_dkim_txt_record(
-    public_key: Union[str, bytes],
+    public_key: str | bytes,
     selector: str = "default",
-    domain: Optional[str] = None,
-    flags: Optional[str] = None,
-    note: Optional[str] = None,
+    domain: str | None = None,
+    flags: str | None = None,
+    note: str | None = None,
 ) -> str:
     """
     Generates a DKIM TXT record
@@ -134,7 +134,7 @@ def generate_dkim_txt_record(
     elif "BEGIN" in key_str and "PUBLIC KEY" in key_str:
         try:
             pub = serialization.load_pem_public_key(key_str.encode("ascii"))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             raise DKIMError(f"Failed to load public key: {e}")
         der = pub.public_bytes(
             encoding=serialization.Encoding.DER,
@@ -159,14 +159,14 @@ def generate_dkim_txt_record(
 
 
 def sign_email(
-    message: Union[str, bytes],
+    message: str | bytes,
     selector: str,
     domain: str,
-    private_key: Union[str, bytes],
-    additional_headers: Optional[list[str]] = None,
-    canonicalize: Tuple[bytes, bytes] = (b"relaxed", b"relaxed"),
-    identity: Optional[str] = None,
-) -> Union[str, bytes]:
+    private_key: str | bytes,
+    additional_headers: list[str] | None = None,
+    canonicalize: tuple[bytes, bytes] = (b"relaxed", b"relaxed"),
+    identity: str | None = None,
+) -> str | bytes:
     """
     DKIM-signs an email and returns the signed RFC 822 message
 
@@ -210,7 +210,7 @@ def sign_email(
         headers_to_sign.extend(additional_headers)
 
     parsed = email.message_from_bytes(message_bytes)
-    present = {key.lower() for key in parsed.keys()}
+    present = {key.lower() for key in parsed}
 
     include = [
         header.encode("ascii")
@@ -243,10 +243,10 @@ def sign_email(
 
 
 def verify_email(
-    message: Union[str, bytes],
+    message: str | bytes,
     timeout: float = 5.0,
     minkey: int = 1024,
-    dns_func: Optional[Callable[[str], bytes]] = None,
+    dns_func: Callable[[str], bytes] | None = None,
 ) -> dict:
     """
     Verifies the DKIM signature(s) on an RFC 822 message
@@ -318,7 +318,7 @@ def verify_email(
                 sig_info["error"] = "Signature did not verify"
         except _dkim.DKIMException as e:
             sig_info["error"] = str(e)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             sig_info["error"] = f"Verification error: {e}"
 
         if sig_info["valid"]:

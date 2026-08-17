@@ -201,9 +201,9 @@ class TestSignEmail:
         """The lower-cased header names from the signature's ``h=`` tag."""
         header_block = signed.split("\r\n\r\n", 1)[0]
         sig = header_block.split("DKIM-Signature:", 1)[1].replace("\r\n", " ")
-        h_value = [
+        h_value = next(
             seg for seg in sig.split(";") if seg.strip().startswith("h=")
-        ][0].split("h=", 1)[1]
+        ).split("h=", 1)[1]
         return [name.strip().lower() for name in h_value.split(":")]
 
     def test_sign_only_from_header(self, dkim_keypair):
@@ -293,7 +293,7 @@ class TestVerifyEmail:
 
     def test_multiple_signatures_mixed(self, dkim_keypair, sample_email_str):
         priv, pub = dkim_keypair
-        priv2, pub2 = generate_dkim_keypair(2048)
+        _priv2, pub2 = generate_dkim_keypair(2048)
         signed_once = self._signed_with(priv, sample_email_str)
         signed_twice = sign_email(signed_once, "ms2", "example.com", priv)
 

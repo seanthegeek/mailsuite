@@ -40,13 +40,20 @@ pip install pytest pytest-cov ruff pyright
 - **Tests**: `pytest` (config in `pyproject.toml`). `pytest --cov=mailsuite`
   for coverage.
 - **CI**: `.github/workflows/ci.yml` runs ruff + pyright + pytest matrix
-  across Python 3.9, 3.10, 3.11, 3.12, 3.13 on every PR.
+  across Python 3.10, 3.11, 3.12, 3.13, 3.14 on every PR.
 
 ## Code conventions
 
-- Targets Python ≥ 3.9. Use `Optional[X]`, `List[X]`, `Union[X, Y]` (not
-  `X | Y`) so type hints work on the oldest supported runtime.
-  `from __future__ import annotations` is OK in new modules.
+- Targets Python ≥ 3.10 (3.9 support was dropped in 2.3.0). Use modern
+  type hints: `X | Y`, `X | None`, and builtin generics (`list[X]`,
+  `dict[X, Y]`) — not `Union`/`Optional`/`List`. ruff's `UP`/`FA` rules
+  enforce this in CI.
+- Broad `except Exception` in parse/retry/reconnect paths is deliberate
+  (arbitrary email input must not crash the caller); such sites are marked
+  `# noqa: BLE001`. Same for `# noqa: TRY004` (established `ValueError`
+  types are public API) and `# noqa: B019` (bounded `lru_cache` on
+  long-lived connection objects). Don't "fix" these, and use the same
+  markers for new deliberate cases.
 - Module-level loggers: `logger = logging.getLogger(__name__)`.
 - Domain errors subclass `RuntimeError` (`SMTPError`, `DKIMError`,
   `MaxRetriesExceeded`).
@@ -186,15 +193,31 @@ friendly message, plus a lazy `__getattr__` entry in
 
 ## Releasing
 
+- **CRITICAL: Never make a release without the explicit permission of the
+  maintainer.** That includes every action that starts or advances a release:
+  pushing a version tag, creating a GitHub Release, publishing to PyPI, or
+  merging a release branch. Preparing release changes on a branch is fine;
+  triggering the release itself requires the maintainer to say so, each time.
 - Version lives in `mailsuite/__init__.py` as `__version__`. Hatch reads from
   there.
 - Changelog: new section at the top of `CHANGELOG.md`. Don't bump the version
   until the maintainer is ready to release — fold new entries into the
   unreleased section.
+- Releases are automated by `.github/workflows/release.yml`: pushing a tag
+  matching the version (e.g. `2.2.4`, no `v` prefix) runs the full CI suite
+  (lint + type-check + test matrix, reused from `ci.yml` via `workflow_call`),
+  and only if it passes builds the package, publishes it to PyPI via Trusted
+  Publishing, and deploys the Sphinx docs to GitHub Pages. The build job fails
+  if the tag doesn't match `__version__`.
+- Docs deployment lives in `.github/workflows/docs.yml`, which release.yml
+  calls. For documentation-only updates between releases, the maintainer can
+  run it on demand (Actions → Docs → Run workflow); it deploys straight to
+  GitHub Pages. Like releases, on-demand docs deployment is a
+  maintainer-permission action — see the CRITICAL rule above.
 
 ## Git / PRs
 
 - Branches: `feat/...`, `fix/...`, `docs/...`.
 - PR titles ≤ ~70 chars; detail in body.
-- Commits authored by Claude include
-  `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`.
+- Commits authored by Claude include a `Co-Authored-By` trailer naming the
+  current model, e.g. `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.

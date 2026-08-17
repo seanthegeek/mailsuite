@@ -16,14 +16,14 @@ import pytest
 pytest.importorskip("googleapiclient")
 pytest.importorskip("google.oauth2.credentials")
 
-from googleapiclient.errors import HttpError  # noqa: E402
+from googleapiclient.errors import HttpError
 
-from mailsuite.mailbox import (  # noqa: E402
+from mailsuite.mailbox import (
     FolderExistsError,
     FolderNotFoundError,
     MailboxConnection,
 )
-from mailsuite.mailbox.gmail import GmailConnection, _get_creds  # noqa: E402
+from mailsuite.mailbox.gmail import GmailConnection, _get_creds
 
 
 class FakeGmailService:

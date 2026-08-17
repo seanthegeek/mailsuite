@@ -18,7 +18,8 @@ like :mod:`mailsuite.dkim`.
 """
 
 import logging
-from typing import Any, Callable, List, Optional, Union
+from collections.abc import Callable
+from typing import Any
 
 import dkim as _dkim
 
@@ -31,14 +32,14 @@ class ARCError(RuntimeError):
 
 
 def seal_email(
-    message: Union[str, bytes],
+    message: str | bytes,
     selector: str,
     domain: str,
-    private_key: Union[str, bytes],
+    private_key: str | bytes,
     authserv_id: str,
-    signed_headers: Optional[List[str]] = None,
-    timestamp: Optional[int] = None,
-) -> Union[str, bytes]:
+    signed_headers: list[str] | None = None,
+    timestamp: int | None = None,
+) -> str | bytes:
     """
     Adds an ARC set (seal) to an email and returns the sealed RFC 822 message
 
@@ -123,9 +124,9 @@ def seal_email(
 
 
 def verify_arc_chain(
-    message: Union[str, bytes],
+    message: str | bytes,
     minkey: int = 1024,
-    dns_func: Optional[Callable[[str], bytes]] = None,
+    dns_func: Callable[[str], bytes] | None = None,
 ) -> dict:
     """
     Verifies the ARC chain on an RFC 822 message

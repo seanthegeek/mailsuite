@@ -17,15 +17,14 @@ import pytest
 pytest.importorskip("msgraph")
 pytest.importorskip("azure.identity")
 
-from mailsuite.mailbox import FolderExistsError, MailboxConnection  # noqa: E402
-from mailsuite.mailbox.graph import (  # noqa: E402
+from mailsuite.mailbox import FolderExistsError, MailboxConnection
+from mailsuite.mailbox.graph import (
     DEFAULT_TOKEN_CACHE_NAME,
     AuthMethod,
     MSGraphConnection,
     _generate_credential,
     _run,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fluent SDK fake — mirrors the call chains MSGraphConnection actually uses
@@ -715,6 +714,7 @@ class TestGraphUrl:
         # ClientSecretCredential subclass — the constructor branches on that
         # type to skip the interactive `authenticate()` step.
         from azure.identity import ClientSecretCredential
+
         from mailsuite.mailbox import graph as graph_mod
 
         class FakeCred(ClientSecretCredential):
@@ -755,7 +755,7 @@ class TestGraphUrl:
         conn = self._build(url, monkeypatch)
         base = str(conn._client.request_adapter._http_client.base_url)
         assert url.rstrip("/") in base
-        assert base.endswith("/v1.0") or base.endswith("/v1.0/")
+        assert base.endswith(("/v1.0", "/v1.0/"))
 
 
 class TestClientAssertionAuth:
@@ -766,6 +766,7 @@ class TestClientAssertionAuth:
         # the constructor must branch on its type to skip that step. Capture
         # the provider that __init__ forwards to _generate_credential.
         from azure.identity import ClientAssertionCredential
+
         from mailsuite.mailbox import graph as graph_mod
 
         captured = {}

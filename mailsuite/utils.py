@@ -1,29 +1,27 @@
-import logging
-from typing import Union, Optional
-from datetime import datetime
-import os
-from collections import OrderedDict
-import tempfile
-import subprocess
-import shutil
-import hashlib
 import base64
-import re
 import email
 import email.utils
+import hashlib
+import logging
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+from collections import OrderedDict
+from datetime import datetime
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-import mailparser
-import html2text
-import dns.reversename
-import dns.resolver
 import dns.exception
+import dns.resolver
+import dns.reversename
+import html2text
+import mailparser
 import publicsuffix2
-from publicsuffix2 import get_sld
 from expiringdict import ExpiringDict
-
+from publicsuffix2 import get_sld
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -37,12 +35,14 @@ url_regex = re.compile(
 )
 header_regex = re.compile(r"([a-zA-Z-]+): (.+)")
 
-null_file = open(os.devnull, "w")
+null_file = open(os.devnull, "w")  # noqa: SIM115
 
 markdown_maker = html2text.HTML2Text()
 markdown_maker.unicode_snob = True
 if hasattr(markdown_maker, "decode_errors"):
-    setattr(markdown_maker, "decode_errors", "replace")
+    # setattr keeps pyright happy: decode_errors only exists on some
+    # html2text versions, so it isn't in the type stubs
+    setattr(markdown_maker, "decode_errors", "replace")  # noqa: B010
 markdown_maker.body_width = 0
 markdown_maker.protect_links = True
 authentication_results_headers = [
@@ -74,7 +74,7 @@ def decode_base64(data: str) -> bytes:
     return base64.b64decode(data_bytes)
 
 
-def parse_email_address(email_address: Union[tuple, str]) -> dict:
+def parse_email_address(email_address: tuple | str) -> dict:
     compliant = True
     display_name = None
     if isinstance(email_address, str):
@@ -114,7 +114,7 @@ def parse_email_address(email_address: Union[tuple, str]) -> dict:
     )
 
 
-def get_filename_safe_string(string: Union[str, None], max_length: int = 146) -> str:
+def get_filename_safe_string(string: str | None, max_length: int = 146) -> str:
     """
     Converts a string to a string that is safe for a filename
 
@@ -199,8 +199,8 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
 
 
 def parse_authentication_results(
-    authentication_results: Union[str, list], from_domain: Optional[str] = None
-) -> Union[dict, list[dict]]:
+    authentication_results: str | list, from_domain: str | None = None
+) -> dict | list[dict]:
     """
     Parses and normalizes an Authentication-Results header value or list of \
     values
@@ -254,21 +254,21 @@ def parse_authentication_results(
             return parse_result(
                 authentication_results_=authentication_results, from_domain_=from_domain
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             raise ValueError(f"Unable to parse authentication header: {e}")
     elif isinstance(authentication_results, list):
         results = authentication_results.copy()
         for i in range(len(results)):
             try:
                 results[i] = parse_result(results[i], from_domain_=from_domain)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(f"Unable to parse authentication header: {e}")
         return results
     else:
-        raise ValueError("Must be a string or list")
+        raise ValueError("Must be a string or list")  # noqa: TRY004
 
 
-def parse_dkim_signature(dkim_signature: Union[str, dict]) -> Union[dict, list]:
+def parse_dkim_signature(dkim_signature: str | dict) -> dict | list:
     """
     Parses a DKIM-Signature header value or list of values
 
@@ -300,22 +300,22 @@ def parse_dkim_signature(dkim_signature: Union[str, dict]) -> Union[dict, list]:
     if isinstance(dkim_signature, str):
         try:
             return parse_header(dkim_signature_=dkim_signature)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             raise ValueError(f"Unable to parse DKIM-Signature header: {e}")
     elif isinstance(dkim_signature, list):
         signatures = dkim_signature.copy()
         for i in range(len(signatures)):
             try:
                 signatures[i] = parse_header(signatures[i])
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(f"Unable to DKIM-Signature header: {e}")
         return signatures
     else:
-        raise ValueError("Must be a string or list")
+        raise ValueError("Must be a string or list")  # noqa: TRY004
 
 
 def parse_email(
-    data: Union[str, bytes], strip_attachment_payloads: bool = False
+    data: str | bytes, strip_attachment_payloads: bool = False
 ) -> dict:
     """
     A simplified email parser
@@ -346,7 +346,7 @@ def parse_email(
     _parsed_email = mailparser.parse_from_string(data_str)
     parsed_email = _parsed_email.mail
     if isinstance(parsed_email, str):
-        raise ValueError("Not an email")
+        raise ValueError("Not an email")  # noqa: TRY004
     headers_str = re.split(r"(\n|\r\n){2,}", data_str)[0]
     parsed_email["raw_headers"] = headers_str
     headers_str = re.sub(r"(\n|\r\n)\s+", " ", headers_str)
@@ -381,25 +381,21 @@ def parse_email(
         if header not in _headers:
             parsed_email[header] = []
         else:
-            parsed_email[header] = list(
-                map(
-                    lambda x: parse_email_address(x),
-                    email.utils.getaddresses([_headers[header]]),
-                )
-            )
+            parsed_email[header] = [parse_email_address(x) for x in email.utils.getaddresses([_headers[header]])]
     from_domain = None
     if "from" in parsed_email:
         if "domain" in parsed_email["from"]:
             from_domain = parsed_email["from"]["domain"]
         else:
             logger.warning("Message from header could not be parsed")
-    if "dkim-signature" in parsed_email:
-        if isinstance(parsed_email["dkim-signature"], str):
-            try:
-                dkim_list = parse_dkim_signature(parsed_email["dkim-signature"])
-                parsed_email["dkim-signature"] = dkim_list
-            except Exception as e:
-                raise ValueError(f"Unable to parse DKIM-Signature header: {e}")
+    if "dkim-signature" in parsed_email and isinstance(
+        parsed_email["dkim-signature"], str
+    ):
+        try:
+            dkim_list = parse_dkim_signature(parsed_email["dkim-signature"])
+            parsed_email["dkim-signature"] = dkim_list
+        except Exception as e:  # noqa: BLE001
+            raise ValueError(f"Unable to parse DKIM-Signature header: {e}")
     for header in authentication_results_headers:
         if header in parsed_email and isinstance(parsed_email[header], str):
             authentication_results = parsed_email[header]
@@ -408,7 +404,7 @@ def parse_email(
                     authentication_results, from_domain=from_domain
                 )
                 parsed_email[header] = authentication_results
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(f"Failed to parse {header} header: {e}")
     if "body" not in parsed_email or parsed_email["body"] is None:
         parsed_email["body"] = ""
@@ -460,8 +456,8 @@ def parse_email(
                         else:
                             payload = str.encode(payload)
                     attachment["sha256"] = hashlib.sha256(payload).hexdigest()
-                except Exception as e:
-                    logger.debug("Unable to decode attachment: {0}".format(e.__str__()))
+                except Exception as e:  # noqa: BLE001
+                    logger.debug(f"Unable to decode attachment: {e.__str__()}")
         if strip_attachment_payloads:
             for attachment in parsed_email["attachments"]:
                 if "payload" in attachment:
@@ -493,8 +489,8 @@ def parse_email(
 
 
 def from_trusted_domain(
-    message: Union[str, bytes, dict],
-    trusted_domains: Union[list[str], str],
+    message: str | bytes | dict,
+    trusted_domains: list[str] | str,
     include_sld: bool = True,
     allow_multiple_authentication_results: bool = False,
     use_authentication_results_original: bool = False,
@@ -551,9 +547,11 @@ def from_trusted_domain(
     trusted_domains = list(trusted_domains)
 
     header_name = "authentication-results"
-    if use_authentication_results_original:
-        if "authentication-results-original" in parsed_email:
-            header_name = "authentication-results-original"
+    if (
+        use_authentication_results_original
+        and "authentication-results-original" in parsed_email
+    ):
+        header_name = "authentication-results-original"
 
     if header_name not in parsed_email:
         return False
@@ -568,9 +566,8 @@ def from_trusted_domain(
 
             if dkim_result == "pass" and domain in trusted_domains:
                 return True
-            if include_sld:
-                if dkim_result == "pass" and sld in trusted_domains:
-                    return True
+            if include_sld and dkim_result == "pass" and sld in trusted_domains:
+                return True
         if "dmarc" in results:
             dmarc = results["dmarc"]
             dmarc_result = dmarc["result"]
@@ -580,9 +577,8 @@ def from_trusted_domain(
             sld = publicsuffix2.get_sld(domain)
             if dmarc_result == "pass" and domain in trusted_domains:
                 return True
-            if include_sld:
-                if dmarc_result == "pass" and sld in trusted_domains:
-                    return True
+            if include_sld and dmarc_result == "pass" and sld in trusted_domains:
+                return True
         return False
     if isinstance(results, list) and allow_multiple_authentication_results:
         dmarc = None
@@ -615,9 +611,9 @@ def from_trusted_domain(
 def query_dns(
     domain: str,
     record_type: str,
-    cache: Optional[ExpiringDict] = None,
-    nameservers: Optional[list[str]] = None,
-    timeout: Union[float, int] = 2.0,
+    cache: ExpiringDict | None = None,
+    nameservers: list[str] | None = None,
+    timeout: float = 2.0,
 ):
     """
     Queries DNS
@@ -634,7 +630,7 @@ def query_dns(
     """
     domain = str(domain).lower()
     record_type = record_type.upper()
-    cache_key = "{0}_{1}".format(domain, record_type)
+    cache_key = f"{domain}_{record_type}"
     if cache:
         records = cache.get(cache_key, None)
         if records:
@@ -647,12 +643,10 @@ def query_dns(
     resolver.timeout = timeout
     resolver.lifetime = timeout
     if record_type == "TXT":
-        resource_records = list(
-            map(
-                lambda r: r.strings,
-                resolver.resolve(domain, record_type, tcp=True, lifetime=timeout),
-            )
-        )
+        resource_records = [
+            r.strings
+            for r in resolver.resolve(domain, record_type, tcp=True, lifetime=timeout)
+        ]
         _resource_record = [
             resource_record[0][:0].join(resource_record)
             for resource_record in resource_records
@@ -660,12 +654,10 @@ def query_dns(
         ]
         records = [r.decode() for r in _resource_record]
     else:
-        records = list(
-            map(
-                lambda r: r.to_text().replace('"', "").rstrip("."),
-                resolver.resolve(domain, record_type, tcp=True, lifetime=timeout),
-            )
-        )
+        records = [
+            r.to_text().replace('"', "").rstrip(".")
+            for r in resolver.resolve(domain, record_type, tcp=True, lifetime=timeout)
+        ]
     if cache:
         cache[cache_key] = records
 
@@ -674,10 +666,10 @@ def query_dns(
 
 def get_reverse_dns(
     ip_address: str,
-    cache: Optional[ExpiringDict] = None,
-    nameservers: Optional[list[str]] = None,
-    timeout: Union[float, int] = 2.0,
-) -> Union[str, None]:
+    cache: ExpiringDict | None = None,
+    nameservers: list[str] | None = None,
+    timeout: float = 2.0,
+) -> str | None:
     """
     Resolves an IP address to a hostname using a reverse DNS query
 
@@ -704,13 +696,13 @@ def get_reverse_dns(
 
 def create_email(
     message_from: str,
-    message_to: Optional[list[str]] = None,
-    message_cc: Optional[list[str]] = None,
-    subject: Optional[str] = None,
-    message_headers: Optional[dict] = None,
-    attachments: Optional[list[tuple[str, bytes]]] = None,
-    plain_message: Optional[str] = None,
-    html_message: Optional[str] = None,
+    message_to: list[str] | None = None,
+    message_cc: list[str] | None = None,
+    subject: str | None = None,
+    message_headers: dict | None = None,
+    attachments: list[tuple[str, bytes]] | None = None,
+    plain_message: str | None = None,
+    html_message: str | None = None,
 ) -> str:
     """
     Creates an RFC 822 email message and returns it as a string
@@ -751,7 +743,7 @@ def create_email(
         filename = attachment[0]
         payload = attachment[1]
         part = MIMEApplication(payload, Name=filename)
-        content_disposition = 'attachment; filename="{0}"'.format(filename)
+        content_disposition = f'attachment; filename="{filename}"'
         part["Content-Disposition"] = content_disposition
         msg.attach(part)
 

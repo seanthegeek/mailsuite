@@ -11,6 +11,7 @@ from __future__ import annotations
 import smtplib
 import socket
 import ssl
+from typing import ClassVar
 
 import dkim as _dkim
 import pytest
@@ -23,7 +24,7 @@ from mailsuite.smtp import SMTPError, send_email
 class FakeSMTPServer:
     """A minimal stand-in for smtplib.SMTP / SMTP_SSL."""
 
-    instances: list = []
+    instances: ClassVar[list] = []
 
     def __init__(
         self, host="", port=0, *args, has_starttls=True, **kwargs
