@@ -1,11 +1,11 @@
-mail-parser>=4.2.1
+mail-parser>=4.6.2
 imapclient>=3.1.0
 html2text>=2020.1.16
 dnspython>=2.0.0
 publicsuffix2>=2.20190812
 expiringdict==1.2.2
 dkimpy>=1.1.0
-cryptography>=41.0.0
+cryptography>=50.0.0
 msgraph-sdk>=1.0.0
 azure-identity>=1.15.0
 google-api-python-client>=2.0.0
