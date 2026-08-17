@@ -1,7 +1,8 @@
 # Changelog
 
-## 2.2.4
+## 2.3.0
 
+- Drop support for Python 3.9, which reached end-of-life in October 2025. mailsuite now requires Python 3.10 or later
 - Update `cryptography` dependency to `>=50.0.0`
 - Update `mail-parser` dependency to `>=4.6.2`
 - Automate releases: pushing a version tag now runs the full CI suite and, if it passes, publishes the package to PyPI (via Trusted Publishing) and deploys the documentation to GitHub Pages

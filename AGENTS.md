@@ -40,12 +40,14 @@ pip install pytest pytest-cov ruff pyright
 - **Tests**: `pytest` (config in `pyproject.toml`). `pytest --cov=mailsuite`
   for coverage.
 - **CI**: `.github/workflows/ci.yml` runs ruff + pyright + pytest matrix
-  across Python 3.9, 3.10, 3.11, 3.12, 3.13 on every PR.
+  across Python 3.10, 3.11, 3.12, 3.13 on every PR.
 
 ## Code conventions
 
-- Targets Python ≥ 3.9. Use `Optional[X]`, `List[X]`, `Union[X, Y]` (not
-  `X | Y`) so type hints work on the oldest supported runtime.
+- Targets Python ≥ 3.10 (3.9 support was dropped in 2.3.0). The existing
+  code uses `Optional[X]`, `List[X]`, `Union[X, Y]` throughout; match that
+  style when editing existing modules rather than mixing in `X | Y`. Don't
+  mass-modernize annotations without the maintainer asking for it.
   `from __future__ import annotations` is OK in new modules.
 - Module-level loggers: `logger = logging.getLogger(__name__)`.
 - Domain errors subclass `RuntimeError` (`SMTPError`, `DKIMError`,

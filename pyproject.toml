@@ -9,7 +9,7 @@ name = "mailsuite"
 description = "A Python package for retrieving, parsing, and sending emails"
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "Sean Whalen", email = "whalenster@gmail.com" },
 ]
@@ -74,8 +74,8 @@ include = [
 packages = ["mailsuite"]
 
 [tool.ruff.lint]
-# Pin to ruff's historic default rules. The codebase intentionally uses
-# Optional[X] / List[X] / Union[X, Y] (see AGENTS.md, Python >= 3.9 support),
+# Pin to ruff's historic default rules. The codebase still uses
+# Optional[X] / List[X] / Union[X, Y] hints throughout (see AGENTS.md),
 # which newer ruff defaults (UP*, FA100) would flag.
 select = ["E4", "E7", "E9", "F"]
 
