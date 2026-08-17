@@ -9,13 +9,13 @@ import pytest
 from mailsuite.utils import (
     create_email,
     decode_base64,
+    from_trusted_domain,
     get_filename_safe_string,
     is_outlook_msg,
     parse_authentication_results,
     parse_dkim_signature,
     parse_email,
     parse_email_address,
-    from_trusted_domain,
 )
 
 

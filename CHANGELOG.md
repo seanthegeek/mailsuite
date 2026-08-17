@@ -3,6 +3,7 @@
 ## 2.3.0
 
 - Drop support for Python 3.9, which reached end-of-life in October 2025. mailsuite now requires Python 3.10 or later
+- Modernize type hints to PEP 604/585 syntax (`X | Y`, `list[X]`) and adopt ruff's current default lint rules. No functional change
 - Update `cryptography` dependency to `>=50.0.0`
 - Update `mail-parser` dependency to `>=4.6.2`
 - Automate releases: pushing a version tag now runs the full CI suite and, if it passes, publishes the package to PyPI (via Trusted Publishing) and deploys the documentation to GitHub Pages

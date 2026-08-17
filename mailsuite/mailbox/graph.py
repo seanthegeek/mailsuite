@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 import atexit
 import logging
+from collections.abc import Callable
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 from time import sleep
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, ClassVar
 
 from mailsuite.mailbox.base import FolderNotFoundError, MailboxConnection
 
@@ -26,8 +27,6 @@ try:
     from kiota_authentication_azure.azure_identity_authentication_provider import (
         AzureIdentityAuthenticationProvider,
     )
-    from msgraph.graph_request_adapter import GraphRequestAdapter
-    from msgraph.graph_service_client import GraphServiceClient
     from msgraph.generated.models.body_type import BodyType
     from msgraph.generated.models.email_address import EmailAddress
     from msgraph.generated.models.file_attachment import FileAttachment
@@ -35,17 +34,17 @@ try:
     from msgraph.generated.models.mail_folder import MailFolder
     from msgraph.generated.models.message import Message
     from msgraph.generated.models.recipient import Recipient
-    from msgraph.generated.users.item.mail_folders.item.child_folders.child_folders_request_builder import (  # noqa: E501
+    from msgraph.generated.users.item.mail_folders.item.child_folders.child_folders_request_builder import (
         ChildFoldersRequestBuilder,
+    )
+    from msgraph.generated.users.item.mail_folders.item.messages.messages_request_builder import (
+        MessagesRequestBuilder,
+    )
+    from msgraph.generated.users.item.mail_folders.item.move.move_post_request_body import (
+        MovePostRequestBody as FolderMovePostRequestBody,
     )
     from msgraph.generated.users.item.mail_folders.mail_folders_request_builder import (
         MailFoldersRequestBuilder,
-    )
-    from msgraph.generated.users.item.mail_folders.item.messages.messages_request_builder import (  # noqa: E501
-        MessagesRequestBuilder,
-    )
-    from msgraph.generated.users.item.mail_folders.item.move.move_post_request_body import (  # noqa: E501
-        MovePostRequestBody as FolderMovePostRequestBody,
     )
     from msgraph.generated.users.item.messages.item.move.move_post_request_body import (
         MovePostRequestBody,
@@ -53,6 +52,8 @@ try:
     from msgraph.generated.users.item.send_mail.send_mail_post_request_body import (
         SendMailPostRequestBody,
     )
+    from msgraph.graph_request_adapter import GraphRequestAdapter
+    from msgraph.graph_service_client import GraphServiceClient
     from msgraph_core import GraphClientFactory
 except ImportError as e:
     raise ImportError(
@@ -92,7 +93,7 @@ def _get_cache_args(
     return cache_args
 
 
-def _load_token(token_path: Path) -> Optional[str]:
+def _load_token(token_path: Path) -> str | None:
     if not token_path.exists():
         return None
     with token_path.open() as token_file:
@@ -165,7 +166,7 @@ def _generate_credential(auth_method: str, token_path: Path, **kwargs):
     raise RuntimeError(f"Auth method {auth_method} not found")
 
 
-_persistent_loop: Optional[asyncio.AbstractEventLoop] = None
+_persistent_loop: asyncio.AbstractEventLoop | None = None
 
 
 def _run(coro):
@@ -239,7 +240,7 @@ class MSGraphConnection(MailboxConnection):
         pip install mailsuite[msgraph]
     """
 
-    _WELL_KNOWN_FOLDERS = {
+    _WELL_KNOWN_FOLDERS: ClassVar[dict[str, str]] = {
         "inbox": "inbox",
         "archive": "archive",
         "drafts": "drafts",
@@ -253,18 +254,18 @@ class MSGraphConnection(MailboxConnection):
         auth_method: str,
         mailbox: str,
         client_id: str,
-        client_secret: Optional[str],
-        username: Optional[str],
-        password: Optional[str],
+        client_secret: str | None,
+        username: str | None,
+        password: str | None,
         tenant_id: str,
         token_file: str,
         allow_unencrypted_storage: bool,
-        certificate_path: Optional[str] = None,
-        certificate_password: Optional[Union[str, bytes]] = None,
-        graph_url: Optional[str] = None,
+        certificate_path: str | None = None,
+        certificate_password: str | bytes | None = None,
+        graph_url: str | None = None,
         token_cache_name: str = DEFAULT_TOKEN_CACHE_NAME,
-        client_assertion: Optional[str] = None,
-        client_assertion_provider: Optional[Callable[[], str]] = None,
+        client_assertion: str | None = None,
+        client_assertion_provider: Callable[[], str] | None = None,
     ):
         """
         Args:
@@ -326,7 +327,7 @@ class MSGraphConnection(MailboxConnection):
             client_assertion_provider=client_assertion_provider,
         )
 
-        scopes: Optional[List[str]] = None
+        scopes: list[str] | None = None
         if not isinstance(credential, (ClientAssertionCredential, ClientSecretCredential,
                                        CertificateCredential)):
             scopes = ["Mail.ReadWrite"]
@@ -354,7 +355,7 @@ class MSGraphConnection(MailboxConnection):
 
     def create_folder(self, folder_name: str) -> None:
         path_parts = folder_name.split("/")
-        parent_folder_id: Optional[str] = None
+        parent_folder_id: str | None = None
         if len(path_parts) > 1:
             for folder in path_parts[:-1]:
                 parent_folder_id = self._find_folder_id_with_parent(
@@ -465,15 +466,15 @@ class MSGraphConnection(MailboxConnection):
 
     # — message reading —
 
-    def fetch_messages(self, reports_folder: str, **kwargs: Any) -> List[str]:
+    def fetch_messages(self, reports_folder: str, **kwargs: Any) -> list[str]:
         folder_id = self._find_folder_id_from_folder_path(reports_folder)
         since = kwargs.get("since") or None
         batch_size = kwargs.get("batch_size") or 0
         return _run(self._fetch_messages_async(folder_id, batch_size, since))
 
     async def _fetch_messages_async(
-        self, folder_id: str, batch_size: int, since: Optional[str]
-    ) -> List[str]:
+        self, folder_id: str, batch_size: int, since: str | None
+    ) -> list[str]:
         query = MessagesRequestBuilder.MessagesRequestBuilderGetQueryParameters(
             select=["id"],
             top=batch_size if batch_size > 0 else 100,
@@ -490,7 +491,7 @@ class MSGraphConnection(MailboxConnection):
             .mail_folders.by_mail_folder_id(folder_id)
             .messages.get(request_configuration=config)
         )
-        ids: List[str] = []
+        ids: list[str] = []
         while page is not None and page.value:
             ids.extend(m.id for m in page.value if m.id)
             next_link = page.odata_next_link
@@ -548,7 +549,7 @@ class MSGraphConnection(MailboxConnection):
         self,
         check_callback: Callable[[MailboxConnection], None],
         check_timeout: int,
-        config_reloading: Optional[Callable[[], bool]] = None,
+        config_reloading: Callable[[], bool] | None = None,
     ) -> None:
         """Poll the mailbox at ``check_timeout``-second intervals"""
         while True:
@@ -564,16 +565,16 @@ class MSGraphConnection(MailboxConnection):
     def send_message(
         self,
         message_from: str,
-        message_to: Optional[List[str]] = None,
-        message_cc: Optional[List[str]] = None,
-        message_bcc: Optional[List[str]] = None,
-        subject: Optional[str] = None,
-        message_headers: Optional[dict] = None,
-        attachments: Optional[List[Tuple[str, bytes]]] = None,
-        plain_message: Optional[str] = None,
-        html_message: Optional[str] = None,
+        message_to: list[str] | None = None,
+        message_cc: list[str] | None = None,
+        message_bcc: list[str] | None = None,
+        subject: str | None = None,
+        message_headers: dict | None = None,
+        attachments: list[tuple[str, bytes]] | None = None,
+        plain_message: str | None = None,
+        html_message: str | None = None,
         save_to_sent_items: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         # Graph derives ``From`` from the authenticated mailbox; ``message_from``
         # and ``message_headers`` are accepted for API parity but not used by
         # the structured /sendMail endpoint.
@@ -584,14 +585,14 @@ class MSGraphConnection(MailboxConnection):
         else:
             body = ItemBody(content_type=BodyType.Text, content=plain_message or "")
 
-        def _to_recipients(addrs: Optional[List[str]]) -> Optional[List[Recipient]]:
+        def _to_recipients(addrs: list[str] | None) -> list[Recipient] | None:
             if not addrs:
                 return None
             return [
                 Recipient(email_address=EmailAddress(address=addr)) for addr in addrs
             ]
 
-        graph_attachments: Optional[List[Any]] = None
+        graph_attachments: list[Any] | None = None
         if attachments:
             graph_attachments = [
                 FileAttachment(
@@ -620,10 +621,10 @@ class MSGraphConnection(MailboxConnection):
 
     # — folder ID resolution —
 
-    @lru_cache(maxsize=10)
+    @lru_cache(maxsize=10)  # noqa: B019
     def _find_folder_id_from_folder_path(self, folder_name: str) -> str:
         path_parts = folder_name.split("/")
-        parent_folder_id: Optional[str] = None
+        parent_folder_id: str | None = None
         if len(path_parts) > 1:
             for folder in path_parts[:-1]:
                 parent_folder_id = self._find_folder_id_with_parent(
@@ -632,7 +633,7 @@ class MSGraphConnection(MailboxConnection):
             return self._find_folder_id_with_parent(path_parts[-1], parent_folder_id)
         return self._find_folder_id_with_parent(folder_name, None)
 
-    def _get_well_known_folder_id(self, folder_name: str) -> Optional[str]:
+    def _get_well_known_folder_id(self, folder_name: str) -> str | None:
         folder_key = folder_name.lower().replace(" ", "").replace("-", "")
         alias = self._WELL_KNOWN_FOLDERS.get(folder_key)
         if alias is None:
@@ -643,12 +644,12 @@ class MSGraphConnection(MailboxConnection):
                 .mail_folders.by_mail_folder_id(alias)
                 .get()
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             return None
         return folder.id if folder else None
 
     def _find_folder_id_with_parent(
-        self, folder_name: str, parent_folder_id: Optional[str]
+        self, folder_name: str, parent_folder_id: str | None
     ) -> str:
         try:
             folders = self._list_folders_filtered(folder_name, parent_folder_id)
@@ -673,8 +674,8 @@ class MSGraphConnection(MailboxConnection):
         raise FolderNotFoundError(f"folder {folder_name} not found")
 
     def _list_folders_filtered(
-        self, folder_name: str, parent_folder_id: Optional[str]
-    ) -> List[MailFolder]:
+        self, folder_name: str, parent_folder_id: str | None
+    ) -> list[MailFolder]:
         # OData string-literal escape: single quotes are doubled.
         escaped = folder_name.replace("'", "''")
         if parent_folder_id is None:

@@ -1,12 +1,13 @@
 import email.utils
 import logging
-import socket
 import smtplib
-from ssl import SSLError, CertificateError, create_default_context, CERT_NONE
-from typing import Callable, Optional, Tuple, cast
+import socket
+from collections.abc import Callable
+from ssl import CERT_NONE, CertificateError, SSLError, create_default_context
+from typing import cast
 
-from mailsuite.utils import create_email
 from mailsuite.dkim import sign_email as _dkim_sign_email
+from mailsuite.utils import create_email
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ class SMTPError(RuntimeError):
 
 
 def _xoauth2_auth_string(
-    username: str, token: str, vendor: Optional[str] = None
+    username: str, token: str, vendor: str | None = None
 ) -> str:
     """Build the SASL ``XOAUTH2`` initial-response string.
 
@@ -39,28 +40,28 @@ def _oauthbearer_auth_string(username: str, token: str) -> str:
 def send_email(
     host: str,
     message_from: str,
-    message_to: Optional[list[str]] = None,
-    message_cc: Optional[list] = None,
-    message_bcc: Optional[list] = None,
+    message_to: list[str] | None = None,
+    message_cc: list | None = None,
+    message_bcc: list | None = None,
     port: int = 0,
     require_encryption: bool = False,
     verify: bool = True,
-    username: Optional[str] = None,
-    password: Optional[str] = None,
-    oauth2_token: Optional[str] = None,
-    oauth2_token_provider: Optional[Callable[[], str]] = None,
+    username: str | None = None,
+    password: str | None = None,
+    oauth2_token: str | None = None,
+    oauth2_token_provider: Callable[[], str] | None = None,
     oauth2_mechanism: str = "XOAUTH2",
-    oauth2_vendor: Optional[str] = None,
-    envelope_from: Optional[str] = None,
-    subject: Optional[str] = None,
-    message_headers: Optional[dict] = None,
-    attachments: Optional[list[Tuple[str, bytes]]] = None,
-    plain_message: Optional[str] = None,
-    html_message: Optional[str] = None,
-    dkim_private_key: Optional[str] = None,
-    dkim_selector: Optional[str] = None,
-    dkim_domain: Optional[str] = None,
-    dkim_additional_headers: Optional[list[str]] = None,
+    oauth2_vendor: str | None = None,
+    envelope_from: str | None = None,
+    subject: str | None = None,
+    message_headers: dict | None = None,
+    attachments: list[tuple[str, bytes]] | None = None,
+    plain_message: str | None = None,
+    html_message: str | None = None,
+    dkim_private_key: str | None = None,
+    dkim_selector: str | None = None,
+    dkim_domain: str | None = None,
+    dkim_additional_headers: list[str] | None = None,
 ):
     """
     Send an email using a SMTP relay
@@ -201,6 +202,6 @@ def send_email(
     except TimeoutError:
         raise SMTPError("Connection timed out")
     except CertificateError as error:
-        raise SMTPError("Certificate error: {0}".format(error.__str__()))
+        raise SMTPError(f"Certificate error: {error.__str__()}")
     except SSLError as error:
-        raise SMTPError("SSL error: {0}".format(error.__str__()))
+        raise SMTPError(f"SSL error: {error.__str__()}")

@@ -9,7 +9,6 @@ re-testing imapclient itself.
 
 from __future__ import annotations
 
-import socket
 from unittest.mock import MagicMock
 
 import imapclient
@@ -254,7 +253,7 @@ class TestStartIdle:
         client = self._idle_client()
         client.reset_connection = MagicMock()
         client.idle_check = MagicMock(
-            side_effect=[socket.error("dropped"), KeyboardInterrupt()]
+            side_effect=[OSError("dropped"), KeyboardInterrupt()]
         )
         calls = []
         client._start_idle(lambda c: calls.append(c), idle_timeout=1)
@@ -357,7 +356,7 @@ class TestFetchMessage:
         client.max_retries = 2
         # first call raises socket.timeout, retry succeeds
         client.fetch.side_effect = [
-            socket.timeout(),
+            TimeoutError(),
             {42: {b"RFC822": b"after retry"}},
         ]
         assert client.fetch_message(42) == "after retry"
@@ -366,7 +365,7 @@ class TestFetchMessage:
     def test_max_retries_exceeded(self):
         client = self._client()
         client.max_retries = 2
-        client.fetch.side_effect = socket.timeout()
+        client.fetch.side_effect = TimeoutError()
         with pytest.raises(MaxRetriesExceeded):
             client.fetch_message(42)
 
@@ -399,7 +398,7 @@ class TestDeleteMessages:
         def fake_delete(self, messages, silent=True):
             attempts["n"] += 1
             if attempts["n"] == 1:
-                raise socket.timeout()
+                raise TimeoutError()
 
         monkeypatch.setattr(imapclient.IMAPClient, "delete_messages", fake_delete)
         monkeypatch.setattr(
@@ -414,7 +413,7 @@ class TestDeleteMessages:
         monkeypatch.setattr(
             imapclient.IMAPClient,
             "delete_messages",
-            lambda self, m, silent=True: (_ for _ in ()).throw(socket.timeout()),
+            lambda self, m, silent=True: (_ for _ in ()).throw(TimeoutError()),
         )
         client = self._client()
         client.max_retries = 2
@@ -486,7 +485,7 @@ class TestCreateFolder:
         monkeypatch.setattr(
             imapclient.IMAPClient,
             "create_folder",
-            lambda self, folder: (_ for _ in ()).throw(socket.timeout()),
+            lambda self, folder: (_ for _ in ()).throw(TimeoutError()),
         )
         client.max_retries = 2
         with pytest.raises(MaxRetriesExceeded):

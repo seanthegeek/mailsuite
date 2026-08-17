@@ -24,13 +24,13 @@ if TYPE_CHECKING:
     from mailsuite.mailbox.graph import MSGraphConnection
 
 __all__ = [
-    "MailboxConnection",
     "FolderExistsError",
     "FolderNotFoundError",
-    "IMAPConnection",
-    "MaildirConnection",
-    "MSGraphConnection",
     "GmailConnection",
+    "IMAPConnection",
+    "MSGraphConnection",
+    "MailboxConnection",
+    "MaildirConnection",
 ]
 
 

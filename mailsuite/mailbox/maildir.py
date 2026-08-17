@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import mailbox
 import os
+from collections.abc import Callable
 from time import sleep
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 from mailsuite.mailbox.base import MailboxConnection
 
@@ -66,7 +67,7 @@ class MaildirConnection(MailboxConnection):
                 os.makedirs(os.path.join(maildir_path, subdir), exist_ok=True)
         self._client = mailbox.Maildir(maildir_path, create=maildir_create)
         self._active_folder: mailbox.Maildir = self._client
-        self._subfolder_client: Dict[str, mailbox.Maildir] = {}
+        self._subfolder_client: dict[str, mailbox.Maildir] = {}
 
     def _get_folder(self, folder_name: str) -> mailbox.Maildir:
         if folder_name not in self._subfolder_client:
@@ -146,20 +147,20 @@ class MaildirConnection(MailboxConnection):
         self,
         check_callback: Callable[[MailboxConnection], None],
         check_timeout: int,
-        config_reloading: Optional[Callable[[], bool]] = None,
+        config_reloading: Callable[[], bool] | None = None,
     ) -> None:
         while True:
             if config_reloading and config_reloading():
                 return
             try:
                 check_callback(self)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("Maildir init error. %s", e)
             if config_reloading and config_reloading():
                 return
             sleep(check_timeout)
 
-    def send_message(self, *args: Any, **kwargs: Any) -> Optional[str]:
+    def send_message(self, *args: Any, **kwargs: Any) -> str | None:
         raise NotImplementedError(
             "Maildir cannot send mail; use mailsuite.smtp.send_email"
         )

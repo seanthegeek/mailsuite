@@ -44,11 +44,16 @@ pip install pytest pytest-cov ruff pyright
 
 ## Code conventions
 
-- Targets Python ≥ 3.10 (3.9 support was dropped in 2.3.0). The existing
-  code uses `Optional[X]`, `List[X]`, `Union[X, Y]` throughout; match that
-  style when editing existing modules rather than mixing in `X | Y`. Don't
-  mass-modernize annotations without the maintainer asking for it.
-  `from __future__ import annotations` is OK in new modules.
+- Targets Python ≥ 3.10 (3.9 support was dropped in 2.3.0). Use modern
+  type hints: `X | Y`, `X | None`, and builtin generics (`list[X]`,
+  `dict[X, Y]`) — not `Union`/`Optional`/`List`. ruff's `UP`/`FA` rules
+  enforce this in CI.
+- Broad `except Exception` in parse/retry/reconnect paths is deliberate
+  (arbitrary email input must not crash the caller); such sites are marked
+  `# noqa: BLE001`. Same for `# noqa: TRY004` (established `ValueError`
+  types are public API) and `# noqa: B019` (bounded `lru_cache` on
+  long-lived connection objects). Don't "fix" these, and use the same
+  markers for new deliberate cases.
 - Module-level loggers: `logger = logging.getLogger(__name__)`.
 - Domain errors subclass `RuntimeError` (`SMTPError`, `DKIMError`,
   `MaxRetriesExceeded`).

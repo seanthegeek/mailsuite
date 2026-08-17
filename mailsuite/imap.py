@@ -1,16 +1,16 @@
+import imaplib
 import logging
-from typing import Callable, Union, List, Dict, Optional, cast
 import time
-import socket
+from collections.abc import Callable
 from ssl import (
     CERT_NONE,
     SSLContext,
     create_default_context,
 )
+from typing import cast
 
 import imapclient
 import imapclient.exceptions
-import imaplib
 
 import mailsuite.utils
 
@@ -31,7 +31,7 @@ class IMAPClient(imapclient.IMAPClient):
     """A simplified IMAP client"""
 
     def _normalise_folder(
-        self, folder_name: Union[str, bytes, bytearray, memoryview]
+        self, folder_name: str | bytes | bytearray | memoryview
     ) -> str:
         """
         Translate a caller's ``/``-delimited folder path to the server's form.
@@ -82,14 +82,14 @@ class IMAPClient(imapclient.IMAPClient):
         # of the correct "INBOX/Projects/INBOX/old".
         if self._path_prefix and folder_name.startswith(self._path_prefix):
             folder_name = folder_name[len(self._path_prefix):]
-        if not self._hierarchy_separator == "/":
+        if self._hierarchy_separator != "/":
             # Map the caller's "/" delimiter onto the server's native separator
             # so "/" works regardless of what the server uses. (Any literal
             # native-separator characters are dropped first, since "/" is the
             # delimiter callers are expected to use.)
             folder_name = folder_name.replace(self._hierarchy_separator, "")
             folder_name = folder_name.replace("/", self._hierarchy_separator)
-        folder_name = "{0}{1}".format(self._path_prefix, folder_name)
+        folder_name = f"{self._path_prefix}{folder_name}"
 
         result = imapclient.IMAPClient._normalise_folder(self, folder_name)
         if isinstance(result, bytes):
@@ -149,7 +149,7 @@ class IMAPClient(imapclient.IMAPClient):
                                 idle_start_time = time.monotonic()
                                 self.idle()
                                 break
-            except (KeyError, socket.error, BrokenPipeError, ConnectionResetError):
+            except (OSError, KeyError, BrokenPipeError, ConnectionResetError):
                 logger.debug("IMAP error: Connection reset")
                 self.reset_connection()
                 idle_callback(self)
@@ -174,22 +174,22 @@ class IMAPClient(imapclient.IMAPClient):
     def __init__(
         self,
         host: str,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
+        username: str | None = None,
+        password: str | None = None,
         port: int = 993,
         ssl: bool = True,
-        ssl_context: Optional[SSLContext] = None,
+        ssl_context: SSLContext | None = None,
         verify: bool = True,
         timeout: int = 30,
         max_retries: int = 4,
         initial_folder: str = "INBOX",
         idle_callback=None,
         idle_timeout: int = 30,
-        oauth2_token: Optional[str] = None,
-        oauth2_token_provider: Optional[Callable[[], str]] = None,
+        oauth2_token: str | None = None,
+        oauth2_token_provider: Callable[[], str] | None = None,
         oauth2_mechanism: str = "XOAUTH2",
-        oauth2_vendor: Optional[str] = None,
-        config_reloading: Optional[Callable[[], bool]] = None,
+        oauth2_vendor: str | None = None,
+        config_reloading: Callable[[], bool] | None = None,
     ):
         """
         Connects to an IMAP server
@@ -245,29 +245,29 @@ class IMAPClient(imapclient.IMAPClient):
                 "either password or an OAuth2 token / token_provider must be "
                 "provided"
             )
-        self._init_args = dict(
-            host=host,
-            username=username,
-            password=password,
-            port=port,
-            ssl=ssl,
-            ssl_context=ssl_context,
-            verify=verify,
-            timeout=timeout,
-            max_retries=max_retries,
-            initial_folder=initial_folder,
-            idle_callback=idle_callback,
-            idle_timeout=idle_timeout,
-            oauth2_token=oauth2_token,
-            oauth2_token_provider=oauth2_token_provider,
-            oauth2_mechanism=oauth2_mechanism,
-            oauth2_vendor=oauth2_vendor,
-        )
+        self._init_args = {
+            "host": host,
+            "username": username,
+            "password": password,
+            "port": port,
+            "ssl": ssl,
+            "ssl_context": ssl_context,
+            "verify": verify,
+            "timeout": timeout,
+            "max_retries": max_retries,
+            "initial_folder": initial_folder,
+            "idle_callback": idle_callback,
+            "idle_timeout": idle_timeout,
+            "oauth2_token": oauth2_token,
+            "oauth2_token_provider": oauth2_token_provider,
+            "oauth2_mechanism": oauth2_mechanism,
+            "oauth2_vendor": oauth2_vendor,
+        }
         self.max_retries = max_retries
         self.idle_callback = idle_callback
         self.idle_timeout = idle_timeout
         self._path_prefix = ""
-        self._other_namespace_prefixes: List[str] = []
+        self._other_namespace_prefixes: list[str] = []
         self._hierarchy_separator = ""
         if not ssl:
             logger.info("Connecting to IMAP over plain text")
@@ -317,7 +317,7 @@ class IMAPClient(imapclient.IMAPClient):
                 personal_namespace = self._namespace.personal
                 if len(personal_namespace) > 0:
                     self._hierarchy_separator = personal_namespace[0][1]
-                    if not personal_namespace[0][0] == "":
+                    if personal_namespace[0][0] != "":
                         self._path_prefix = personal_namespace[0][0]
                         if type(self._path_prefix) is bytes:
                             self._path_prefix = self._path_prefix.decode("utf-8")
@@ -335,8 +335,8 @@ class IMAPClient(imapclient.IMAPClient):
                 self._namespace = None
             self.select_folder(initial_folder)
         except (
+            OSError,
             ConnectionResetError,
-            socket.error,
             TimeoutError,
             imapclient.exceptions.IMAPClientError,
         ) as error:
@@ -357,8 +357,8 @@ class IMAPClient(imapclient.IMAPClient):
         logger.info("Reconnecting to IMAP")
         try:
             self.shutdown()
-        except Exception as e:
-            logger.info("Failed to log out: {0}".format(e.__str__()))
+        except Exception as e:  # noqa: BLE001
+            logger.info(f"Failed to log out: {e.__str__()}")
         self.__init__(
             self._init_args["host"],  # pyright: ignore[reportArgumentType]
             self._init_args["username"],  # pyright: ignore[reportArgumentType]
@@ -380,7 +380,7 @@ class IMAPClient(imapclient.IMAPClient):
 
     def fetch_message(
         self, msg_uid: int, parse: bool = False, _attempt: int = 1
-    ) -> Union[str, Dict]:
+    ) -> str | dict:
         """
         Fetch a message by UID, and optionally parse it
 
@@ -406,14 +406,12 @@ class IMAPClient(imapclient.IMAPClient):
         for fetch_cmd, expected_keys in fetch_attempts:
             try:
                 raw_msg = self.fetch(msg_uid, fetch_cmd)[msg_uid]
-            except (socket.timeout, imaplib.IMAP4.abort):
+            except (TimeoutError, imaplib.IMAP4.abort):
                 _attempt = _attempt + 1
                 if _attempt > self.max_retries:
                     raise MaxRetriesExceeded("Maximum retries exceeded")
                 logger.info(
-                    "Attempt {0} of {1} timed out. Retrying...".format(
-                        _attempt, self.max_retries
-                    )
+                    f"Attempt {_attempt} of {self.max_retries} timed out. Retrying..."
                 )
                 self.reset_connection()
                 return self.fetch_message(msg_uid, parse=parse, _attempt=_attempt)
@@ -425,7 +423,7 @@ class IMAPClient(imapclient.IMAPClient):
 
             # Check if any expected key is in the response
             for key in expected_keys:
-                if key in raw_msg.keys():
+                if key in raw_msg:
                     msg_key = key
                     break
 
@@ -459,7 +457,7 @@ class IMAPClient(imapclient.IMAPClient):
 
     def delete_messages(
         self,
-        messages: Union[List[int], List[str], str, int],
+        messages: list[int] | list[str] | str | int,
         silent: bool = True,
         _attempt: int = 1,
     ):
@@ -474,7 +472,7 @@ class IMAPClient(imapclient.IMAPClient):
         if type(messages) is str or type(messages) is int:
             messages = [int(messages)]
         logger.info(
-            "Deleting message UID(s) {0}".format(
+            "Deleting message UID(s) {}".format(
                 ",".join(str(uid) for uid in messages)  # pyright: ignore[reportGeneralTypeIssues]
             )
         )
@@ -487,14 +485,12 @@ class IMAPClient(imapclient.IMAPClient):
                 imapclient.IMAPClient.expunge(self, messages)
             else:
                 imapclient.IMAPClient.expunge(self)
-        except (socket.timeout, imaplib.IMAP4.abort):
+        except (TimeoutError, imaplib.IMAP4.abort):
             _attempt = _attempt + 1
             if _attempt > self.max_retries:
                 raise MaxRetriesExceeded("Maximum retries exceeded")
             logger.info(
-                "Attempt {0} of {1} timed out. Retrying...".format(
-                    _attempt, self.max_retries
-                )
+                f"Attempt {_attempt} of {self.max_retries} timed out. Retrying..."
             )
             self.reset_connection()
             self.delete_messages(messages, silent=silent, _attempt=_attempt)
@@ -508,22 +504,20 @@ class IMAPClient(imapclient.IMAPClient):
             _attempt: The attempt number
         """
         if not self.folder_exists(folder):
-            logger.info("Creating folder: {0}".format(folder))
+            logger.info(f"Creating folder: {folder}")
             try:
                 imapclient.IMAPClient.create_folder(self, folder)
-            except (socket.timeout, imaplib.IMAP4.abort):
+            except (TimeoutError, imaplib.IMAP4.abort):
                 _attempt = _attempt + 1
                 if _attempt > self.max_retries:
                     raise MaxRetriesExceeded("Maximum retries exceeded")
                 logger.info(
-                    "Attempt {0} of {1} timed out. Retrying...".format(
-                        _attempt, self.max_retries
-                    )
+                    f"Attempt {_attempt} of {self.max_retries} timed out. Retrying..."
                 )
                 self.reset_connection()
                 self.create_folder(folder, _attempt=_attempt)
 
-    def _move_messages(self, msg_uids: Union[int, List[int]], folder_path: str):
+    def _move_messages(self, msg_uids: int | list[int], folder_path: str):
         """
         Move the emails with the given UIDs to the given folder
 
@@ -537,7 +531,7 @@ class IMAPClient(imapclient.IMAPClient):
         for chunk in _chunks(msg_uids, 100):
             if self._move_supported:
                 logger.info(
-                    "Moving message UID(s) {0} to {1}".format(
+                    "Moving message UID(s) {} to {}".format(
                         ",".join(str(uid) for uid in chunk), folder_path
                     )
                 )
@@ -546,10 +540,10 @@ class IMAPClient(imapclient.IMAPClient):
                 except imapclient.exceptions.IMAPClientError as e:
                     e = e.__str__().lstrip("b'").rstrip("'").rstrip(".")
                     message = "Error moving message UIDs"
-                    e = "{0} {1}: {2}".format(message, msg_uids, e)
-                    logger.info("IMAP error: {0}".format(e))
+                    e = f"{message} {msg_uids}: {e}"
+                    logger.info(f"IMAP error: {e}")
                     logger.info(
-                        "Copying message UID(s) {0} to {1} by copy".format(
+                        "Copying message UID(s) {} to {} by copy".format(
                             ",".join(str(uid) for uid in chunk), folder_path
                         )
                     )
@@ -557,7 +551,7 @@ class IMAPClient(imapclient.IMAPClient):
                     self.delete_messages(chunk)
             else:
                 logger.info(
-                    "Moving message UID(s) {0} to {1} by copy".format(
+                    "Moving message UID(s) {} to {} by copy".format(
                         ",".join(str(uid) for uid in chunk), folder_path
                     )
                 )
@@ -565,7 +559,7 @@ class IMAPClient(imapclient.IMAPClient):
                 self.delete_messages(chunk)
 
     def move_messages(
-        self, msg_uids: Union[int, List[int]], folder_path: str, _attempt: int = 1
+        self, msg_uids: int | list[int], folder_path: str, _attempt: int = 1
     ):
         """
         Move the emails with the given UIDs to the given folder
@@ -577,14 +571,12 @@ class IMAPClient(imapclient.IMAPClient):
         """
         try:
             self._move_messages(msg_uids, folder_path)
-        except (socket.timeout, imaplib.IMAP4.abort):
+        except (TimeoutError, imaplib.IMAP4.abort):
             _attempt = _attempt + 1
             if _attempt > self.max_retries:
                 raise MaxRetriesExceeded("Maximum retries exceeded")
             logger.info(
-                "Attempt {0} of {1} timed out. Retrying...".format(
-                    _attempt, self.max_retries
-                )
+                f"Attempt {_attempt} of {self.max_retries} timed out. Retrying..."
             )
             self.reset_connection()
             self._move_messages(msg_uids, folder_path)

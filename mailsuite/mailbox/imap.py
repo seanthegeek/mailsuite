@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import logging
-from socket import timeout
+from collections.abc import Callable
 from time import sleep
-from typing import Any, Callable, Optional, cast
+from typing import Any, cast
 
 from imapclient.exceptions import IMAPClientError
 
@@ -32,16 +32,16 @@ class IMAPConnection(MailboxConnection):
         self,
         host: str,
         user: str,
-        password: Optional[str] = None,
+        password: str | None = None,
         port: int = 993,
         ssl: bool = True,
         verify: bool = True,
         timeout: int = 30,
         max_retries: int = 4,
-        oauth2_token: Optional[str] = None,
-        oauth2_token_provider: Optional[Callable[[], str]] = None,
+        oauth2_token: str | None = None,
+        oauth2_token_provider: Callable[[], str] | None = None,
         oauth2_mechanism: str = "XOAUTH2",
-        oauth2_vendor: Optional[str] = None,
+        oauth2_vendor: str | None = None,
     ):
         """
         Args:
@@ -146,7 +146,7 @@ class IMAPConnection(MailboxConnection):
         self,
         check_callback: Callable[[MailboxConnection], None],
         check_timeout: int,
-        config_reloading: Optional[Callable[[], bool]] = None,
+        config_reloading: Callable[[], bool] | None = None,
     ) -> None:
         """
         Watch for new messages over an IDLE connection and dispatch each batch
@@ -176,16 +176,16 @@ class IMAPConnection(MailboxConnection):
                     oauth2_vendor=self._oauth2_vendor,
                     config_reloading=config_reloading,
                 )
-            except (timeout, IMAPClientError):
+            except (TimeoutError, IMAPClientError):
                 logger.warning("IMAP connection timeout. Reconnecting...")
                 sleep(check_timeout)
-            except Exception as e:
-                logger.warning("IMAP connection error. {0}. Reconnecting...".format(e))
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"IMAP connection error. {e}. Reconnecting...")
                 sleep(check_timeout)
             if config_reloading and config_reloading():
                 return
 
-    def send_message(self, *args: Any, **kwargs: Any) -> Optional[str]:
+    def send_message(self, *args: Any, **kwargs: Any) -> str | None:
         raise NotImplementedError(
             "IMAP cannot send mail; use mailsuite.smtp.send_email"
         )

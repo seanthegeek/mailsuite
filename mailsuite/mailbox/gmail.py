@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import base64
 import logging
+from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
 from time import sleep
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any
 
 from mailsuite.mailbox.base import (
     FolderNotFoundError,
@@ -33,10 +34,10 @@ logger = logging.getLogger(__name__)
 def _get_creds(
     token_file: str,
     credentials_file: str,
-    scopes: List[str],
+    scopes: list[str],
     oauth2_port: int,
     auth_mode: str = "installed_app",
-    service_account_user: Optional[str] = None,
+    service_account_user: str | None = None,
 ):
     normalized_auth_mode = (auth_mode or "installed_app").strip().lower()
     if normalized_auth_mode == "service_account":
@@ -87,13 +88,13 @@ class GmailConnection(MailboxConnection):
         self,
         token_file: str,
         credentials_file: str,
-        scopes: List[str],
+        scopes: list[str],
         include_spam_trash: bool,
         reports_folder: str,
         oauth2_port: int,
         paginate_messages: bool,
         auth_mode: str = "installed_app",
-        service_account_user: Optional[str] = None,
+        service_account_user: str | None = None,
     ):
         creds = _get_creds(
             token_file,
@@ -209,8 +210,8 @@ class GmailConnection(MailboxConnection):
     def _fetch_all_message_ids(
         self,
         reports_label_id: str,
-        page_token: Optional[str] = None,
-        since: Optional[str] = None,
+        page_token: str | None = None,
+        since: str | None = None,
     ):
         if since:
             results = (
@@ -245,7 +246,7 @@ class GmailConnection(MailboxConnection):
                 reports_label_id, results["nextPageToken"], since=since
             )
 
-    def fetch_messages(self, reports_folder: str, **kwargs: Any) -> List[str]:
+    def fetch_messages(self, reports_folder: str, **kwargs: Any) -> list[str]:
         reports_label_id = self._find_label_id_for_label(reports_folder)
         since = kwargs.get("since")
         if since:
@@ -282,7 +283,7 @@ class GmailConnection(MailboxConnection):
         self,
         check_callback: Callable[[MailboxConnection], None],
         check_timeout: int,
-        config_reloading: Optional[Callable[[], bool]] = None,
+        config_reloading: Callable[[], bool] | None = None,
     ) -> None:
         """Poll the mailbox at ``check_timeout``-second intervals"""
         while True:
@@ -296,16 +297,16 @@ class GmailConnection(MailboxConnection):
     def send_message(
         self,
         message_from: str,
-        message_to: Optional[List[str]] = None,
-        message_cc: Optional[List[str]] = None,
-        message_bcc: Optional[List[str]] = None,
-        subject: Optional[str] = None,
-        message_headers: Optional[dict] = None,
-        attachments: Optional[List[Tuple[str, bytes]]] = None,
-        plain_message: Optional[str] = None,
-        html_message: Optional[str] = None,
+        message_to: list[str] | None = None,
+        message_cc: list[str] | None = None,
+        message_bcc: list[str] | None = None,
+        subject: str | None = None,
+        message_headers: dict | None = None,
+        attachments: list[tuple[str, bytes]] | None = None,
+        plain_message: str | None = None,
+        html_message: str | None = None,
         save_to_sent_items: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Send a message through the Gmail API.
 
         The ``save_to_sent_items`` parameter is accepted for API parity
@@ -333,7 +334,7 @@ class GmailConnection(MailboxConnection):
         )
         return sent.get("id")
 
-    @lru_cache(maxsize=10)
+    @lru_cache(maxsize=10)  # noqa: B019
     def _find_label_id_for_label(self, label_name: str) -> str:
         results = self.service.users().labels().list(userId="me").execute()
         for label in results.get("labels", []):

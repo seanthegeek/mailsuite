@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Callable, List, Optional, Tuple, Union
+from collections.abc import Callable
+from typing import Any
 
 
 class FolderExistsError(RuntimeError):
@@ -81,8 +82,8 @@ class MailboxConnection(ABC):
     def move_folder(
         self,
         source: str,
-        new_path: Optional[str] = None,
-        new_parent: Optional[str] = None,
+        new_path: str | None = None,
+        new_parent: str | None = None,
         create: bool = False,
     ) -> None:
         """
@@ -146,7 +147,7 @@ class MailboxConnection(ABC):
 
     def merge_folders(
         self,
-        sources: Union[str, List[str]],
+        sources: str | list[str],
         destination: str,
         create: bool = False,
         keep_source_folders: bool = False,
@@ -233,9 +234,9 @@ class MailboxConnection(ABC):
 
     def watch(
         self,
-        check_callback: Callable[["MailboxConnection"], None],
+        check_callback: Callable[[MailboxConnection], None],
         check_timeout: int,
-        config_reloading: Optional[Callable[[], bool]] = None,
+        config_reloading: Callable[[], bool] | None = None,
     ) -> None:
         """
         Watch the mailbox for new messages, invoking ``check_callback`` when
@@ -254,16 +255,16 @@ class MailboxConnection(ABC):
     def send_message(
         self,
         message_from: str,
-        message_to: Optional[list[str]] = None,
-        message_cc: Optional[list[str]] = None,
-        message_bcc: Optional[list[str]] = None,
-        subject: Optional[str] = None,
-        message_headers: Optional[dict] = None,
-        attachments: Optional[list[Tuple[str, bytes]]] = None,
-        plain_message: Optional[str] = None,
-        html_message: Optional[str] = None,
+        message_to: list[str] | None = None,
+        message_cc: list[str] | None = None,
+        message_bcc: list[str] | None = None,
+        subject: str | None = None,
+        message_headers: dict | None = None,
+        attachments: list[tuple[str, bytes]] | None = None,
+        plain_message: str | None = None,
+        html_message: str | None = None,
         save_to_sent_items: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Send a message through this mailbox's native send API (when supported)
 

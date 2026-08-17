@@ -44,7 +44,7 @@ def _docker_available() -> bool:
             timeout=15,
         )
         return True
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -74,8 +74,8 @@ def greenmail():
             "-p", "3143", "-p", "3025",
             # Bind 0.0.0.0 inside the container so the port-forward reaches it
             # (GreenMail otherwise binds 127.0.0.1).
-            "-e", "GREENMAIL_OPTS=-Dgreenmail.setup.test.all "
-                  "-Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled",
+            "-e", ("GREENMAIL_OPTS=-Dgreenmail.setup.test.all "
+                  "-Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled"),
             IMAGE,
         ],
         check=True,
@@ -99,18 +99,18 @@ def greenmail():
                 c.login(USER, PASSWORD)
                 c.logout()
                 break
-            except Exception:
+            except Exception:  # noqa: BLE001
                 if time.monotonic() > deadline:
                     logs = subprocess.run(
                         ["docker", "logs", name],
-                        capture_output=True, text=True,
+                        capture_output=True, text=True, check=False,
                     ).stderr
                     raise RuntimeError(f"GreenMail not ready:\n{logs[-2000:]}")
                 time.sleep(1)
         yield "127.0.0.1", imap_port, smtp_port
     finally:
         subprocess.run(["docker", "rm", "-f", name], stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL)
+                       stderr=subprocess.DEVNULL, check=False)
 
 
 def _deliver(smtp_port: int, subject: str) -> None:
@@ -156,7 +156,7 @@ def _start_watch(host, port, observations, stash, stop_at, errors=None):
             try:
                 n = len(client.search(["ALL"]))
                 break
-            except Exception:
+            except Exception:  # noqa: BLE001
                 time.sleep(0.2)
         if n is None:
             return
@@ -173,7 +173,7 @@ def _start_watch(host, port, observations, stash, stop_at, errors=None):
             )
         except KeyboardInterrupt:
             pass
-        except BaseException as exc:  # surface real failures via `errors`
+        except BaseException as exc:  # noqa: BLE001 -- surface real failures via `errors`
             if errors is not None:
                 errors.append(repr(exc))
 
