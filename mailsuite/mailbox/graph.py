@@ -519,6 +519,8 @@ class MSGraphConnection(MailboxConnection):
         return bytes(raw).decode("utf-8", errors="replace")
 
     def mark_message_read(self, message_id: str) -> None:
+        """Mark the message with the given id as read (Graph-only; not part
+        of the ``MailboxConnection`` interface)"""
         _run(
             self._client.users.by_user_id(self.mailbox_name)
             .messages.by_message_id(message_id)

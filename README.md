@@ -7,6 +7,20 @@ A Python package for retrieving, parsing, and sending emails.
 
 ## Features
 
+- Simplified IMAP client (`mailsuite.imap.IMAPClient`) — usable on its own,
+  and the engine behind the mailbox abstraction's IMAP backend
+  - Automatic reconnection and retries after dropped connections and timeouts
+  - Watch a folder for new messages with `IDLE` callbacks, including periodic
+    session refresh
+  - Username/password or OAuth2 (XOAUTH2 / OAUTHBEARER) login
+  - Always uses `/` as the folder hierarchy separator, converting to the
+    server's separator and prepending its namespace automatically, and
+    stripping folder-name characters that collide with the separator
+  - Works around server quirks across Gmail, Microsoft 365, Exchange,
+    Dovecot, and DavMail, including:
+    - Gmail / Google Workspace returning an empty `IDLE` response
+    - Random Microsoft 365 / Exchange `BAD` / "unexpected response" errors
+    - Nonstandard hierarchy separators and namespaces
 - Provider-agnostic mailbox abstraction (`mailsuite.mailbox`)
   - Single `MailboxConnection` interface for IMAP, Microsoft Graph, Gmail,
     and on-disk Maildir
@@ -15,33 +29,32 @@ A Python package for retrieving, parsing, and sending emails.
   - Folder management across every backend — create, rename, move, merge,
     delete, and existence checks, with consistent `FolderExistsError` /
     `FolderNotFoundError` semantics
-  - Watch a folder for new messages — the IMAP `IDLE` command (with periodic
-    session refresh) on the IMAP backend, polling on the cloud backends
+  - Watch a folder for new messages — the IMAP `IDLE` command on the IMAP
+    backend, polling on the cloud backends
   - Unified `send_message()` on backends that support sending (Microsoft
     Graph, Gmail) — IMAP and Maildir users send through
     `mailsuite.smtp.send_email`
-  - Username/password or OAuth2 (XOAUTH2 / OAUTHBEARER) login for IMAP and SMTP
-  - Automatic IMAP reconnection after dropped connections and timeouts
-  - Always uses `/` as the folder hierarchy separator, converting to the
-    server's separator and prepending its namespace automatically, and
-    stripping folder-name characters that collide with the separator
-  - Works around backend quirks across Gmail, Microsoft 365, Exchange,
-    Dovecot, and DavMail, including:
-    - Gmail / Google Workspace returning an empty `IDLE` response
-    - Random Microsoft 365 / Exchange `BAD` / "unexpected response" errors
-    - Nonstandard hierarchy separators and namespaces
-- Consistent email parsing
+- Consistent email parsing (`mailsuite.utils`)
+  - Parse RFC 822 messages from a string, bytes, or file path into
+    consistent dictionaries, with HTML bodies also converted to Markdown
   - SHA256 hashes of attachments
   - Parsed `Authentication-Results` and `DKIM-Signature` headers
+  - Email address parsing into display name, local part, domain, and
+    second-level domain, tolerating noncompliant addresses
+  - Check whether a message passed DKIM or DMARC as a trusted domain
+    (`from_trusted_domain`)
+  - Forward and reverse DNS lookup helpers
   - Parse Microsoft Outlook `.msg` files using `msgconvert`
-- Simplified email creation and sending
+- Simplified email creation and sending (`mailsuite.smtp`)
   - Easily add attachments, plain text, and HTML
+  - Optional DKIM signing of outgoing mail
   - Uses opportunistic encryption (`STARTTLS`) with SMTP by default
-- DKIM signing and verification
+  - Username/password or OAuth2 (XOAUTH2 / OAUTHBEARER) login
+- DKIM signing and verification (`mailsuite.dkim`)
   - Generate RSA keypairs and the matching DNS TXT record
   - Sign outbound mail with a sensible default header set
   - Verify one or many `DKIM-Signature` headers on a received message
-- ARC (Authenticated Received Chain) sealing and verification
+- ARC (Authenticated Received Chain) sealing and verification (`mailsuite.arc`)
   - Seal forwarded mail with an ARC set, extending an existing chain
   - Verify the ARC chain on a received message and read its `cv` result
 
