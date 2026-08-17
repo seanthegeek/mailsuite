@@ -74,7 +74,11 @@ jobs:
   docs:
     name: Publish documentation
     needs: ci
+    # Must cover everything docs.yml requests (contents: read at its
+    # workflow level) — a called workflow can't exceed the caller's grant,
+    # and the mismatch fails the whole run at startup.
     permissions:
+      contents: read
       pages: write
       id-token: write
     uses: ./.github/workflows/docs.yml
