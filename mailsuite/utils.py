@@ -75,6 +75,22 @@ def decode_base64(data: str) -> bytes:
 
 
 def parse_email_address(email_address: tuple | str) -> dict:
+    """
+    Parse an email address into its components
+
+    Addresses that ``email.utils.parseaddr`` cannot handle are split
+    manually and flagged as noncompliant.
+
+    Args:
+        email_address: An address string, or a ``(display_name, address)``
+            tuple as returned by ``email.utils.parseaddr``
+
+    Returns:
+        An ``OrderedDict`` with the keys ``display_name``, ``address``,
+        ``local``, ``domain``, ``sld`` (the second-level domain), and
+        ``compliant`` (``False`` when the address had to be parsed by the
+        fallback splitter)
+    """
     compliant = True
     display_name = None
     if isinstance(email_address, str):

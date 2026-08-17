@@ -5,6 +5,7 @@
 - Drop support for Python 3.9, which reached end-of-life in October 2025. mailsuite now requires Python 3.10 or later
 - Modernize type hints to PEP 604/585 syntax (`X | Y`, `list[X]`) and adopt ruff's current default lint rules. No functional change
 - Add Python 3.14 to the CI test matrix, and declare the supported versions (3.10–3.14) in the PyPI classifiers
+- Complete the documentation: the features list now covers the standalone IMAP client and the `mailsuite.utils` helpers (address parsing, trusted-domain checks, DNS lookups), and `parse_email_address` / `MSGraphConnection.mark_message_read` gained the docstrings they needed to appear in the API docs
 - Update `cryptography` dependency to `>=50.0.0`
 - Update `mail-parser` dependency to `>=4.6.2`
 - Automate releases: pushing a version tag now runs the full CI suite and, if it passes, publishes the package to PyPI (via Trusted Publishing) and deploys the documentation to GitHub Pages
