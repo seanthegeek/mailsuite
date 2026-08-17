@@ -207,8 +207,11 @@ friendly message, plus a lazy `__getattr__` entry in
   matching the version (e.g. `2.2.4`, no `v` prefix) runs the full CI suite
   (lint + type-check + test matrix, reused from `ci.yml` via `workflow_call`),
   and only if it passes builds the package, publishes it to PyPI via Trusted
-  Publishing, and deploys the Sphinx docs to GitHub Pages. The build job fails
-  if the tag doesn't match `__version__`.
+  Publishing, creates a GitHub Release (notes taken from the tag's
+  `CHANGELOG.md` section, with the built distributions attached), and deploys
+  the Sphinx docs to GitHub Pages. The build job fails if the tag doesn't
+  match `__version__`, and the release job fails if `CHANGELOG.md` has no
+  section for the tag.
 - Docs deployment lives in `.github/workflows/docs.yml`, which release.yml
   calls. For documentation-only updates between releases, the maintainer can
   run it on demand (Actions → Docs → Run workflow); it deploys straight to

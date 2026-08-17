@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The release workflow now also creates a GitHub Release, with the version's `CHANGELOG.md` section as the notes and the built distributions attached
+
 ## 2.3.0
 
 - Drop support for Python 3.9, which reached end-of-life in October 2025. mailsuite now requires Python 3.10 or later
