@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Update the GitHub Actions used by the CI, release, and docs workflows to their latest major versions, resolving GitHub's Node.js 20 runtime deprecation warnings
+
 ## 2.3.1
 
 - Fix `parse_email()` raising `TypeError` instead of `ValueError("Not an email")` on unparseable (non-email) input under mail-parser 4.6.2 ([#61](https://github.com/seanthegeek/mailsuite/issues/61)). mail-parser 4.6.2 changed its contract for unparseable input — it now returns a header-less dict instead of the input string — so the not-an-email detection never fired and parsing crashed on the missing `From` header. A parse result with no headers is now treated as not-an-email, and a message that has headers but no parseable `From` header logs a warning instead of crashing
