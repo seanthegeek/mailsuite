@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import logging
 
 import pytest
 
@@ -185,6 +186,25 @@ class TestParseEmail:
     def test_invalid_input_type(self):
         with pytest.raises(TypeError):
             parse_email(12345)  # type: ignore[arg-type]
+
+    def test_non_email_input_raises_value_error(self):
+        # mail-parser 4.6.2 returns a header-less dict for unparseable
+        # input instead of the input string; both shapes must raise
+        # ValueError, not TypeError (#61).
+        with pytest.raises(ValueError, match="Not an email"):
+            parse_email(b"\x00\x01 not an email")
+
+    def test_missing_from_header_does_not_raise(self, caplog):
+        raw = (
+            "To: b@example.org\r\n"
+            "Subject: No sender\r\n"
+            "\r\n"
+            "body\r\n"
+        )
+        with caplog.at_level(logging.WARNING, logger="mailsuite.utils"):
+            parsed = parse_email(raw)
+        assert parsed["from"] is None
+        assert "from header could not be parsed" in caplog.text
 
     def test_html_body_extracted(self):
         raw = (

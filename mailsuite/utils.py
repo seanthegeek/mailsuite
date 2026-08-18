@@ -361,8 +361,10 @@ def parse_email(
 
     _parsed_email = mailparser.parse_from_string(data_str)
     parsed_email = _parsed_email.mail
-    if isinstance(parsed_email, str):
-        raise ValueError("Not an email")  # noqa: TRY004
+    # mail-parser <=4.6.1 returns the input string for unparseable input;
+    # 4.6.2+ returns a dict with no headers instead.
+    if isinstance(parsed_email, str) or not _parsed_email.headers:
+        raise ValueError("Not an email")
     headers_str = re.split(r"(\n|\r\n){2,}", data_str)[0]
     parsed_email["raw_headers"] = headers_str
     headers_str = re.sub(r"(\n|\r\n)\s+", " ", headers_str)
@@ -400,7 +402,10 @@ def parse_email(
             parsed_email[header] = [parse_email_address(x) for x in email.utils.getaddresses([_headers[header]])]
     from_domain = None
     if "from" in parsed_email:
-        if "domain" in parsed_email["from"]:
+        if (
+            parsed_email["from"] is not None
+            and "domain" in parsed_email["from"]
+        ):
             from_domain = parsed_email["from"]["domain"]
         else:
             logger.warning("Message from header could not be parsed")
