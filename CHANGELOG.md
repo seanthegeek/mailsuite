@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 2.3.1
 
+- Fix `parse_email()` raising `TypeError` instead of `ValueError("Not an email")` on unparseable (non-email) input under mail-parser 4.6.2 ([#61](https://github.com/seanthegeek/mailsuite/issues/61)). mail-parser 4.6.2 changed its contract for unparseable input — it now returns a header-less dict instead of the input string — so the not-an-email detection never fired and parsing crashed on the missing `From` header. A parse result with no headers is now treated as not-an-email, and a message that has headers but no parseable `From` header logs a warning instead of crashing
 - The release workflow now also creates a GitHub Release, with the version's `CHANGELOG.md` section as the notes and the built distributions attached
 
 ## 2.3.0
