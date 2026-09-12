@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased
+## 2.3.2
 
+### Changed
+
+- Bump `IMAPClient` version requirement to `>=4.0.0` to fix Python 3.14 support (Closes #54)
 - Update the GitHub Actions used by the CI, release, and docs workflows to their latest major versions, resolving GitHub's Node.js 20 runtime deprecation warnings
 
 ## 2.3.1
