@@ -6,6 +6,11 @@ on:
   pull_request:
   workflow_call:
 
+# Without this, every job runs with the default token scope, which is wider
+# than any of them needs (CodeQL's actions/missing-workflow-permissions).
+permissions:
+  contents: read
+
 # The ci- prefix keeps this group distinct from the Release workflow's
 # when this workflow is called via workflow_call (github.workflow resolves
 # to the caller's name there, which would collide and self-cancel).
