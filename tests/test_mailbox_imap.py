@@ -21,6 +21,7 @@ def _bare_connection() -> IMAPConnection:
     inst._oauth2_token_provider = None
     inst._oauth2_mechanism = "XOAUTH2"
     inst._oauth2_vendor = None
+    inst._starttls = None
     inst._client = MagicMock()
     return inst
 
@@ -179,3 +180,21 @@ class TestIMAPConnection:
         assert captured["oauth2_mechanism"] == "OAUTHBEARER"
         assert captured["oauth2_token"] is None
         assert captured["oauth2_vendor"] is None
+
+    def test_starttls_forwarded_to_client(self, monkeypatch):
+        captured = {}
+        monkeypatch.setattr(
+            "mailsuite.mailbox.imap.IMAPClient",
+            lambda *a, **kw: captured.update(kw),
+        )
+        conn = IMAPConnection("host", "u", "p", port=143, ssl=False, starttls=False)
+        assert captured["starttls"] is False
+        assert captured["ssl"] is False
+
+        # The watch loop builds its own IMAPClient; it must carry the choice
+        # too, or watch mode would silently upgrade again.
+        captured.clear()
+        conn._client = MagicMock()
+        states = iter([False, True])
+        conn.watch(lambda c: None, 1, config_reloading=lambda: next(states))
+        assert captured["starttls"] is False

@@ -50,6 +50,7 @@ def _bare_client(
         "oauth2_token_provider": None,
         "oauth2_mechanism": "XOAUTH2",
         "oauth2_vendor": None,
+        "starttls": None,
     }
     return inst
 
@@ -696,3 +697,81 @@ class TestOAuth2Login:
     def test_oauth_without_username_raises(self):
         with pytest.raises(ValueError, match="username is required"):
             IMAPClient("host", oauth2_token="tok")
+
+
+class TestStartTLS:
+    """``starttls``: None upgrades when advertised, False declines, True requires."""
+
+    def _stub(self, monkeypatch, capabilities):
+        _stub_network(monkeypatch)
+        monkeypatch.setattr(
+            imapclient.IMAPClient, "capabilities", lambda self: capabilities
+        )
+        monkeypatch.setattr(imapclient.IMAPClient, "login", lambda self, u, p: None)
+        calls: list = []
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "starttls",
+            lambda self, ssl_context=None: calls.append(ssl_context),
+        )
+        return calls
+
+    def test_default_upgrades_when_advertised(self, monkeypatch):
+        calls = self._stub(monkeypatch, (b"IMAP4rev1", b"STARTTLS"))
+        client = IMAPClient("host", "u", "p", port=143, ssl=False)
+        assert len(calls) == 1
+        assert calls[0] is client._init_args["ssl_context"]
+        assert calls[0] is not None
+
+    def test_false_declines_advertised_upgrade(self, monkeypatch, caplog):
+        """Fails on master (``TypeError``: no ``starttls`` argument), where a
+        plain-text connection always upgraded when STARTTLS was advertised
+        and could not decline it (#65)."""
+        calls = self._stub(monkeypatch, (b"IMAP4rev1", b"STARTTLS"))
+        with caplog.at_level("INFO", logger="mailsuite.imap"):
+            IMAPClient("host", "u", "p", port=143, ssl=False, starttls=False)
+        assert calls == []
+        assert "STARTTLS, but it is disabled" in caplog.text
+        assert "activating now" not in caplog.text
+
+    def test_true_upgrades_when_advertised(self, monkeypatch):
+        calls = self._stub(monkeypatch, (b"IMAP4rev1", b"STARTTLS"))
+        IMAPClient("host", "u", "p", port=143, ssl=False, starttls=True)
+        assert len(calls) == 1
+
+    @pytest.mark.parametrize("starttls", [None, False])
+    def test_not_advertised_stays_plain(self, monkeypatch, caplog, starttls):
+        calls = self._stub(monkeypatch, (b"IMAP4rev1",))
+        with caplog.at_level("INFO", logger="mailsuite.imap"):
+            IMAPClient("host", "u", "p", port=143, ssl=False, starttls=starttls)
+        assert calls == []
+        assert "STARTTLS" not in caplog.text
+
+    def test_true_not_advertised_raises(self, monkeypatch):
+        calls = self._stub(monkeypatch, (b"IMAP4rev1",))
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "login",
+            lambda *a, **k: pytest.fail("must not log in over plain text"),
+        )
+        with pytest.raises(
+            imapclient.exceptions.IMAPClientError,
+            match="^STARTTLS required but not supported by the server$",
+        ):
+            IMAPClient("host", "u", "p", port=143, ssl=False, starttls=True)
+        assert calls == []
+
+    @pytest.mark.parametrize("starttls", [None, False, True])
+    def test_ssl_never_calls_starttls(self, monkeypatch, starttls):
+        calls = self._stub(monkeypatch, (b"IMAP4rev1", b"STARTTLS"))
+        IMAPClient("host", "u", "p", ssl=True, starttls=starttls)
+        assert calls == []
+
+    def test_reset_connection_preserves_starttls(self, monkeypatch):
+        calls = self._stub(monkeypatch, (b"IMAP4rev1", b"STARTTLS"))
+        client = IMAPClient("host", "u", "p", port=143, ssl=False, starttls=False)
+        assert client._init_args["starttls"] is False
+        monkeypatch.setattr(client, "shutdown", lambda: None)
+        client.reset_connection()
+        assert client._init_args["starttls"] is False
+        assert calls == []
