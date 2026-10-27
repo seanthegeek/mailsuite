@@ -117,28 +117,80 @@ class MaildirConnection(MailboxConnection):
         return list(self._active_folder.keys())
 
     def fetch_message(self, message_id: Any, **kwargs: Any) -> str:
-        msg = self._active_folder.get(message_id)
-        if msg is None:
+        """
+        Return the message's stored bytes decoded as UTF-8 (undecodable bytes
+        replaced), the same decoding
+        ``mailsuite.imap.IMAPClient.fetch_message(parse=False)``
+        applies to the IMAP backend's raw fetch. The file is not parsed or
+        re-serialized, so a message ``email`` can parse but not generate
+        (e.g. a ``\\x1c`` in a nested header, or deep ``multipart`` nesting)
+        is returned as-is. ``Maildir.get_bytes`` converts ``os.linesep`` to
+        ``\\n``, which is a no-op on POSIX. Returns ``""`` for an unknown
+        ``message_id``.
+
+        With ``mark_read=True`` the file is renamed into ``cur/`` with the
+        ``S`` (Seen) flag added to its info suffix, which is what the Maildir
+        spec defines a flag change to be; the content is untouched.
+        """
+        folder = self._active_folder
+        try:
+            msg_str = folder.get_bytes(message_id).decode("utf-8", "replace")
+        except KeyError:
             return ""
-        msg_str = msg.as_string()
         if kwargs.get("mark_read"):
-            # Maildir spec: a message is "read" once it has been moved out of
-            # new/ into cur/ with the "S" (Seen) flag set in its info field.
-            msg.set_subdir("cur")
-            msg.add_flag("S")
-            self._active_folder[message_id] = msg
-        return msg_str or ""
+            # mailbox.Maildir has no public way to get a message's on-disk
+            # name (or its own path) without parsing the message; _lookup(),
+            # _path, and _toc are what its own get_bytes/remove/__setitem__
+            # use. _lookup() only rescans a stale name when _refresh() sees
+            # the directory as changed, so record the new name in _toc the
+            # way CPython 3.13+'s Maildir.set_info() does after its rename.
+            subpath = folder._lookup(message_id)  # pyright: ignore[reportAttributeAccessIssue]
+            name = os.path.basename(subpath)
+            flags = mailbox.MaildirMessage()
+            if folder.colon in name:
+                flags.set_info(name.split(folder.colon)[-1])
+            flags.add_flag("S")
+            new_subpath = os.path.join(
+                "cur", message_id + folder.colon + flags.get_info()
+            )
+            os.rename(
+                os.path.join(folder._path, subpath),
+                os.path.join(folder._path, new_subpath),
+            )
+            folder._toc[message_id] = new_subpath  # pyright: ignore[reportAttributeAccessIssue]
+        return msg_str
 
     def delete_message(self, message_id: Any) -> None:
         self._active_folder.remove(message_id)
 
     def move_message(self, message_id: Any, folder_name: str) -> None:
-        message_data = self._active_folder.get(message_id)
-        if message_data is None:
+        """
+        Move the message's file into the same subdirectory (``new``/``cur``)
+        of ``folder_name``, keeping its filename, flags, and bytes, instead of
+        re-serializing it through ``Maildir.add``. Maildir++ folders live
+        under the same root, so this is a same-filesystem rename; if a folder
+        is a separate mount, ``os.rename`` raises ``OSError`` (``EXDEV``).
+        Raises ``mailbox.ExternalClashError`` rather than overwriting if the
+        destination already holds a message with the same key (including a
+        move into the active folder itself).
+        """
+        folder = self._active_folder
+        try:
+            subpath = folder._lookup(message_id)  # pyright: ignore[reportAttributeAccessIssue]
+        except KeyError:
             return
         dest = self._get_folder(folder_name)
-        dest.add(message_data)
-        self._active_folder.remove(message_id)
+        if message_id in dest:
+            raise mailbox.ExternalClashError(
+                f"Folder {folder_name} already contains message {message_id}"
+            )
+        os.rename(
+            os.path.join(folder._path, subpath),
+            os.path.join(dest._path, subpath),
+        )
+        # Keep both tables of contents current; see fetch_message's mark_read.
+        folder._toc.pop(message_id, None)  # pyright: ignore[reportAttributeAccessIssue]
+        dest._toc[message_id] = subpath  # pyright: ignore[reportAttributeAccessIssue]
 
     def keepalive(self) -> None:
         return
