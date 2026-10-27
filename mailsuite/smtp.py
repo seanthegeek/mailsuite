@@ -62,6 +62,7 @@ def send_email(
     dkim_selector: str | None = None,
     dkim_domain: str | None = None,
     dkim_additional_headers: list[str] | None = None,
+    starttls: bool | None = None,
 ):
     """
     Send an email using a SMTP relay
@@ -102,6 +103,15 @@ def send_email(
             ``dkim_domain`` is not)
         dkim_additional_headers: Additional header names to include in the
             DKIM signature. Headers not present in the message are skipped.
+        starttls: Whether to upgrade a plain-text
+            (``require_encryption=False``) connection with STARTTLS.
+            ``None`` (default) upgrades when the server advertises
+            STARTTLS; ``False`` never upgrades, so the connection stays
+            plain text even when STARTTLS is advertised (credentials are
+            then sent unencrypted); ``True`` requires the upgrade and raises
+            :class:`SMTPError` if the server does not advertise STARTTLS.
+            Ignored when ``require_encryption=True``, because the
+            connection is already TLS.
     """
 
     using_oauth = oauth2_token is not None or oauth2_token_provider is not None
@@ -150,9 +160,18 @@ def send_email(
             server = smtplib.SMTP(host, port=port)
             server.connect(host, port)
             server.ehlo_or_helo_if_needed()
-            if server.has_extn("starttls"):
+            starttls_advertised = server.has_extn("starttls")
+            if starttls is False:
+                if starttls_advertised:
+                    logger.info(
+                        "SMTP server supports STARTTLS, but it is disabled"
+                        " ... staying in plain text"
+                    )
+            elif starttls_advertised:
                 server.starttls(context=ssl_context)
                 server.ehlo()
+            elif starttls:
+                raise SMTPError("STARTTLS required but not supported by the server")
             else:
                 logger.warning(
                     "SMTP server does not support STARTTLS. Proceeding in plain text!"

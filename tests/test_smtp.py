@@ -188,6 +188,94 @@ class TestSendEmailBasic:
         assert bcc == ["d@example.org"]
 
 
+class TestSendEmailStartTLS:
+    """``starttls``: None upgrades when advertised, False declines, True requires."""
+
+    def _send(self, monkeypatch, has_starttls, **kwargs):
+        instances = []
+
+        def factory(implicit_tls):
+            def _smtp(*args, **kw):
+                srv = FakeSMTPServer(*args, has_starttls=has_starttls, **kw)
+                srv.implicit_tls = implicit_tls
+                instances.append(srv)
+                return srv
+
+            return _smtp
+
+        monkeypatch.setattr(ms_smtp.smtplib, "SMTP", factory(False))
+        monkeypatch.setattr(ms_smtp.smtplib, "SMTP_SSL", factory(True))
+        try:
+            send_email(
+                host="smtp.example.com",
+                message_from="a@example.com",
+                message_to=["b@example.org"],
+                username="user",
+                password="pw",
+                **kwargs,
+            )
+        finally:
+            self.srv = instances[-1]
+        return self.srv
+
+    def test_default_upgrades_when_advertised(self, monkeypatch):
+        srv = self._send(monkeypatch, True)
+        assert srv.starttls_called is True
+        assert srv.sendmail_args is not None
+
+    def test_false_declines_advertised_upgrade(self, monkeypatch, caplog):
+        """Fails on master (``TypeError``: no ``starttls`` argument), where a
+        plain-text connection always upgraded when STARTTLS was advertised
+        and could not decline it (#65)."""
+        with caplog.at_level("INFO", logger="mailsuite.smtp"):
+            srv = self._send(monkeypatch, True, starttls=False)
+        assert srv.starttls_called is False
+        assert srv.login_args == ("user", "pw")
+        assert srv.sendmail_args is not None
+        assert "STARTTLS, but it is disabled" in caplog.text
+
+    def test_true_upgrades_when_advertised(self, monkeypatch):
+        """Fails on master (``TypeError``: no ``starttls`` argument)."""
+        srv = self._send(monkeypatch, True, starttls=True)
+        assert srv.starttls_called is True
+        assert srv.sendmail_args is not None
+
+    def test_default_not_advertised_warns_plain_text(self, monkeypatch, caplog):
+        with caplog.at_level("INFO", logger="mailsuite.smtp"):
+            srv = self._send(monkeypatch, False)
+        assert srv.starttls_called is False
+        assert srv.sendmail_args is not None
+        assert "does not support STARTTLS. Proceeding in plain text!" in caplog.text
+
+    def test_false_not_advertised_stays_plain(self, monkeypatch, caplog):
+        """Fails on master (``TypeError``: no ``starttls`` argument)."""
+        with caplog.at_level("INFO", logger="mailsuite.smtp"):
+            srv = self._send(monkeypatch, False, starttls=False)
+        assert srv.starttls_called is False
+        assert srv.sendmail_args is not None
+        assert "STARTTLS" not in caplog.text
+
+    def test_true_not_advertised_raises(self, monkeypatch):
+        """Fails on master (``TypeError``: no ``starttls`` argument)."""
+        with pytest.raises(
+            SMTPError,
+            match="^STARTTLS required but not supported by the server$",
+        ):
+            self._send(monkeypatch, False, starttls=True)
+        assert self.srv.starttls_called is False
+        assert self.srv.login_args is None
+        assert self.srv.auth_args is None
+        assert self.srv.sendmail_args is None
+
+    @pytest.mark.parametrize("starttls", [False, True])
+    def test_require_encryption_ignores_starttls(self, monkeypatch, starttls):
+        """Fails on master (``TypeError``: no ``starttls`` argument)."""
+        srv = self._send(monkeypatch, True, require_encryption=True, starttls=starttls)
+        assert srv.implicit_tls is True
+        assert srv.starttls_called is False
+        assert srv.sendmail_args is not None
+
+
 class TestSendEmailOAuth:
     def test_xoauth2_is_default(self, fake_smtp):
         send_email(
