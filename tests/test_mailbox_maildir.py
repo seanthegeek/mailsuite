@@ -351,9 +351,11 @@ def _header_injection_message() -> bytes:
     ``email`` parses it, but ``\\x1c`` is a line boundary for
     ``str.splitlines()``, so re-serializing it trips CPython's CVE-2024-6923
     generated-header check and raises ``email.errors.HeaderWriteError``. The
-    text ``Generator`` always performs that check; ``BytesGenerator`` (what
-    ``mailbox.Maildir.add`` / ``__setitem__`` use) performs it on some
-    distribution builds (Ubuntu's 3.12.3) but not on upstream 3.12.9.
+    text ``Generator`` performs that check on every release since 3.10.15;
+    ``BytesGenerator`` (what ``mailbox.Maildir.add`` / ``__setitem__`` use)
+    does not in any tagged CPython release through 3.14.0, but does on the
+    current 3.12/3.13/3.14 maintenance-branch heads and on some distribution
+    builds (e.g. Ubuntu's 3.12.3).
     """
     return (
         b"From: reporter@example.com\n"
@@ -418,27 +420,25 @@ class TestMaildirPoisonMessages:
     tests failed with: ``fetch_message`` -> ``HeaderWriteError`` (``as_string``)
     for the ``\\x1c`` message and ``RecursionError`` for the nested one;
     ``move_message`` -> ``HeaderWriteError`` / ``RecursionError`` from
-    ``Maildir.add``'s ``BytesGenerator``. On builds whose ``BytesGenerator``
-    accepts ``\\x1c`` (upstream 3.12.9) the old ``move_message`` passed for
-    that message; the tests below still hold there, they just don't
-    discriminate.
+    ``Maildir.add``'s ``BytesGenerator``. On interpreters whose
+    ``BytesGenerator`` lacks the header check (every tagged CPython release
+    through 3.14.0) the old ``move_message`` passed for the ``\\x1c``
+    message; the tests below still hold there, they just don't discriminate
+    for that message.
     """
 
     def test_poison_messages_do_reject_reserialization(self, poison_maildir):
-        """Guard that the fixture really is poison on this interpreter. The
-        ``\\x1c`` check is gated: ``as_string()`` uses the text ``Generator``,
-        which performs the CVE-2024-6923 header check on every patched
-        CPython, but an unpatched interpreter would accept it."""
+        """Guard that the fixtures really are poison. ``as_string()`` uses the
+        text ``Generator``, whose CVE-2024-6923 header check every interpreter
+        in the CI matrix (>= 3.10.15) has."""
         import email
         import email.errors
 
         _, messages = poison_maildir
         with pytest.raises(RecursionError):
             email.message_from_bytes(messages["1700000000.poison2.host"]).as_string()
-        try:
+        with pytest.raises(email.errors.HeaderWriteError):
             email.message_from_bytes(messages["1700000000.poison1.host"]).as_string()
-        except Exception as e:  # noqa: BLE001
-            assert isinstance(e, email.errors.HeaderWriteError)
 
     def test_fetch_message_returns_raw_text(self, poison_maildir):
         path, messages = poison_maildir
@@ -517,16 +517,52 @@ class TestMaildirPoisonMessages:
         with open(os.path.join(path, "new", key), "rb") as f:
             assert f.read() == messages[key]
 
-    @pytest.mark.parametrize("op", ["fetch", "mark_read", "move"])
-    def test_header_injection_message_survives(self, poison_maildir, op):
+    @staticmethod
+    def _freeze_toc(box: mailbox.Maildir) -> None:
+        """Make ``box``'s next ``_refresh()`` skip its rescan: age the last
+        read past the 2-second window so it compares directory mtimes, and
+        set each directory's mtime back to the recorded value, as when a
+        rename lands in the same coarse filesystem-timestamp tick as the
+        previous change."""
+        box._last_read -= 3  # pyright: ignore[reportAttributeAccessIssue]
+        for subdir, mtime in box._toc_mtimes.items():  # pyright: ignore[reportAttributeAccessIssue]
+            path = box._paths[subdir]  # pyright: ignore[reportAttributeAccessIssue]
+            os.utime(path, (os.path.getatime(path), mtime))
+
+    def test_rename_keeps_toc_current_without_rescan(self, poison_maildir):
+        """``_lookup()`` only rescans a stale name when ``_refresh()`` sees a
+        directory change, so a rename must update ``_toc`` itself. Without
+        the mark-read ``_toc`` update, ``fetch_message`` after ``mark_read``
+        raised ``FileNotFoundError``; without move's ``_toc.pop`` the source
+        still listed the moved key; without move's ``dest._toc`` entry
+        ``fetch_messages`` on the destination returned ``[]``."""
         path, messages = poison_maildir
-        key = "1700000000.poison1.host"
+        key = "1700000000.poison2.host"
         conn = MaildirConnection(path)
         conn.create_folder("Invalid")
         conn.fetch_messages("INBOX")
-        if op == "move":
-            conn.move_message(key, "Invalid")
-            assert key in conn.fetch_messages("Invalid")
-        else:
-            raw = conn.fetch_message(key, mark_read=op == "mark_read")
-            assert raw == messages[key].decode("utf-8", "replace")
+        conn.fetch_message(key, mark_read=True)
+        self._freeze_toc(conn._active_folder)
+        assert conn.fetch_message(key) == messages[key].decode("utf-8", "replace")
+
+        conn.move_message(key, "Invalid")
+        dest = conn._get_folder("Invalid")
+        self._freeze_toc(dest)
+        self._freeze_toc(conn._active_folder)
+        assert key not in conn.fetch_messages("INBOX")
+        assert conn.fetch_messages("Invalid") == [key]
+        assert conn.fetch_message(key) == messages[key].decode("utf-8", "replace")
+        conn.delete_message(key)
+        assert os.listdir(os.path.join(path, ".Invalid", "cur")) == []
+
+    def test_mark_read_then_delete_without_rescan(self, poison_maildir):
+        """Without the mark-read ``_toc`` update, ``delete_message`` raised
+        ``FileNotFoundError``."""
+        path, _ = poison_maildir
+        key = "1700000000.poison1.host"
+        conn = MaildirConnection(path)
+        conn.fetch_messages("INBOX")
+        conn.fetch_message(key, mark_read=True)
+        self._freeze_toc(conn._active_folder)
+        conn.delete_message(key)
+        assert os.listdir(os.path.join(path, "cur")) == []
