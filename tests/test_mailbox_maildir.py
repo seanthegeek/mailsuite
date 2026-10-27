@@ -343,3 +343,190 @@ class TestUidMismatch:
         warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
         assert not any("differs from maildir" in r.getMessage() for r in warnings)
         assert not any("Switching uid" in r.getMessage() for r in warnings)
+
+
+def _header_injection_message() -> bytes:
+    """A failure report whose ``message/rfc822`` part carries ``X-A: a\\x1cb``.
+
+    ``email`` parses it, but ``\\x1c`` is a line boundary for
+    ``str.splitlines()``, so re-serializing it trips CPython's CVE-2024-6923
+    generated-header check and raises ``email.errors.HeaderWriteError``. The
+    text ``Generator`` always performs that check; ``BytesGenerator`` (what
+    ``mailbox.Maildir.add`` / ``__setitem__`` use) performs it on some
+    distribution builds (Ubuntu's 3.12.3) but not on upstream 3.12.9.
+    """
+    return (
+        b"From: reporter@example.com\n"
+        b"Subject: failure report\n"
+        b"MIME-Version: 1.0\n"
+        b"Content-Type: multipart/report; report-type=feedback-report;"
+        b" boundary=B\n"
+        b"\n"
+        b"--B\n"
+        b"Content-Type: text/plain\n"
+        b"\n"
+        b"hi\n"
+        b"--B\n"
+        b"Content-Type: message/rfc822\n"
+        b"\n"
+        b"X-A: a\x1cb\n"
+        b"Subject: x\n"
+        b"\n"
+        b"body\n"
+        b"--B--\n"
+    )
+
+
+def _deeply_nested_message(depth: int = 400) -> bytes:
+    """``depth`` nested ``multipart/mixed`` parts. ``email`` parses it, but the
+    recursive generator raises ``RecursionError`` when re-serializing it on
+    every CPython."""
+    data = b"From: reporter@example.com\nSubject: nested\nMIME-Version: 1.0\n"
+    for i in range(depth):
+        data += b"Content-Type: multipart/mixed; boundary=b%d\n\n--b%d\n" % (i, i)
+    data += b"Content-Type: text/plain\n\nx\n"
+    for i in reversed(range(depth)):
+        data += b"--b%d--\n" % i
+    return data
+
+
+@pytest.fixture
+def poison_maildir(maildir_path):
+    """A Maildir whose ``new/`` holds the two poison messages as raw files,
+    written directly (as an MTA would) so nothing re-serializes them.
+
+    Returns ``(maildir_path, {key: raw_bytes})``.
+    """
+    MaildirConnection(maildir_path, maildir_create=True)
+    messages = {
+        "1700000000.poison1.host": _header_injection_message(),
+        "1700000000.poison2.host": _deeply_nested_message(),
+    }
+    for key, data in messages.items():
+        with open(os.path.join(maildir_path, "new", key), "wb") as f:
+            f.write(data)
+    return maildir_path, messages
+
+
+class TestMaildirPoisonMessages:
+    """Messages ``email`` can parse but not re-serialize (parsedmarc
+    GHSA-qxwv-2vwj-v828) must still be fetched, marked read, moved, and
+    deleted, because every one of those operations now works on the stored
+    file instead of round-tripping it through ``email.message``.
+
+    On the previous implementation (Python 3.12.3, Ubuntu build) these
+    tests failed with: ``fetch_message`` -> ``HeaderWriteError`` (``as_string``)
+    for the ``\\x1c`` message and ``RecursionError`` for the nested one;
+    ``move_message`` -> ``HeaderWriteError`` / ``RecursionError`` from
+    ``Maildir.add``'s ``BytesGenerator``. On builds whose ``BytesGenerator``
+    accepts ``\\x1c`` (upstream 3.12.9) the old ``move_message`` passed for
+    that message; the tests below still hold there, they just don't
+    discriminate.
+    """
+
+    def test_poison_messages_do_reject_reserialization(self, poison_maildir):
+        """Guard that the fixture really is poison on this interpreter. The
+        ``\\x1c`` check is gated: ``as_string()`` uses the text ``Generator``,
+        which performs the CVE-2024-6923 header check on every patched
+        CPython, but an unpatched interpreter would accept it."""
+        import email
+        import email.errors
+
+        _, messages = poison_maildir
+        with pytest.raises(RecursionError):
+            email.message_from_bytes(messages["1700000000.poison2.host"]).as_string()
+        try:
+            email.message_from_bytes(messages["1700000000.poison1.host"]).as_string()
+        except Exception as e:  # noqa: BLE001
+            assert isinstance(e, email.errors.HeaderWriteError)
+
+    def test_fetch_message_returns_raw_text(self, poison_maildir):
+        path, messages = poison_maildir
+        conn = MaildirConnection(path)
+        assert sorted(conn.fetch_messages("INBOX")) == sorted(messages)
+        for key, data in messages.items():
+            assert conn.fetch_message(key) == data.decode("utf-8", "replace")
+            # Not marked read: still in new/ with no info suffix.
+            assert os.listdir(os.path.join(path, "new")).count(key) == 1
+
+    def test_fetch_message_mark_read_renames_into_cur(self, poison_maildir):
+        path, messages = poison_maildir
+        conn = MaildirConnection(path)
+        conn.fetch_messages("INBOX")
+        for key, data in messages.items():
+            assert conn.fetch_message(key, mark_read=True) == data.decode(
+                "utf-8", "replace"
+            )
+            assert not os.path.exists(os.path.join(path, "new", key))
+            cur_path = os.path.join(path, "cur", key + ":2,S")
+            with open(cur_path, "rb") as f:
+                assert f.read() == data
+        # The same connection's cached table of contents follows the rename.
+        assert sorted(conn.fetch_messages("INBOX")) == sorted(messages)
+        for key, data in messages.items():
+            assert conn.fetch_message(key) == data.decode("utf-8", "replace")
+            msg = mailbox.Maildir(path).get_message(key)
+            assert msg.get_subdir() == "cur"
+            assert msg.get_flags() == "S"
+
+    def test_mark_read_keeps_existing_flags(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        data = _deeply_nested_message()
+        with open(os.path.join(maildir_path, "cur", "k1:2,F"), "wb") as f:
+            f.write(data)
+        conn.fetch_messages("INBOX")
+        conn.fetch_message("k1", mark_read=True)
+        assert os.listdir(os.path.join(maildir_path, "cur")) == ["k1:2,FS"]
+
+    def test_move_message_relocates_file(self, poison_maildir):
+        path, messages = poison_maildir
+        conn = MaildirConnection(path)
+        conn.create_folder("Invalid")
+        conn.fetch_messages("INBOX")
+        conn.fetch_message("1700000000.poison1.host", mark_read=True)
+        for key in messages:
+            conn.move_message(key, "Invalid")
+        assert conn.fetch_messages("INBOX") == []
+        assert os.listdir(os.path.join(path, "new")) == []
+        assert os.listdir(os.path.join(path, "cur")) == []
+        # Subdirectory and flags travel with the file; content is identical.
+        dest = os.path.join(path, ".Invalid")
+        assert os.listdir(os.path.join(dest, "cur")) == ["1700000000.poison1.host:2,S"]
+        assert os.listdir(os.path.join(dest, "new")) == ["1700000000.poison2.host"]
+        assert sorted(conn.fetch_messages("Invalid")) == sorted(messages)
+        for key, data in messages.items():
+            assert conn.fetch_message(key) == data.decode("utf-8", "replace")
+            conn.delete_message(key)
+        assert conn.fetch_messages("Invalid") == []
+        assert os.listdir(os.path.join(dest, "new")) == []
+        assert os.listdir(os.path.join(dest, "cur")) == []
+
+    def test_move_message_refuses_to_overwrite(self, poison_maildir):
+        path, messages = poison_maildir
+        conn = MaildirConnection(path)
+        conn.create_folder("Invalid")
+        key = "1700000000.poison2.host"
+        clash = os.path.join(path, ".Invalid", "cur", key + ":2,S")
+        with open(clash, "wb") as f:
+            f.write(b"Subject: other\n\nother\n")
+        conn.fetch_messages("INBOX")
+        with pytest.raises(mailbox.ExternalClashError):
+            conn.move_message(key, "Invalid")
+        with open(clash, "rb") as f:
+            assert f.read() == b"Subject: other\n\nother\n"
+        with open(os.path.join(path, "new", key), "rb") as f:
+            assert f.read() == messages[key]
+
+    @pytest.mark.parametrize("op", ["fetch", "mark_read", "move"])
+    def test_header_injection_message_survives(self, poison_maildir, op):
+        path, messages = poison_maildir
+        key = "1700000000.poison1.host"
+        conn = MaildirConnection(path)
+        conn.create_folder("Invalid")
+        conn.fetch_messages("INBOX")
+        if op == "move":
+            conn.move_message(key, "Invalid")
+            assert key in conn.fetch_messages("Invalid")
+        else:
+            raw = conn.fetch_message(key, mark_read=op == "mark_read")
+            assert raw == messages[key].decode("utf-8", "replace")
