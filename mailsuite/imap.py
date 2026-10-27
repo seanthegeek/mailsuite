@@ -190,6 +190,7 @@ class IMAPClient(imapclient.IMAPClient):
         oauth2_mechanism: str = "XOAUTH2",
         oauth2_vendor: str | None = None,
         config_reloading: Callable[[], bool] | None = None,
+        starttls: bool | None = None,
     ):
         """
         Connects to an IMAP server
@@ -219,6 +220,15 @@ class IMAPClient(imapclient.IMAPClient):
                 ``"OAUTHBEARER"`` (Gmail's standards-track replacement).
             oauth2_vendor: Optional vendor string required by Yahoo's
                 XOAUTH2 implementation.
+            starttls: Whether to upgrade a plain-text (``ssl=False``)
+                connection with STARTTLS. ``None`` (default) upgrades when
+                the server advertises STARTTLS; ``False`` never upgrades, so
+                the connection stays plain text even when STARTTLS is
+                advertised (credentials are then sent unencrypted);
+                ``True`` requires the upgrade and raises
+                :class:`imapclient.exceptions.IMAPClientError` if the server
+                does not advertise STARTTLS. Ignored when ``ssl=True``,
+                because the connection is already TLS.
 
         For Google Workspace and Microsoft 365 the higher-level
         :class:`mailsuite.mailbox.GmailConnection` and
@@ -262,6 +272,7 @@ class IMAPClient(imapclient.IMAPClient):
             "oauth2_token_provider": oauth2_token_provider,
             "oauth2_mechanism": oauth2_mechanism,
             "oauth2_vendor": oauth2_vendor,
+            "starttls": starttls,
         }
         self.max_retries = max_retries
         self.idle_callback = idle_callback
@@ -281,9 +292,21 @@ class IMAPClient(imapclient.IMAPClient):
             timeout=timeout,
         )
         try:
-            if not ssl and b"STARTTLS" in self.capabilities():
-                logger.info("IMAP server supports STARTTLS ... activating now")
-                self.starttls(ssl_context=ssl_context)
+            if not ssl:
+                starttls_advertised = b"STARTTLS" in self.capabilities()
+                if starttls is False:
+                    if starttls_advertised:
+                        logger.info(
+                            "IMAP server supports STARTTLS, but it is disabled"
+                            " ... staying in plain text"
+                        )
+                elif starttls_advertised:
+                    logger.info("IMAP server supports STARTTLS ... activating now")
+                    self.starttls(ssl_context=ssl_context)
+                elif starttls:
+                    raise imapclient.exceptions.IMAPClientError(
+                        "STARTTLS required but not supported by the server"
+                    )
             if using_oauth:
                 token = (
                     oauth2_token_provider()
@@ -376,6 +399,7 @@ class IMAPClient(imapclient.IMAPClient):
             oauth2_token_provider=self._init_args["oauth2_token_provider"],  # pyright: ignore[reportArgumentType]
             oauth2_mechanism=self._init_args["oauth2_mechanism"],  # pyright: ignore[reportArgumentType]
             oauth2_vendor=self._init_args["oauth2_vendor"],  # pyright: ignore[reportArgumentType]
+            starttls=self._init_args["starttls"],  # pyright: ignore[reportArgumentType]
         )
 
     def fetch_message(

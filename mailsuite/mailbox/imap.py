@@ -42,6 +42,7 @@ class IMAPConnection(MailboxConnection):
         oauth2_token_provider: Callable[[], str] | None = None,
         oauth2_mechanism: str = "XOAUTH2",
         oauth2_vendor: str | None = None,
+        starttls: bool | None = None,
     ):
         """
         Args:
@@ -60,6 +61,15 @@ class IMAPConnection(MailboxConnection):
                 ``oauth2_token`` for long-running watch loops.
             oauth2_mechanism: ``"XOAUTH2"`` (default) or ``"OAUTHBEARER"``
             oauth2_vendor: Optional vendor string for Yahoo's XOAUTH2
+            starttls: Whether to upgrade a plain-text (``ssl=False``)
+                connection with STARTTLS. ``None`` (default) upgrades when
+                the server advertises STARTTLS; ``False`` never upgrades, so
+                the connection stays plain text even when STARTTLS is
+                advertised (credentials are then sent unencrypted);
+                ``True`` requires the upgrade and raises
+                :class:`imapclient.exceptions.IMAPClientError` if the server
+                does not advertise STARTTLS. Ignored when ``ssl=True``,
+                because the connection is already TLS.
         """
         self._username = user
         self._password = password
@@ -68,6 +78,7 @@ class IMAPConnection(MailboxConnection):
         self._oauth2_token_provider = oauth2_token_provider
         self._oauth2_mechanism = oauth2_mechanism
         self._oauth2_vendor = oauth2_vendor
+        self._starttls = starttls
         self._client = IMAPClient(
             host,
             user,
@@ -81,6 +92,7 @@ class IMAPConnection(MailboxConnection):
             oauth2_token_provider=oauth2_token_provider,
             oauth2_mechanism=oauth2_mechanism,
             oauth2_vendor=oauth2_vendor,
+            starttls=starttls,
         )
 
     def create_folder(self, folder_name: str) -> None:
@@ -175,6 +187,7 @@ class IMAPConnection(MailboxConnection):
                     oauth2_mechanism=self._oauth2_mechanism,
                     oauth2_vendor=self._oauth2_vendor,
                     config_reloading=config_reloading,
+                    starttls=self._starttls,
                 )
             except (TimeoutError, IMAPClientError):
                 logger.warning("IMAP connection timeout. Reconnecting...")
