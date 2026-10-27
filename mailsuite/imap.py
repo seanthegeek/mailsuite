@@ -224,7 +224,8 @@ class IMAPClient(imapclient.IMAPClient):
                 connection with STARTTLS. ``None`` (default) upgrades when
                 the server advertises STARTTLS; ``False`` never upgrades, so
                 the connection stays plain text even when STARTTLS is
-                advertised; ``True`` requires the upgrade and raises
+                advertised (credentials are then sent unencrypted);
+                ``True`` requires the upgrade and raises
                 :class:`imapclient.exceptions.IMAPClientError` if the server
                 does not advertise STARTTLS. Ignored when ``ssl=True``,
                 because the connection is already TLS.
