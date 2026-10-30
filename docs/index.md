@@ -13,6 +13,8 @@ A Python package for retrieving, parsing, and sending emails.
   - Watch a folder for new messages with `IDLE` callbacks, including periodic
     session refresh
   - Username/password or OAuth2 (XOAUTH2 / OAUTHBEARER) login
+  - Upgrades plain-text connections with `STARTTLS`, and refuses to
+    authenticate without it unless explicitly allowed with `starttls=False`
   - Always uses `/` as the folder hierarchy separator, converting to the
     server's separator and prepending its namespace automatically, and
     stripping folder-name characters that collide with the separator
@@ -48,7 +50,9 @@ A Python package for retrieving, parsing, and sending emails.
 - Simplified email creation and sending (`mailsuite.smtp`)
   - Easily add attachments, plain text, and HTML
   - Optional DKIM signing of outgoing mail
-  - Uses opportunistic encryption (`STARTTLS`) with SMTP by default
+  - Upgrades plain-text SMTP connections with `STARTTLS`, and refuses to
+    send credentials without it unless explicitly allowed with
+    `starttls=False`
   - Username/password or OAuth2 (XOAUTH2 / OAUTHBEARER) login
 - DKIM signing and verification (`mailsuite.dkim`)
   - Generate RSA keypairs and the matching DNS TXT record

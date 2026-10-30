@@ -106,17 +106,27 @@ def send_email(
         starttls: Whether to upgrade a plain-text
             (``require_encryption=False``) connection with STARTTLS.
             ``None`` (default) upgrades when the server advertises
-            STARTTLS; ``False`` never upgrades, so the connection stays
-            plain text even when STARTTLS is advertised (credentials are
-            then sent unencrypted); ``True`` requires the upgrade and raises
-            :class:`SMTPError` if the server does not advertise STARTTLS.
-            Ignored when ``require_encryption=True``, because the
+            STARTTLS. When it does not, ``None`` raises
+            :class:`SMTPError` before authenticating if credentials
+            (``username`` and ``password``, or an OAuth2 token or token
+            provider) were given, so they are never sent in plain text;
+            without credentials the message is sent in plain text and a
+            warning is logged. ``False`` never upgrades, so
+            the connection stays plain text even when STARTTLS is
+            advertised, and any credentials are sent unencrypted (a warning
+            is logged when they are). ``True`` requires the upgrade and
+            raises :class:`SMTPError` if the server does not advertise
+            STARTTLS. Ignored when ``require_encryption=True``, because the
             connection is already TLS.
     """
 
     using_oauth = oauth2_token is not None or oauth2_token_provider is not None
     if using_oauth and not username:
         raise ValueError("username is required when authenticating with OAuth2")
+    using_password = not using_oauth and bool(username and password)
+    # Computed once so the plain-text guard below and the login dispatch can
+    # never disagree about whether credentials are about to be sent.
+    authenticating = using_oauth or using_password
 
     msg = create_email(
         message_from=message_from,
@@ -152,13 +162,13 @@ def send_email(
         if verify is False:
             ssl_context.check_hostname = False
             ssl_context.verify_mode = CERT_NONE
+        # smtplib's constructors connect when given a host, so no explicit
+        # connect() call is needed (one would open and leak a second socket).
         if require_encryption:
             server = smtplib.SMTP_SSL(host, port=port, context=ssl_context)
-            server.connect(host, port)
             server.ehlo_or_helo_if_needed()
         else:
             server = smtplib.SMTP(host, port=port)
-            server.connect(host, port)
             server.ehlo_or_helo_if_needed()
             starttls_advertised = server.has_extn("starttls")
             if starttls is False:
@@ -167,11 +177,22 @@ def send_email(
                         "SMTP server supports STARTTLS, but it is disabled"
                         " ... staying in plain text"
                     )
+                if authenticating:
+                    logger.warning(
+                        "Sending SMTP credentials unencrypted because starttls=False"
+                    )
             elif starttls_advertised:
                 server.starttls(context=ssl_context)
                 server.ehlo()
             elif starttls:
                 raise SMTPError("STARTTLS required but not supported by the server")
+            elif authenticating:
+                raise SMTPError(
+                    "The SMTP server does not advertise STARTTLS, so credentials"
+                    " would be sent in plain text. Use require_encryption=True"
+                    " for implicit TLS, or pass starttls=False to allow"
+                    " plain-text authentication"
+                )
             else:
                 logger.warning(
                     "SMTP server does not support STARTTLS. Proceeding in plain text!"
@@ -191,8 +212,8 @@ def send_email(
                 )
                 mechanism = oauth2_mechanism.upper()
             server.auth(mechanism, lambda challenge=None: auth_string)
-        elif username and password:
-            server.login(username, password)
+        elif using_password:
+            server.login(cast(str, username), cast(str, password))
         if envelope_from is None:
             envelope_from = message_from
         if message_to is None:

@@ -22,7 +22,11 @@ from mailsuite.smtp import SMTPError, send_email
 
 
 class FakeSMTPServer:
-    """A minimal stand-in for smtplib.SMTP / SMTP_SSL."""
+    """A minimal stand-in for smtplib.SMTP / SMTP_SSL.
+
+    Like smtplib, the constructor connects when given a host, and
+    ``connect_calls`` counts every connection opened.
+    """
 
     instances: ClassVar[list] = []
 
@@ -33,14 +37,18 @@ class FakeSMTPServer:
         self.port = port
         self._has_starttls = has_starttls
         self.connected = False
+        self.connect_calls = 0
         self.starttls_called = False
         self.ehlo_count = 0
         self.login_args = None
         self.auth_args = None
         self.sendmail_args = None
         FakeSMTPServer.instances.append(self)
+        if host:
+            self.connect(host, port)
 
     def connect(self, host, port):
+        self.connect_calls += 1
         self.connected = True
         self.host = host
         self.port = port
@@ -191,7 +199,9 @@ class TestSendEmailBasic:
 class TestSendEmailStartTLS:
     """``starttls``: None upgrades when advertised, False declines, True requires."""
 
-    def _send(self, monkeypatch, has_starttls, **kwargs):
+    def _send(self, monkeypatch, has_starttls, credentials=None, **kwargs):
+        if credentials is None:
+            credentials = {"username": "user", "password": "pw"}
         instances = []
 
         def factory(implicit_tls):
@@ -210,8 +220,7 @@ class TestSendEmailStartTLS:
                 host="smtp.example.com",
                 message_from="a@example.com",
                 message_to=["b@example.org"],
-                username="user",
-                password="pw",
+                **credentials,
                 **kwargs,
             )
         finally:
@@ -233,6 +242,10 @@ class TestSendEmailStartTLS:
         assert srv.login_args == ("user", "pw")
         assert srv.sendmail_args is not None
         assert "STARTTLS, but it is disabled" in caplog.text
+        assert (
+            "WARNING",
+            "Sending SMTP credentials unencrypted because starttls=False",
+        ) in [(r.levelname, r.getMessage()) for r in caplog.records]
 
     def test_true_upgrades_when_advertised(self, monkeypatch):
         """Fails on master (``TypeError``: no ``starttls`` argument)."""
@@ -240,20 +253,76 @@ class TestSendEmailStartTLS:
         assert srv.starttls_called is True
         assert srv.sendmail_args is not None
 
-    def test_default_not_advertised_warns_plain_text(self, monkeypatch, caplog):
+    _REFUSAL = (
+        "^The SMTP server does not advertise STARTTLS, so credentials would"
+        " be sent in plain text. Use require_encryption=True for implicit"
+        " TLS, or pass starttls=False to allow plain-text authentication$"
+    )
+
+    def test_default_not_advertised_with_password_raises(self, monkeypatch):
+        """Fails on 2.3.3, which logged a warning and sent the password in
+        plain text when STARTTLS was not advertised (GHSA-3588-2mr7-vrcm)."""
+        with pytest.raises(SMTPError, match=self._REFUSAL):
+            self._send(monkeypatch, False)
+        assert self.srv.starttls_called is False
+        assert self.srv.login_args is None
+        assert self.srv.auth_args is None
+        assert self.srv.sendmail_args is None
+
+    @pytest.mark.parametrize("mechanism", ["XOAUTH2", "OAUTHBEARER"])
+    def test_default_not_advertised_with_oauth_raises(self, monkeypatch, mechanism):
+        """Fails on 2.3.3, which logged a warning and sent the OAuth2 token
+        in plain text when STARTTLS was not advertised
+        (GHSA-3588-2mr7-vrcm)."""
+        with pytest.raises(SMTPError, match=self._REFUSAL):
+            self._send(
+                monkeypatch,
+                False,
+                credentials={
+                    "username": "user",
+                    "oauth2_token": "tok123",
+                    "oauth2_mechanism": mechanism,
+                },
+            )
+        assert self.srv.starttls_called is False
+        assert self.srv.auth_args is None
+        assert self.srv.login_args is None
+        assert self.srv.sendmail_args is None
+
+    def test_default_not_advertised_without_credentials_warns(
+        self, monkeypatch, caplog
+    ):
         with caplog.at_level("INFO", logger="mailsuite.smtp"):
-            srv = self._send(monkeypatch, False)
+            srv = self._send(monkeypatch, False, credentials={})
         assert srv.starttls_called is False
+        assert srv.login_args is None
+        assert srv.auth_args is None
         assert srv.sendmail_args is not None
-        assert "does not support STARTTLS. Proceeding in plain text!" in caplog.text
+        assert (
+            "WARNING",
+            "SMTP server does not support STARTTLS. Proceeding in plain text!",
+        ) in [(r.levelname, r.getMessage()) for r in caplog.records]
 
     def test_false_not_advertised_stays_plain(self, monkeypatch, caplog):
         """Fails on master (``TypeError``: no ``starttls`` argument)."""
         with caplog.at_level("INFO", logger="mailsuite.smtp"):
             srv = self._send(monkeypatch, False, starttls=False)
         assert srv.starttls_called is False
+        assert srv.login_args == ("user", "pw")
         assert srv.sendmail_args is not None
-        assert "STARTTLS" not in caplog.text
+        assert [(r.levelname, r.getMessage()) for r in caplog.records] == [
+            (
+                "WARNING",
+                "Sending SMTP credentials unencrypted because starttls=False",
+            )
+        ]
+
+    def test_false_without_credentials_does_not_warn(self, monkeypatch, caplog):
+        with caplog.at_level("INFO", logger="mailsuite.smtp"):
+            srv = self._send(monkeypatch, False, credentials={}, starttls=False)
+        assert srv.starttls_called is False
+        assert srv.sendmail_args is not None
+        assert caplog.records == []
 
     def test_true_not_advertised_raises(self, monkeypatch):
         """Fails on master (``TypeError``: no ``starttls`` argument)."""
@@ -273,6 +342,25 @@ class TestSendEmailStartTLS:
         srv = self._send(monkeypatch, True, require_encryption=True, starttls=starttls)
         assert srv.implicit_tls is True
         assert srv.starttls_called is False
+        assert srv.sendmail_args is not None
+
+
+class TestSendEmailConnection:
+    @pytest.mark.parametrize("require_encryption", [False, True])
+    def test_connects_once(self, fake_smtp, require_encryption):
+        """``smtplib.SMTP(host, ...)`` and ``smtplib.SMTP_SSL(host, ...)``
+        connect in their constructors when given a host, so the explicit
+        ``server.connect()`` that followed in 2.3.3 opened a second
+        connection and leaked the first."""
+        send_email(
+            host="smtp.example.com",
+            message_from="a@example.com",
+            message_to=["b@example.org"],
+            require_encryption=require_encryption,
+        )
+        assert len(fake_smtp.instances) == 1
+        srv = fake_smtp.instances[0]
+        assert srv.connect_calls == 1
         assert srv.sendmail_args is not None
 
 

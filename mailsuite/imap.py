@@ -222,10 +222,13 @@ class IMAPClient(imapclient.IMAPClient):
                 XOAUTH2 implementation.
             starttls: Whether to upgrade a plain-text (``ssl=False``)
                 connection with STARTTLS. ``None`` (default) upgrades when
-                the server advertises STARTTLS; ``False`` never upgrades, so
-                the connection stays plain text even when STARTTLS is
-                advertised (credentials are then sent unencrypted);
-                ``True`` requires the upgrade and raises
+                the server advertises STARTTLS, and raises
+                :class:`imapclient.exceptions.IMAPClientError` before
+                authenticating when it does not, so credentials are never
+                sent in plain text. ``False`` never upgrades, so the
+                connection stays plain text even when STARTTLS is
+                advertised and credentials are sent unencrypted (a warning
+                is logged). ``True`` requires the upgrade and raises
                 :class:`imapclient.exceptions.IMAPClientError` if the server
                 does not advertise STARTTLS. Ignored when ``ssl=True``,
                 because the connection is already TLS.
@@ -300,12 +303,23 @@ class IMAPClient(imapclient.IMAPClient):
                             "IMAP server supports STARTTLS, but it is disabled"
                             " ... staying in plain text"
                         )
+                    logger.warning(
+                        "Sending IMAP credentials unencrypted because starttls=False"
+                    )
                 elif starttls_advertised:
                     logger.info("IMAP server supports STARTTLS ... activating now")
                     self.starttls(ssl_context=ssl_context)
                 elif starttls:
                     raise imapclient.exceptions.IMAPClientError(
                         "STARTTLS required but not supported by the server"
+                    )
+                else:
+                    # No trailing period: the except handler below strips it
+                    raise imapclient.exceptions.IMAPClientError(
+                        "The IMAP server does not advertise STARTTLS, so"
+                        " credentials would be sent in plain text. Use ssl=True"
+                        " for implicit TLS, or pass starttls=False to allow"
+                        " plain-text authentication"
                     )
             if using_oauth:
                 token = (

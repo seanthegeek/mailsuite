@@ -707,7 +707,13 @@ class TestStartTLS:
         monkeypatch.setattr(
             imapclient.IMAPClient, "capabilities", lambda self: capabilities
         )
-        monkeypatch.setattr(imapclient.IMAPClient, "login", lambda self, u, p: None)
+        logins: list = []
+        self.logins = logins
+        monkeypatch.setattr(
+            imapclient.IMAPClient,
+            "login",
+            lambda client, u, p: logins.append((u, p)),
+        )
         calls: list = []
         monkeypatch.setattr(
             imapclient.IMAPClient,
@@ -731,21 +737,69 @@ class TestStartTLS:
         with caplog.at_level("INFO", logger="mailsuite.imap"):
             IMAPClient("host", "u", "p", port=143, ssl=False, starttls=False)
         assert calls == []
+        assert self.logins == [("u", "p")]
         assert "STARTTLS, but it is disabled" in caplog.text
         assert "activating now" not in caplog.text
+        assert (
+            "WARNING",
+            "Sending IMAP credentials unencrypted because starttls=False",
+        ) in [(r.levelname, r.getMessage()) for r in caplog.records]
 
     def test_true_upgrades_when_advertised(self, monkeypatch):
         calls = self._stub(monkeypatch, (b"IMAP4rev1", b"STARTTLS"))
         IMAPClient("host", "u", "p", port=143, ssl=False, starttls=True)
         assert len(calls) == 1
 
-    @pytest.mark.parametrize("starttls", [None, False])
-    def test_not_advertised_stays_plain(self, monkeypatch, caplog, starttls):
+    def test_false_not_advertised_stays_plain_and_warns(self, monkeypatch, caplog):
         calls = self._stub(monkeypatch, (b"IMAP4rev1",))
         with caplog.at_level("INFO", logger="mailsuite.imap"):
-            IMAPClient("host", "u", "p", port=143, ssl=False, starttls=starttls)
+            IMAPClient("host", "u", "p", port=143, ssl=False, starttls=False)
         assert calls == []
-        assert "STARTTLS" not in caplog.text
+        assert self.logins == [("u", "p")]
+        assert (
+            "WARNING",
+            "Sending IMAP credentials unencrypted because starttls=False",
+        ) in [(r.levelname, r.getMessage()) for r in caplog.records]
+
+    _REFUSAL = (
+        "^The IMAP server does not advertise STARTTLS, so credentials would"
+        " be sent in plain text. Use ssl=True for implicit TLS, or pass"
+        " starttls=False to allow plain-text authentication$"
+    )
+
+    def _forbid_login(self, monkeypatch):
+        for name in ("login", "oauth2_login", "oauthbearer_login"):
+            monkeypatch.setattr(
+                imapclient.IMAPClient,
+                name,
+                lambda *a, **k: pytest.fail("must not log in over plain text"),
+            )
+
+    def test_default_not_advertised_raises(self, monkeypatch):
+        """Fails on 2.3.3, which logged in with the password in plain text
+        when STARTTLS was not advertised (GHSA-3588-2mr7-vrcm)."""
+        calls = self._stub(monkeypatch, (b"IMAP4rev1",))
+        self._forbid_login(monkeypatch)
+        with pytest.raises(imapclient.exceptions.IMAPClientError, match=self._REFUSAL):
+            IMAPClient("host", "u", "p", port=143, ssl=False)
+        assert calls == []
+
+    @pytest.mark.parametrize("mechanism", ["XOAUTH2", "OAUTHBEARER"])
+    def test_default_not_advertised_oauth_raises(self, monkeypatch, mechanism):
+        """Fails on 2.3.3, which sent the OAuth2 token in plain text when
+        STARTTLS was not advertised (GHSA-3588-2mr7-vrcm)."""
+        calls = self._stub(monkeypatch, (b"IMAP4rev1",))
+        self._forbid_login(monkeypatch)
+        with pytest.raises(imapclient.exceptions.IMAPClientError, match=self._REFUSAL):
+            IMAPClient(
+                "host",
+                "u",
+                port=143,
+                ssl=False,
+                oauth2_token="tok123",
+                oauth2_mechanism=mechanism,
+            )
+        assert calls == []
 
     def test_true_not_advertised_raises(self, monkeypatch):
         calls = self._stub(monkeypatch, (b"IMAP4rev1",))

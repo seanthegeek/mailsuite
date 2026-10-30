@@ -63,10 +63,13 @@ class IMAPConnection(MailboxConnection):
             oauth2_vendor: Optional vendor string for Yahoo's XOAUTH2
             starttls: Whether to upgrade a plain-text (``ssl=False``)
                 connection with STARTTLS. ``None`` (default) upgrades when
-                the server advertises STARTTLS; ``False`` never upgrades, so
-                the connection stays plain text even when STARTTLS is
-                advertised (credentials are then sent unencrypted);
-                ``True`` requires the upgrade and raises
+                the server advertises STARTTLS, and raises
+                :class:`imapclient.exceptions.IMAPClientError` before
+                authenticating when it does not, so credentials are never
+                sent in plain text. ``False`` never upgrades, so the
+                connection stays plain text even when STARTTLS is
+                advertised and credentials are sent unencrypted (a warning
+                is logged). ``True`` requires the upgrade and raises
                 :class:`imapclient.exceptions.IMAPClientError` if the server
                 does not advertise STARTTLS. Ignored when ``ssl=True``,
                 because the connection is already TLS.
@@ -189,11 +192,8 @@ class IMAPConnection(MailboxConnection):
                     config_reloading=config_reloading,
                     starttls=self._starttls,
                 )
-            except (TimeoutError, IMAPClientError):
-                logger.warning("IMAP connection timeout. Reconnecting...")
-                sleep(check_timeout)
             except Exception as e:  # noqa: BLE001
-                logger.warning(f"IMAP connection error. {e}. Reconnecting...")
+                logger.warning(f"IMAP connection error: {e!r}. Reconnecting...")
                 sleep(check_timeout)
             if config_reloading and config_reloading():
                 return

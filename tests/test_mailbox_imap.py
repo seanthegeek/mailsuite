@@ -198,3 +198,37 @@ class TestIMAPConnection:
         states = iter([False, True])
         conn.watch(lambda c: None, 1, config_reloading=lambda: next(states))
         assert captured["starttls"] is False
+
+    def test_watch_logs_client_error_text_and_retries(
+        self, monkeypatch, caplog
+    ):
+        """Fails on 2.3.3 and earlier, which reported every IMAPClientError
+        in the watch loop as a "timeout", hiding the STARTTLS refusal
+        (GHSA-3588-2mr7-vrcm)."""
+        refusal = (
+            "The IMAP server does not advertise STARTTLS, so credentials"
+            " would be sent in plain text. Use ssl=True for implicit TLS, or"
+            " pass starttls=False to allow plain-text authentication"
+        )
+        attempts = []
+
+        def fake_imapclient(*args, **kwargs):
+            attempts.append(kwargs)
+            raise IMAPClientError(refusal)
+
+        slept = []
+        monkeypatch.setattr("mailsuite.mailbox.imap.IMAPClient", fake_imapclient)
+        monkeypatch.setattr("mailsuite.mailbox.imap.sleep", slept.append)
+        conn = _bare_connection()
+        conn._client.ssl = False
+        # Enter the loop once, then stop after the failed attempt (the
+        # post-except check is the second call).
+        states = iter([False, True])
+        with caplog.at_level("WARNING", logger="mailsuite.mailbox.imap"):
+            conn.watch(lambda c: None, 7, config_reloading=lambda: next(states))
+        assert len(attempts) == 1
+        assert slept == [7]
+        warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert len(warnings) == 1
+        assert refusal in warnings[0].getMessage()
+        assert "timeout" not in warnings[0].getMessage()
