@@ -3,11 +3,26 @@
 from __future__ import annotations
 
 import base64
+import email
+import email.feedparser
+import email.utils
+import glob
 import logging
+import os
+import random
+import time
+import tracemalloc
 
 import pytest
 
+import mailsuite.utils
 from mailsuite.utils import (
+    MAX_HEADER_FIELD_LENGTH,
+    MAX_HEADER_LINES,
+    MAX_MIME_PARTS,
+    MAX_PART_DEPTH,
+    MessageLimitExceeded,
+    check_message_limits,
     create_email,
     decode_base64,
     from_trusted_domain,
@@ -17,6 +32,7 @@ from mailsuite.utils import (
     parse_dkim_signature,
     parse_email,
     parse_email_address,
+    url_regex,
 )
 
 
@@ -504,3 +520,905 @@ class TestFromTrustedDomain:
         # Without the flag, the regular header (dmarc=fail spoof.example) is used
         msg = self._msg_ar_original()
         assert from_trusted_domain(msg, ["example.com"]) is False
+
+
+
+_HEAD = (
+    "From: sender@example.net\r\n"
+    "To: dmarc@example.com\r\n"
+    "Subject: x\r\n"
+    "Date: Thu, 1 Jan 2026 00:00:00 +0000\r\n"
+    "MIME-Version: 1.0\r\n"
+)
+
+
+def _multipart(body: str, boundary: str = "L") -> str:
+    """A multipart/mixed message whose body is ``body``."""
+    content_type = f'Content-Type: multipart/mixed; boundary="{boundary}"\r\n'
+    return _HEAD + content_type + "\r\n" + body
+
+
+def _nested(depth: int, parts: int = 1) -> str:
+    """A message nested ``depth`` parts deep, with ``parts`` parts innermost."""
+    opening = "".join(
+        f"Content-Type: multipart/mixed; boundary=b{i}\n\n--b{i}\n"
+        for i in range(depth - 2)
+    )
+    inner = (
+        "Content-Type: multipart/mixed; boundary=L\n\n"
+        + "--L\n\nx\n" * parts
+        + "--L--\n"
+    )
+    closing = "".join(f"--b{i}--\n" for i in range(depth - 3, -1, -1))
+    return _HEAD + opening + inner + closing
+
+
+def _part_count(message: str) -> int:
+    return sum(1 for _ in email.message_from_string(message).walk())
+
+
+def _rejected_quickly(message: str | bytes, limit: str) -> None:
+    start = time.monotonic()
+    with pytest.raises(MessageLimitExceeded, match=limit):
+        parse_email(message)
+    assert time.monotonic() - start < 2
+
+
+def _parses_quickly(message: str) -> dict:
+    start = time.monotonic()
+    parsed = parse_email(message)
+    assert time.monotonic() - start < 2
+    return parsed
+
+
+class TestCheckMessageLimits:
+    """GHSA-748w-c9w9-79xp: bound the structure of a message before parsing."""
+
+    def test_exception_is_value_error(self):
+        assert issubclass(MessageLimitExceeded, ValueError)
+
+    def test_simple_message_passes(self, sample_email_str):
+        assert check_message_limits(sample_email_str) is None
+        assert check_message_limits(sample_email_str.encode()) is None
+
+    def test_bytes_input_is_checked(self):
+        message = (_HEAD + "X-A: b\r\n" * 4 + "\r\nbody\r\n").encode()
+        with pytest.raises(MessageLimitExceeded, match="max_header_lines"):
+            check_message_limits(message, max_header_lines=8)
+        check_message_limits(message, max_header_lines=9)
+
+    def test_feed_parser_internals_exist(self):
+        # check_message_limits() relies on these private names
+        assert callable(getattr(email.feedparser.FeedParser, "_new_message", None))
+        assert isinstance(getattr(email.feedparser.FeedParser(), "_msgstack", None), list)
+        assert callable(getattr(email.feedparser.FeedParser, "_parse_headers", None))
+        buffer = email.feedparser.BufferedSubFile()  # pyright: ignore[reportAttributeAccessIssue]
+        assert isinstance(getattr(buffer, "_eofstack", None), list)
+
+    def test_part_count_matches_the_email_package(self):
+        """Differential: for random messages the bounded parser counts
+        exactly the parts email.message_from_string() builds."""
+        lines = [
+            "", "", "--A", "--A--", "--B", "--B--", "--A----", "--A ", "--",
+            "Content-Type: multipart/mixed; boundary=A",
+            "Content-Type: multipart/mixed; boundary=B",
+            'Content-Type: multipart/mixed; boundary="A--"',
+            "Content-Type: multipart/mixed",
+            "Content-Type: message/delivery-status",
+            "Content-Type: message/rfc822",
+            "Content-Type: multipart/digest; boundary=B",
+            "Content-Type: text/plain", "X: y", " cont", "zz", "From x",
+        ]
+        rng = random.Random(748)
+        for _ in range(2_000):
+            message = "\n".join(rng.choice(lines) for _ in range(rng.randint(3, 25)))
+            parser = mailsuite.utils._BoundedFeedParser(10**9, 10**9, 10**12, 10**9)
+            parser.feed(message)
+            parser.close()
+            assert parser.part_count == _part_count(message), message
+
+    # — parts —
+
+    def test_parts_at_limit_parse(self):
+        message = _multipart("--L\r\n\r\nx\r\n" * (MAX_MIME_PARTS - 1) + "--L--\r\n")
+        assert _part_count(message) == MAX_MIME_PARTS
+        assert parse_email(message)["subject"] == "x"
+
+    def test_parts_over_limit_rejected(self):
+        message = _multipart("--L\r\n\r\nx\r\n" * MAX_MIME_PARTS + "--L--\r\n")
+        with pytest.raises(
+            MessageLimitExceeded, match=rf"max_parts \({MAX_MIME_PARTS}\)"
+        ):
+            check_message_limits(message)
+
+    def test_delivery_status_blocks_are_parts(self):
+        report = _multipart(
+            "--L\r\nContent-Type: message/delivery-status\r\n\r\n"
+            "Reporting-MTA: dns; mx.example.com\r\n" + "\r\n" * 10 + "--L--\r\n"
+        )
+        parts = _part_count(report)
+        assert parts > 10
+        check_message_limits(report, max_parts=parts)
+        with pytest.raises(MessageLimitExceeded, match="max_parts"):
+            check_message_limits(report, max_parts=parts - 1)
+        plain = report.replace("message/delivery-status", "text/plain")
+        check_message_limits(plain, max_parts=3)
+
+    def test_delivery_status_blank_lines_rejected_quickly(self):
+        """512 KiB of blank lines in a message/delivery-status part took
+        3.7 s in parse_email on 2.3.4 (Python 3.12), one Message per line."""
+        for blank in ("\n", "\r"):
+            _rejected_quickly(
+                _HEAD
+                + "Content-Type: message/delivery-status\r\n\r\n"
+                + blank * (512 * 1024),
+                "max_parts",
+            )
+
+    def test_swallowed_closing_delimiter(self):
+        """After a boundary line the email package skips a closing delimiter
+        that follows it and keeps reading parts; a scanner that closed the
+        multipart there let 4 MB of delivery-status blank lines through
+        (31.7 s)."""
+        message = (
+            _HEAD + "Content-Type: multipart/mixed; boundary=B\n\n--B\n--B--\n"
+            "Content-Type: message/delivery-status\n\n" + "\n" * 2_000_000
+        )
+        _rejected_quickly(message, "max_parts")
+        nested = _HEAD + "Content-Type: multipart/mixed; boundary=B\n\n--B\n--B--\n"
+        _rejected_quickly(nested + _nested(900, 100_000)[len(_HEAD) :], "max_depth")
+
+    def test_boundary_of_two_open_multiparts(self):
+        """A line that is the boundary of two open multiparts (``X--`` and
+        ``X`` on ``--X--``) belongs to the outermost one."""
+        message = (
+            _HEAD + 'Content-Type: multipart/mixed; boundary="X--"\n\n--X--\n'
+            'Content-Type: multipart/mixed; boundary="X"\n\n'
+            "--X\nContent-Type: text/plain\n\nhi\n--X--\n"
+            "Content-Type: message/delivery-status\n\nReporting-MTA: dns; mx\n"
+            + "\n" * 2_000_000
+        )
+        _rejected_quickly(message, "max_parts")
+
+    def test_closed_or_undeclared_boundary_does_not_end_delivery_status(self):
+        head = _HEAD + 'Content-Type: multipart/report; boundary="B"\r\n\r\n'
+        delivery_status = (
+            "--B\r\nContent-Type: message/delivery-status\r\n\r\n"
+            "Reporting-MTA: dns; mx\r\n\r\n--X\r\n"
+        )
+        closed = (
+            '--B\r\nContent-Type: multipart/alternative; boundary="X"\r\n\r\n'
+            "--X\r\nContent-Type: text/plain\r\n\r\nhi\r\n--X--\r\n"
+        )
+        undeclared = '--B\r\nzz\r\nContent-Type: multipart/mixed; boundary="X"\r\n\r\n'
+        for first_part in (closed, undeclared):
+            _rejected_quickly(
+                head + first_part + delivery_status + "\r\n" * 1_500_000, "max_parts"
+            )
+
+    def test_delivery_status_block_declaring_a_multipart(self):
+        block = 'Content-Type: multipart/mixed; boundary="Q"\r\n' + (
+            "--Q\r\nContent-Type: text/plain\r\nx\r\n" * 33_000 + "--Q--\r\n"
+        )
+        _rejected_quickly(
+            _HEAD + "Content-Type: message/delivery-status\r\n\r\n" + block, "max_parts"
+        )
+
+    def test_epilogue_parsed_again_by_mail_parser(self):
+        """mail-parser parses the top-level epilogue again when a part has
+        no start boundary; 4 MB of delivery-status blank lines there took
+        17.6 s."""
+
+        def message(blanks: int) -> str:
+            return (
+                _HEAD + "Content-Type: multipart/mixed; boundary=B\n\n"
+                "--B\nContent-Type: multipart/mixed; boundary=Z\n\nno start here\n"
+                "--B--\n--B\nContent-Type: message/delivery-status\n\n"
+                + "\n" * blanks
+                + "x: y\n--B--\n"
+            )
+
+        assert _part_count(message(20)) < 10
+        check_message_limits(message(20))
+        with pytest.raises(MessageLimitExceeded, match="max_parts"):
+            check_message_limits(message(20), max_parts=10)
+        _rejected_quickly(message(2_000_000), "max_parts")
+
+    def test_epilogue_not_parsed_again_without_a_closing_delimiter(self):
+        missing_start = (
+            "--B\nContent-Type: multipart/mixed; boundary=Z\n\nno start here\n"
+        )
+        blanks = "Content-Type: message/delivery-status\n\n" + "\n" * 20
+        top = _HEAD + "Content-Type: multipart/mixed; boundary=B\n\n"
+        for message in (
+            top + missing_start,  # the top level never closes: no epilogue
+            top + "no parts at all\n",  # an empty epilogue
+            top + missing_start + "--B--\n" + blanks,  # no --B in the epilogue
+            top + missing_start + "--B--\n--B\n" + blanks,  # no --B-- after it
+        ):
+            check_message_limits(message, max_parts=10)
+
+    # — depth —
+
+    def test_depth_at_limit_parses(self):
+        message = _nested(MAX_PART_DEPTH)
+        assert parse_email(message)["subject"] == "x"
+
+    def test_depth_over_limit_rejected(self):
+        with pytest.raises(
+            MessageLimitExceeded, match=rf"max_depth \({MAX_PART_DEPTH}\)"
+        ):
+            check_message_limits(_nested(MAX_PART_DEPTH + 1))
+
+    def test_embedded_messages_count_toward_depth(self):
+        message = _HEAD + "Content-Type: message/rfc822\r\n\r\n" * 5 + "From: a@b\r\n\r\nx\r\n"
+        check_message_limits(message, max_depth=6)
+        with pytest.raises(MessageLimitExceeded, match="max_depth"):
+            check_message_limits(message, max_depth=5)
+
+    def test_nested_multiparts_rejected_quickly(self):
+        """900 nested multiparts around 30,000 parts took 5.5 s in
+        parse_email on 2.3.4 (Python 3.12)."""
+        _rejected_quickly(_nested(901, parts=30_000), "max_depth")
+
+    # — address headers mail-parser parses —
+
+    def test_address_header_chars_at_and_over_limit(self):
+        to = "To: " + ", ".join(f"u{i}@example.com" for i in range(500)) + "\r\n"
+        cc = "Cc: " + ", ".join(f"c{i}@example.com" for i in range(500)) + "\r\n"
+        message = _HEAD + to + cc + "Resent-To: r@example.com\r\n\r\nbody\r\n"
+        names = {"from", "reply-to", "to", "cc", "bcc", "delivered-to", "sender"}
+        assert mailsuite.utils._address_header_names == names
+        parser = email.message_from_string(message)
+        chars = sum(
+            len(value) for name, value in parser.raw_items() if name.lower() in names
+        )
+        check_message_limits(message, max_address_header_chars=chars)
+        with pytest.raises(MessageLimitExceeded, match="max_address_header_chars"):
+            check_message_limits(message, max_address_header_chars=chars - 1)
+        parsed = parse_email(message)
+        assert len(parsed["to"]) == 500 and len(parsed["cc"]) == 500
+
+    def test_address_headers_counted_in_every_part_and_only_those(self):
+        flood = ";" * 60_000
+        not_counted = _HEAD + "".join(f"Return-Path: {flood}\r\n" for _ in range(8))
+        check_message_limits(not_counted + "\r\nbody\r\n")
+        embedded = "".join(f"To: {flood}\r\n" for _ in range(5))
+        message = _HEAD + "Content-Type: message/rfc822\r\n\r\n" + embedded + "\r\nx\r\n"
+        with pytest.raises(MessageLimitExceeded, match="max_address_header_chars"):
+            check_message_limits(message)
+
+    def test_malformed_address_flood_rejected_quickly(self):
+        """64 To fields of 64,000 ``;`` (4.1 MB) cost mail-parser 10.9 s and
+        1.83 GB, one diagnostic per malformed item."""
+        fields = "".join("To: " + ";" * 64_000 + "\r\n" for _ in range(64))
+        _rejected_quickly("From: a@b\r\n" + fields + "\r\nbody\r\n", "max_address")
+
+    # — boundary tests —
+
+    def test_boundary_tests_at_and_over_limit(self):
+        message = _nested(4, parts=20)
+        parser = mailsuite.utils._BoundedFeedParser(10**9, 10**9, 10**12, 10**9)
+        parser.feed(message)
+        parser.close()
+        tests = parser._input.test_count
+        assert tests > 20
+        check_message_limits(message, max_boundary_tests=tests)
+        with pytest.raises(MessageLimitExceeded, match="max_boundary_tests"):
+            check_message_limits(message, max_boundary_tests=tests - 1)
+
+    def test_deep_nesting_around_many_lines_rejected_quickly(self):
+        """The parser tests every line against each open boundary: 99
+        nested multiparts around 4 MB of two-byte lines took 4.8 s in the
+        email package alone."""
+        opening = "".join(
+            f"Content-Type: multipart/mixed; boundary=b{i}\n\n--b{i}\n" for i in range(99)
+        )
+        message = _HEAD + opening + "Content-Type: text/plain\n\n" + "a\n" * 2_097_152
+        _rejected_quickly(message, "max_boundary_tests")
+
+    # — header fields —
+
+    def test_header_field_at_limit_passes(self):
+        line = "X-Long: " + "a" * (MAX_HEADER_FIELD_LENGTH - 7) + "\r\n"
+        check_message_limits(_HEAD + line + "\r\nbody\r\n")
+
+    def test_header_field_over_limit_rejected(self):
+        line = "X-Long: " + "a" * (MAX_HEADER_FIELD_LENGTH - 6) + "\r\n"
+        with pytest.raises(
+            MessageLimitExceeded,
+            match=rf"max_header_field_length \({MAX_HEADER_FIELD_LENGTH}\)",
+        ):
+            check_message_limits(_HEAD + line + "\r\nbody\r\n")
+
+    def test_folded_header_field_counts_continuation_lines(self):
+        folded = "To: a@x" + ",\r\n a@x" * 5
+        raw_length = len(folded) - len("To: ") + len("To:")
+        check_message_limits(folded + "\r\n\r\nbody", max_header_field_length=raw_length)
+        with pytest.raises(MessageLimitExceeded, match="max_header_field_length"):
+            check_message_limits(
+                folded + "\r\n\r\nbody", max_header_field_length=raw_length - 1
+            )
+
+    def test_header_fields_at_limit_parse(self):
+        flood = "X-A: b\r\n" * (MAX_HEADER_LINES - 5)
+        assert parse_email(_HEAD + flood + "\r\nbody\r\n")["subject"] == "x"
+
+    def test_header_fields_over_limit_rejected(self):
+        flood = "X-A: b\r\n" * (MAX_HEADER_LINES - 4)
+        with pytest.raises(
+            MessageLimitExceeded, match=rf"max_header_lines \({MAX_HEADER_LINES}\)"
+        ):
+            check_message_limits(_HEAD + flood + "\r\nbody\r\n")
+
+    def test_header_fields_of_every_part_are_counted(self):
+        message = _multipart("--L\r\n" + "X-A: b\r\n" * 10 + "\r\nx\r\n--L--\r\n")
+        check_message_limits(message, max_header_lines=16)
+        with pytest.raises(MessageLimitExceeded, match="max_header_lines"):
+            check_message_limits(message, max_header_lines=15)
+
+    def test_header_lines_kept_as_defects_are_counted(self):
+        """4 MB of ``:x`` lines, which the parser keeps as defects rather
+        than fields, passed an earlier check and cost 3.07 s and 523 MB."""
+        for line in (":x", "From x", " x"):
+            message = _HEAD + f"{line}\r\n" * 10 + "\r\nbody\r\n"
+            check_message_limits(message, max_header_lines=15)
+            with pytest.raises(MessageLimitExceeded, match="max_header_lines"):
+                check_message_limits(message, max_header_lines=14)
+        for line in (":x", "From x"):
+            flood = _HEAD + f"{line}\r\n" * (4 * 1024 * 1024 // (len(line) + 2))
+            _rejected_quickly(flood + "\r\nbody\r\n", "max_header_lines")
+
+    def test_header_flood_rejected_quickly(self):
+        """A 4 MiB header flood took 1.1 s in parse_email on 2.3.4 (Python 3.12)."""
+        _rejected_quickly(
+            _HEAD + "X-A: b\r\n" * (4 * 1024 * 1024 // 8) + "\r\nbody\r\n",
+            "max_header_lines",
+        )
+
+    def test_lines_parse_email_reads_as_header_text(self):
+        """parse_email() reads everything before the first blank line as the
+        header block; a To: group there that the email package does not
+        take as a field took 46-50 s on 2.3.4 and is now not read as To."""
+        group = "g:" + ",".join("a@x" for _ in range(250_000)) + ";"
+        for message in (
+            _HEAD + f"x y To: {group}\r\n\r\nbody\r\n",
+            f" To: {group}\r\n" + _HEAD + "\r\nbody\r\n",
+            _HEAD + f"(c) To: {group}\r\n\r\nbody\r\n",
+        ):
+            parsed = _parses_quickly(message)
+            assert [to["address"] for to in parsed["to"]] == ["dmarc@example.com"]
+        # Unfolded by parse_email() but not by the email package
+        message = _HEAD.replace("To: dmarc@example.com", f"To: a@x\r\n\x0b{group}")
+        _rejected_quickly(message, "to header exceeds max_header_field_length")
+
+    def test_whitespace_lines_continue_a_field(self):
+        chunk = "X: " + ",".join(["a@x"] * 15_000) + "\n \n"
+        message = "Subject: s\nTo: g:\n \n" + chunk * 20 + "Z: z\n\nbody\n"
+        _rejected_quickly(message, "max_header_field_length")
+
+    def test_cr_only_message_with_long_address_header(self):
+        line = "X-A: " + ",".join(["a@x"] * 14) + "\r"
+        # parse_email() reads the rest of the message as the From value
+        message = "From: a@b\rTo: g:\r" + line * 20_000 + "\rbody\r"
+        check_message_limits(message)
+        _rejected_quickly(message, "from header exceeds max_header_field_length")
+        assert parse_email("Subject: s\rTo: c@d.com\r\rhello\r")["subject"] == "s"
+
+    def test_subject_is_replaced_once_in_the_header_text(self):
+        """Every ``Subject:`` in the header text was replaced with the full
+        subject: 60 KB of subject and 4,000 more ``Subject: a`` lines took
+        490 MB, 30,000 raised MemoryError."""
+        subject = "s" * 60_000
+        message = (
+            _HEAD.replace("Subject: x", f"Subject: {subject}")
+            + "zz\r\n"
+            + "Subject: a\r\n" * 30_000
+            + "\r\nbody\r\n"
+        )
+        topics = "".join(f"Thread-Topic: t{i}\r\n" for i in range(30_000))
+        for text in (message, _HEAD + topics + "\r\nbody\r\n"):
+            tracemalloc.start()
+            try:
+                parsed = _parses_quickly(text)
+                peak = tracemalloc.get_traced_memory()[1]
+            finally:
+                tracemalloc.stop()
+            assert peak < 100 * 1024 * 1024
+        assert parsed["headers_string"].count("Thread-Topic: t0") == 1
+        assert "Thread-Topic: t1\r\n" in parsed["headers_string"]
+        assert parsed["headers_string"].count("Thread-Topic: ") == 30_000
+        parsed = parse_email(message)
+        assert parsed["subject"] == subject
+        assert parsed["headers_string"].count(subject) == 1
+
+    def test_only_the_subject_field_is_replaced(self):
+        message = (
+            "From: a@example.com\r\nTo: b@example.org\r\n"
+            "X-Original-Subject: old\r\nSubject: =?utf-8?q?new?=\r\n\r\nbody\r\n"
+        )
+        lines = parse_email(message)["headers_string"].split("\r\n")
+        assert lines[-2:] == ["X-Original-Subject: old", "Subject: new"]
+
+    def test_repeated_subject_uses_the_first(self):
+        message = (
+            "From: a@example.com\r\nSubject: one\r\nSubject: two\r\n"
+            "Thread-Topic: t1\r\nThread-Topic: t2\r\n\r\nbody\r\n"
+        )
+        parsed = parse_email(message)
+        assert parsed["subject"] == "one"
+        assert parsed["filename_safe_subject"] == "one"
+        assert parsed["thread-topic"] == "t1"
+
+    def test_subject_field_name_in_any_case(self):
+        for field in (
+            "subject: =?utf-8?q?new?=",
+            "Subject:=?utf-8?q?new?=",
+            "Subject:\t=?utf-8?q?new?=",
+        ):
+            message = f"From: a@example.com\r\n{field}\r\nX-A: b\r\n\r\nbody\r\n"
+            lines = parse_email(message)["headers_string"].split("\r\n")
+            assert lines[1:] == ["Subject: new", "X-A: b"], field
+
+    def test_subject_keeps_its_terminator_and_the_next_line(self):
+        message = (
+            "From: a@example.com\r\nSubject: =?utf-8?q?a=0Db?=\r\n"
+            "To: b@example.org\r\n\r\nbody\r\n"
+        )
+        parsed = parse_email(message)
+        assert "\r\nSubject: a b\r\nTo: b@example.org" in parsed["headers_string"]
+        assert "\r" not in parsed["headers_string"].split("\r\n")[1]
+        assert [to["address"] for to in parsed["to"]] == ["b@example.org"]
+
+    def test_decoded_line_break_does_not_add_a_header(self):
+        """An encoded word decoding to a line break wrote a header of the
+        sender's choosing into the header text parse_email() reads back."""
+        for name in ("Subject", "Thread-Topic"):
+            message = (
+                "From: a@example.com\r\nTo: real@example.org\r\n"
+                f"{name}: =?utf-8?q?hi=0ATo:_evil@attacker.example=0D=0AX:_y?=\r\n"
+                "\r\nbody\r\n"
+            )
+            parsed = parse_email(message)
+            assert [to["address"] for to in parsed["to"]] == ["real@example.org"]
+            lines = parsed["headers_string"].splitlines()
+            assert not any(line.startswith("To: evil") for line in lines)
+        folded = "From: a@example.com\r\nSubject: one\r\n two\r\n\r\nbody\r\n"
+        lines = parse_email(folded)["headers_string"].split("\r\n")
+        assert lines[-1].startswith("Subject: one") and lines[-1].endswith("two")
+
+    def test_deeply_nested_comment_in_address(self):
+        value = "(" * 900 + ")" * 900 + "a@x"
+        message = f"From: a@b\nTo: {value}\nSubject: s\n\nbody\n"
+        with pytest.raises(MessageLimitExceeded, match="nested too deeply"):
+            parse_email(message)
+
+    def test_sample_messages_parse(self):
+        # parsedmarc's samples/ directory, for one
+        samples = os.environ.get("MAILSUITE_SAMPLE_DIR")
+        if not samples:
+            pytest.skip("MAILSUITE_SAMPLE_DIR is not set")
+        paths = glob.glob(os.path.join(samples, "**", "*.eml"), recursive=True)
+        assert paths
+        for path in paths:
+            with open(path, "rb") as sample:
+                assert isinstance(parse_email(sample.read()), dict), path
+
+    def test_digest_and_delivery_status_report_parse(self):
+        digest = "".join(
+            f"--D\r\n\r\nFrom: u{i}@x\r\nSubject: m{i}\r\n\r\nbody {i}\r\n\r\n"
+            for i in range(50)
+        )
+        message = _HEAD + 'Content-Type: multipart/digest; boundary="D"\r\n\r\n'
+        assert parse_email(message + digest + "--D--\r\n")["subject"] == "x"
+        report = _multipart(
+            "--L\r\nContent-Type: text/plain\r\n\r\nfailed\r\n"
+            "--L\r\nContent-Type: message/delivery-status\r\n\r\n"
+            "Reporting-MTA: dns; mx\r\n\r\nFinal-Recipient: rfc822; x@y\r\n"
+            "Action: failed\r\nStatus: 5.1.1\r\n\r\n--L--\r\n"
+        )
+        assert parse_email(report)["subject"] == "x"
+
+    def test_long_body_lines_pass(self):
+        html = "<html><head><style>body{margin:0}</style></head><body>" + (
+            "<div class='c'>x</div>" * 8_000
+        )
+        records = ",".join(f'{{"id":{i},"v":"0.5"}}' for i in range(6_000))
+        json_line = f"[{records}]"
+        for content_type, body in (
+            ("text/html", html),
+            ("text/plain", json_line),
+            ("text/plain", "PGh0bWw+" * 30_000),
+        ):
+            assert len(body) > MAX_HEADER_FIELD_LENGTH
+            message = _HEAD + f"Content-Type: {content_type}\r\n\r\n{body}\r\n"
+            check_message_limits(message)
+            assert parse_email(message)["raw_body"].strip() == body
+
+    def test_60_kib_header_line_parses(self):
+        value = "a" * (60 * 1024)
+        parsed = parse_email(_HEAD + f"X-Long: {value}\r\n\r\nbody\r\n")
+        assert parsed["x-long"] == value
+
+    def test_header_like_body_lines_are_not_counted(self):
+        cron = "".join(
+            f"2026-01-01T00:00:{i % 60:02d}Z host: event {i}\r\n"
+            for i in range(MAX_HEADER_LINES + 50_000)
+        )
+        quoted_printable = "".join(
+            f"Line{i}: value=3D{i}=\r\n" for i in range(MAX_HEADER_LINES + 10_000)
+        )
+        for headers, body in (
+            ("", cron),
+            ("Content-Transfer-Encoding: quoted-printable\r\n", quoted_printable),
+        ):
+            message = _HEAD + headers + "\r\n" + body
+            check_message_limits(message)
+            assert parse_email(message)["subject"] == "x"
+
+    def test_text_body_with_many_blank_lines_parses(self):
+        body = "".join(f"a,b,c,{i}\r\n\r\n" for i in range(110_000))
+        message = _HEAD + "\r\n" + body
+        check_message_limits(message)
+        assert parse_email(message)["subject"] == "x"
+
+    def test_signature_and_comment_lines_parse(self):
+        body = "-- \r\n-- SQL comment\r\n" * 5_500
+        message = _HEAD + "\r\n" + body
+        check_message_limits(message)
+        assert parse_email(message)["subject"] == "x"
+
+    def test_address_groups_without_commas_parse_quickly(self):
+        """A group of 16,000 members took 0.15 s to parse however they are
+        separated, so seven address headers of such groups cost seconds."""
+        for members in (
+            " ".join("a@x" for _ in range(15_000)),
+            "".join("<a@x>" for _ in range(12_000)),
+            ",".join("a" for _ in range(30_000)),
+        ):
+            group = f"g:{members};"
+            names = ("From", "Sender", "Delivered-To", "To", "Cc", "Bcc", "Reply-To")
+            # Seven such headers exceed max_address_header_chars; four fit
+            headers = "".join(f"{name}: {group}\r\n" for name in names)
+            _rejected_quickly("Subject: s\r\n" + headers + "\r\nb\r\n", "max_address")
+            headers = "".join(f"{name}: {group}\r\n" for name in names[3:])
+            _parses_quickly("Subject: s\r\n" + headers + "\r\nbody\r\n")
+
+    def test_long_groups_lose_group_syntax_and_parse_under_bound(self):
+        """Seven headers each of these three groups took 5.0 s to parse
+        with their group syntax kept."""
+        start = time.monotonic()
+        for members in (
+            " ".join("a@x" for _ in range(15_000)),
+            "".join("<a@x>" for _ in range(12_000)),
+            ",".join("a" for _ in range(30_000)),
+        ):
+            value, literals = mailsuite.utils._without_address_groups(f"g:{members};")
+            assert literals == {}
+            assert ":" not in value and ";" not in value
+            for _ in range(7):
+                email.utils.getaddresses([value])
+        assert time.monotonic() - start < 2.5
+
+    def test_group_hidden_after_a_route_address_parses_quickly(self):
+        # email.utils ends a route address one character after its address,
+        # so the group here is outside any angle brackets to it
+        group = '<a@x" g:' + ",".join("a@x" for _ in range(15_000)) + ";"
+        start = time.monotonic()
+        parse_email(f"From: a@x\r\nTo: {group}\r\nSubject: s\r\n\r\nbody\r\n")
+        assert time.monotonic() - start < 2
+
+    def test_long_address_list_keeps_every_address(self):
+        names = ", ".join(f'"Last{i}, First" <u{i}@example.com>' for i in range(1_001))
+        parsed = parse_email(f"From: a@x\r\nTo: {names}\r\nSubject: s\r\n\r\nb\r\n")
+        assert len(parsed["to"]) == 1_001
+        assert parsed["to"][1_000]["display_name"] == "Last1000, First"
+        assert parsed["to"][1_000]["address"] == "u1000@example.com"
+
+    def test_long_group_is_read_as_its_members(self):
+        padding = ", ".join(f"u{i}@example.com" for i in range(600))
+        value = f'Team: "A; B" <a@example.com>, (c;) b@example.com; {padding}'
+        assert len(value) > mailsuite.utils._ADDRESS_GROUP_PARSE_LIMIT
+        parsed = parse_email(f"From: a@x\r\nTo: {value}\r\nSubject: s\r\n\r\nb\r\n")
+        addresses = [address["address"] for address in parsed["to"]]
+        assert addresses[:3] == ["a@example.com", "b@example.com", "u0@example.com"]
+        assert parsed["to"][0]["display_name"] == "A; B"
+        assert len(addresses) == 602
+
+    def test_group_syntax_inside_quotes_and_comments_is_text(self):
+        padding = ", ".join(f"u{i}@example.com" for i in range(600))
+        value = (
+            'G: "x\\" y; z" <a@example.com>;, (c (d; e) f) b@example.com, H:;, '
+            + padding
+        )
+        stripped, literals = mailsuite.utils._without_address_groups(value)
+        assert literals == {}
+        assert stripped.startswith(
+            ' "x\\" y; z" <a@example.com>, (c (d; e) f) b@example.com,, u0@'
+        )
+        addresses = email.utils.getaddresses([stripped])
+        assert addresses[:2] == [
+            ('x" y; z', "a@example.com"),
+            ("c d; e f", "b@example.com"),
+        ]
+
+    def test_long_value_keeps_domain_literals(self):
+        padding = ", ".join(f"u{i}@example.com" for i in range(600))
+        value = f"Admin <admin@[IPv6:2001:db8::1]>, {padding}, x@[192.0.2.1]"
+        assert len(value) > mailsuite.utils._ADDRESS_GROUP_PARSE_LIMIT
+        stripped, literals = mailsuite.utils._without_address_groups(value)
+        assert list(literals.values()) == ["[IPv6:2001:db8::1]"]
+        assert ":" not in stripped
+        assert "x@[192.0.2.1]" in stripped
+        parsed = parse_email(f"From: a@x\r\nTo: {value}\r\nSubject: s\r\n\r\nb\r\n")
+        addresses = [address["address"] for address in parsed["to"]]
+        # Each item parses as email.utils parses it alone (its strict mode
+        # gives a domain literal no address), and every other one survives
+        for item, address in zip(
+            ("Admin <admin@[IPv6:2001:db8::1]>", "x@[192.0.2.1]"),
+            (addresses[0], addresses[-1]),
+            strict=True,
+        ):
+            assert address == email.utils.getaddresses([item])[0][1]
+        assert addresses[1:-1] == [f"u{i}@example.com" for i in range(600)]
+
+    def test_long_and_short_from_with_a_literal_parse_alike(self):
+        short = "Admin <admin@[IPv6:2001:db8::1]>"
+        long = "Admin" + " " * 9_000 + " <admin@[IPv6:2001:db8::1]>"
+        results = [
+            parse_email(f"From: {value}\r\nTo: a@x\r\nSubject: s\r\n\r\nb\r\n")["from"]
+            for value in (short, long)
+        ]
+        assert results[0] == results[1]
+        assert results[0]["display_name"] == "Admin"
+        assert results[0]["compliant"] is False
+        # No @ to split on: no local part or domain either way
+        results = [
+            parse_email(f"From: {value}\r\nTo: a@x\r\nSubject: s\r\n\r\nb\r\n")["from"]
+            for value in ("x [IPv6:1::2]", "x" + " " * 9_000 + " [IPv6:1::2]")
+        ]
+        for result in results:
+            assert result["local"] is None and result["domain"] is None
+            assert result["address"].strip().endswith(" [IPv6:1::2]")
+        assert results[0]["display_name"] == "x [IPv6:1::2]"
+        assert results[1]["display_name"].endswith(" [IPv6:1::2]")
+
+    def test_literal_holding_an_at_sign_parses_alike(self, monkeypatch):
+        # The long path forced on the same text, so only the literal swap
+        # and restore can make a difference
+        for value in (
+            "x@[a@b:c]",
+            "Admin <x@[a@b:c]>",
+            "Admin <x@[IPv6:1::2]>",
+            "X <A@[a@B:c]>",
+        ):
+            short = parse_email_address(value)
+            monkeypatch.setattr(mailsuite.utils, "_ADDRESS_GROUP_PARSE_LIMIT", 0)
+            stripped, literals = mailsuite.utils._without_address_groups(value)
+            monkeypatch.undo()
+            assert literals, value
+            long = mailsuite.utils._address_with_literals(
+                parse_email_address(stripped), literals
+            )
+            assert dict(long) == dict(short), value
+        assert short["local"] == "a"
+
+    def test_literal_holds_no_bracket(self):
+        """A literal class allowing ``[`` made 65,000 ``[`` in each of four
+        address headers take 27.1 s; one allowing ``]`` merged literals."""
+        run = "[" * 65_000
+        headers = "".join(f"{name}: {run}\r\n" for name in ("To", "Cc", "Bcc", "Reply-To"))
+        _parses_quickly("From: a@x\r\nSubject: s\r\n" + headers + "\r\nbody\r\n")
+        padding = ", ".join(f"u{i}@example.com" for i in range(600))
+        value = f"a@[x:y],b@[c:d], {padding}"
+        stripped, literals = mailsuite.utils._without_address_groups(value)
+        assert sorted(literals.values()) == ["[c:d]", "[x:y]"]
+        assert len(email.utils.getaddresses([stripped])) == 602
+        _, literals = mailsuite.utils._without_address_groups(
+            f"a@[x:y],b@c.example], {padding}"
+        )
+        assert list(literals.values()) == ["[x:y]"]
+
+    def test_literal_does_not_span_quotes_comments_or_angles(self):
+        # Shapes where a literal allowed to hold one of these characters
+        # would swallow a quoted string, a comment or an angle address
+        for item in (
+            ':[\\[:.""]',
+            '<[]\\[ :@b ][a:b]b',
+            "x@y.example][,.((:](<[a:b]@ ",
+            ")aa[a:b][>>b.:a]",
+            "a[<][a:b][,\\[\\:a]]",
+        ):
+            value = item + " " * 9_000
+            stripped, literals = mailsuite.utils._without_address_groups(value)
+            for literal in literals.values():
+                assert not set(literal) & set('"()<>\\ \t'), (item, literal)
+            assert ":" not in stripped
+            parse_email(f"From: {value}\r\nTo: a@x\r\nSubject: s\r\n\r\nb\r\n")
+
+    def test_general_address_literals_are_kept(self):
+        padding = ", ".join(f"u{i}@example.com" for i in range(600))
+        for literal in ("a@[x:a_b]", "a@[IPv6:1::2%eth0]"):
+            value = f"{literal}, {padding}"
+            stripped, literals = mailsuite.utils._without_address_groups(value)
+            assert list(literals.values()) == [literal[2:]]
+            assert ":" not in stripped
+            parsed = parse_email(f"From: a@x\r\nTo: {value}\r\nSubject: s\r\n\r\nb\r\n")
+            assert len(parsed["to"]) == 601, literal
+            assert parsed["to"][600]["address"] == "u599@example.com"
+
+    def test_domain_literals_round_trip_to_their_own_values(self):
+        padding = ", ".join(f"u{i}@example.com" for i in range(600))
+        value = f"a@[IPv6:1::2], b@[IPv6:3::4], c@[nocolon], {padding}"
+        stripped, literals = mailsuite.utils._without_address_groups(value)
+        assert sorted(literals.values()) == ["[IPv6:1::2]", "[IPv6:3::4]"]
+        assert "c@[nocolon]" in stripped
+        first, second = literals
+        assert mailsuite.utils._with_literals(
+            (f"x {first}", f"a@{second}"), literals
+        ) == ("x [IPv6:1::2]", "a@[IPv6:3::4]")
+
+    def test_placeholder_token_differs_per_call(self):
+        padding = ", ".join(f"u{i}@example.com" for i in range(600))
+        value = f"a@[IPv6:1::2], {padding}"
+        _, first = mailsuite.utils._without_address_groups(value)
+        _, second = mailsuite.utils._without_address_groups(value)
+        assert set(first).isdisjoint(second)
+        # A sender who learned an earlier call's placeholder cannot use it
+        forged = next(iter(first))
+        assert mailsuite.utils._with_literals((forged, "x"), second) == (forged, "x")
+
+    def test_placeholder_written_by_the_sender_is_left_alone(self):
+        padding = ", ".join(f"u{i}@example.com" for i in range(600))
+        forged = "[ms-0123456789abcdef-7]"
+        value = f'"{forged}" <v@example.com>, a@[IPv6:1::2], {padding}'
+        parsed = parse_email(f"From: a@x\r\nTo: {value}\r\nSubject: s\r\n\r\nb\r\n")
+        assert parsed["to"][0]["display_name"] == forged
+        assert parsed["to"][0]["address"] == "v@example.com"
+        _, literals = mailsuite.utils._without_address_groups(value)
+        guessed = next(iter(literals)).rsplit("-", 1)[0] + "-5]"
+        assert mailsuite.utils._with_literals((guessed, forged), literals) == (
+            guessed,
+            forged,
+        )
+
+    def test_short_address_values_are_parsed_unchanged(self):
+        for value in (
+            "a@example.com, b@example.org",
+            '"Support: Help" <s@example.com>',
+            "Team: a@example.com, b@example.org;",
+            "(note: x) a@example.com",
+            "<a:b@example.com>",
+        ):
+            parsed = parse_email(f"From: a@x\r\nTo: {value}\r\nSubject: s\r\n\r\nb\r\n")
+            expected = [
+                parse_email_address(address)
+                for address in email.utils.getaddresses([value])
+            ]
+            assert parsed["to"] == expected, value
+
+    def test_address_header_found_only_at_line_start(self):
+        # A header-block line that does not start a field is not a field
+        parsed = parse_email(
+            "From: a@example.com\r\nx y Cc: c@example.org\r\nSubject: hi\r\n"
+            "\r\nbody\r\n"
+        )
+        assert parsed["cc"] == []
+
+    def test_multipart_report_with_embedded_message_parses(self):
+        message = (
+            "From: reporter@example.org\r\n"
+            "To: dmarc@example.com\r\n"
+            "Subject: Report\r\n"
+            "MIME-Version: 1.0\r\n"
+            "Content-Type: multipart/report; report-type=feedback-report;\r\n"
+            ' boundary="outer"\r\n'
+            "\r\n"
+            "--outer\r\n"
+            "Content-Type: text/plain\r\n"
+            "\r\n"
+            "A message failed DMARC.\r\n"
+            "--outer\r\n"
+            "Content-Type: message/feedback-report\r\n"
+            "\r\n"
+            "Feedback-Type: auth-failure\r\n"
+            "Version: 1\r\n"
+            "Auth-Failure: dmarc\r\n"
+            "\r\n"
+            "--outer\r\n"
+            "Content-Type: message/rfc822\r\n"
+            "\r\n"
+            "From: someone@example.com\r\n"
+            "To: user@example.org\r\n"
+            "Subject: Original\r\n"
+            "MIME-Version: 1.0\r\n"
+            'Content-Type: multipart/alternative; boundary="inner"\r\n'
+            "\r\n"
+            "--inner\r\n"
+            "Content-Type: text/plain\r\n"
+            "\r\n"
+            "hello\r\n"
+            "--inner\r\n"
+            "Content-Type: text/html\r\n"
+            "\r\n"
+            "<p>hello</p>\r\n"
+            "--inner--\r\n"
+            "--outer--\r\n"
+        )
+        check_message_limits(message, max_parts=8, max_depth=4)
+        with pytest.raises(MessageLimitExceeded, match="max_parts"):
+            check_message_limits(message, max_parts=7)
+        with pytest.raises(MessageLimitExceeded, match="max_depth"):
+            check_message_limits(message, max_depth=3)
+        parsed = parse_email(message)
+        assert parsed["subject"] == "Report"
+        assert parsed["text_plain"][0].strip() == "A message failed DMARC."
+        assert parsed["text_html"] == ["<p>hello</p>"]
+
+    def test_message_with_attachment_parses(self):
+        message = create_email(
+            message_from="a@example.com",
+            message_to=["b@example.org"],
+            subject="Attached",
+            plain_message="see attached",
+            attachments=[("data.bin", bytes(range(256)) * 1024)],
+        )
+        parsed = parse_email(message)
+        assert parsed["subject"] == "Attached"
+        assert parsed["attachments"][0]["filename"] == "data.bin"
+
+    def test_outlook_msg_is_checked_after_conversion(self, monkeypatch, sample_email_str):
+        ole = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 64
+        monkeypatch.setattr(
+            mailsuite.utils, "convert_outlook_msg", lambda _data: sample_email_str
+        )
+        assert parse_email(ole)["subject"] == "Hello"
+        flood = _HEAD + "X-A: b\r\n" * MAX_HEADER_LINES + "\r\nbody\r\n"
+        monkeypatch.setattr(mailsuite.utils, "convert_outlook_msg", lambda _data: flood)
+        with pytest.raises(MessageLimitExceeded, match="max_header_lines"):
+            parse_email(ole)
+
+    def test_large_address_group_rejected_quickly(self):
+        """A To: group of 250,000 members (1 MB) took 44.3 s in parse_email
+        on 2.3.4 (Python 3.12), nearly all of it parsing the group whole."""
+        # Unfolded, and folded after every member
+        for separator, limit in (
+            (",", "max_header_field_length"),
+            (",\r\n ", "max_header_lines"),
+        ):
+            group = "g:" + separator.join("a@x" for _ in range(250_000))
+            _rejected_quickly(
+                f"From: a@b\r\nTo: {group};\r\nSubject: s\r\n\r\nbody\r\n", limit
+            )
+
+
+class TestUrlRegex:
+    """GHSA-748w-c9w9-79xp: body URL extraction is linear in the body."""
+
+    def test_long_run_of_letters_is_linear(self):
+        """findall() on 80,000 letters took 5.1 s on 2.3.4 (100,000: about
+        8 s): the scheme group was retried from every offset inside the run."""
+        start = time.monotonic()
+        assert url_regex.findall("x" * 100_000) == []
+        assert time.monotonic() - start < 2
+
+    def test_long_body_line_parses_quickly(self):
+        """A 114 KB JSON body line took 10.7 s in parse_email on 2.3.4."""
+        body = '{"a":"' + "x" * 114_000 + '"}'
+        start = time.monotonic()
+        parsed = parse_email(f"From: a@b.example\r\nSubject: x\r\n\r\n{body}\r\n")
+        assert parsed["body_urls"] == []
+        assert time.monotonic() - start < 2
+
+    def test_urls_after_any_prefix_are_found(self):
+        for text, url in (
+            ("http://a.example/p", "http://a.example/p"),
+            ("see (https://a.example/x)", "https://a.example/x"),
+            ("<http://a.example/y>", "http://a.example/y"),
+            ('"https://a.example/q"', "https://a.example/q"),
+            ("1http://a.example/d", "http://a.example/d"),
+            ("_http://a.example/u", "http://a.example/u"),
+            ("foohttp://a.example/f", "foohttp://a.example/f"),
+        ):
+            parsed = parse_email(f"From: a@b.example\r\nSubject: x\r\n\r\n{text}\r\n")
+            assert parsed["body_urls"] == [url], text

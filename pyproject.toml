@@ -40,7 +40,7 @@ dependencies = [
     "expiringdict==1.2.2",
     "html2text>=2020.1.16",
     "IMAPClient>=4.0.0",
-    "mail-parser>=4.6.2",
+    "mail-parser>=4.9.0",
     "publicsuffix2>=2.20190812",
 ]
 dynamic = [

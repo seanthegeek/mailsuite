@@ -1,4 +1,4 @@
-mail-parser>=4.6.2
+mail-parser>=4.9.0
 imapclient>=4.0.0
 html2text>=2020.1.16
 dnspython>=2.0.0

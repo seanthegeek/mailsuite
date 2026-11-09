@@ -1,10 +1,15 @@
 import base64
 import email
+import email.errors
+import email.feedparser
+import email.message
+import email.policy
 import email.utils
 import hashlib
 import logging
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import tempfile
@@ -28,12 +33,14 @@ logger.addHandler(logging.NullHandler())
 mailparser_logger = logging.getLogger("mailparser")
 mailparser_logger.setLevel(logging.CRITICAL)
 
+# The lookbehind starts a scheme only where a run of letters starts; without
+# it every offset inside a long run is retried, which is quadratic
 url_regex = re.compile(
-    r"([A-Za-z]+://)([-\w]+(?:\.\w[-\w]*)+)(:\d+)?(/[^.!,?"
+    r"(?<![A-Za-z])([A-Za-z]+://)([-\w]+(?:\.\w[-\w]*)+)(:\d+)?(/[^.!,?"
     r"\"<>\[\]{}\s\x7F-\xFF]*(?:[.!,?]+[^.!,?"
     r"\"<>\[\]{}\s\x7F-\xFF]+)*)?"
 )
-header_regex = re.compile(r"([a-zA-Z-]+): (.+)")
+header_regex = re.compile(r"^([a-zA-Z-]+): (.+)", re.MULTILINE)
 
 null_file = open(os.devnull, "w")  # noqa: SIM115
 
@@ -52,9 +59,56 @@ authentication_results_headers = [
 address_headers = ["from", "sender", "delivered-to"]
 addresses_headers = ["reply-to", "to", "cc", "bcc"]
 
+#: Longest header field accepted by :func:`check_message_limits`, in
+#: characters of its name, colon and raw value, folded lines included; also
+#: the longest address header value :func:`parse_email` reads. RFC 5322
+#: section 2.1.1 limits a line to 998 characters; this is far above that.
+MAX_HEADER_FIELD_LENGTH = 65_536
+#: Most header lines (folded lines and lines the parser keeps as defects
+#: included), over all parts, accepted by :func:`check_message_limits`
+MAX_HEADER_LINES = 100_000
+#: Most parts (the message itself, MIME parts, ``message/*`` bodies and
+#: ``message/delivery-status`` blocks) accepted by
+#: :func:`check_message_limits`
+MAX_MIME_PARTS = 10_000
+#: Deepest nesting of parts accepted by :func:`check_message_limits`, the
+#: message itself being 1
+MAX_PART_DEPTH = 100
+#: Most tests of a line against an open multipart boundary or
+#: delivery-status block end accepted by :func:`check_message_limits`: the
+#: parser tests every line against each one open, so its time grows with
+#: lines times nesting
+MAX_BOUNDARY_TESTS = 20_000_000
+# Address header values longer than this lose their group syntax before
+# they are parsed; shorter ones parse in milliseconds even so
+_ADDRESS_GROUP_PARSE_LIMIT = 8_192
+# A domain literal (RFC 5322 section 3.4.1 dtext, which RFC 5321's
+# General-address-literal fits). The class also excludes quotes, angle
+# brackets, parentheses and white space, so a literal cannot span a quoted
+# string, an angle address or a comment, and both brackets, so matching is
+# linear.
+_domain_literal_regex = re.compile(r'\[[^\[\]\\"<>()\s]*\]')
+_literal_placeholder_regex = re.compile(r"\[ms-[0-9a-f]{16}-[0-9]+\]")
+#: Most characters in the values of the address headers mail-parser parses
+#: (``From``, ``Reply-To``, ``To``, ``Cc``, ``Bcc``, ``Delivered-To``) plus
+#: ``Sender``, which :func:`parse_email` parses, counted in every part,
+#: accepted by :func:`check_message_limits`; mail-parser does work per
+#: malformed address item in each of them
+MAX_ADDRESS_HEADER_CHARS = 262_144
+# Those headers, lower case. mail-parser reads them only from the top-level
+# message (mailparser/const.py ADDRESSES_HEADERS); counting every part is
+# the conservative choice.
+_address_header_names = frozenset(
+    ("from", "reply-to", "to", "cc", "bcc", "delivered-to", "sender")
+)
+
 
 class EmailParserError(RuntimeError):
     """Raised when an email parsing error occurs"""
+
+
+class MessageLimitExceeded(ValueError):
+    """Raised when a message exceeds a limit of :func:`check_message_limits`"""
 
 
 def decode_base64(data: str) -> bytes:
@@ -330,6 +384,308 @@ def parse_dkim_signature(dkim_signature: str | dict) -> dict | list:
         raise ValueError("Must be a string or list")  # noqa: TRY004
 
 
+def _limit_exceeded(name: str, value: int) -> MessageLimitExceeded:
+    return MessageLimitExceeded(f"Message exceeds {name} ({value})")
+
+
+# BufferedSubFile is missing from typeshed's email.feedparser stub
+class _CountingInput(email.feedparser.BufferedSubFile):  # pyright: ignore[reportAttributeAccessIssue]
+    """The feed parser's line buffer, stopped after a number of end tests"""
+
+    def __init__(self, max_tests: int):
+        super().__init__()
+        self._test_limit = max_tests
+        self.test_count = 0
+
+    # Each line read is tested against every open multipart boundary and
+    # delivery-status block end (BufferedSubFile._eofstack, private and
+    # unchanged since Python 2), so the parse costs lines times nesting
+    def readline(self):
+        self.test_count += len(self._eofstack)
+        if self.test_count > self._test_limit:
+            raise _limit_exceeded("max_boundary_tests", self._test_limit)
+        return super().readline()
+
+
+class _BoundedFeedParser(email.feedparser.FeedParser):
+    """The email package's parser, stopped at a number or depth of parts"""
+
+    def __init__(
+        self,
+        max_parts: int,
+        max_depth: int,
+        max_boundary_tests: int,
+        max_header_lines: int,
+    ):
+        super().__init__(policy=email.policy.compat32)
+        self._input = _CountingInput(max_boundary_tests)
+        self._part_limit = max_parts
+        self._depth_limit = max_depth
+        self._header_line_limit = max_header_lines
+        self.part_count = 0
+        self.header_line_count = 0
+
+    # FeedParser._new_message() creates every part (the message itself,
+    # multipart parts, message/* bodies and each block of a
+    # message/delivery-status body) and FeedParser._msgstack holds the parts
+    # still open. Both are private, and unchanged since Python 2; a test
+    # fails if either goes away.
+    def _new_message(self) -> None:
+        self.part_count += 1
+        if self.part_count > self._part_limit:
+            raise _limit_exceeded("max_parts", self._part_limit)
+        if len(self._msgstack) + 1 > self._depth_limit:  # pyright: ignore[reportAttributeAccessIssue]
+            raise _limit_exceeded("max_depth", self._depth_limit)
+        super()._new_message()  # pyright: ignore[reportAttributeAccessIssue]
+
+    # FeedParser._parse_headers() receives each header block as its lines,
+    # before it turns them into fields and defects (":x", a misplaced
+    # "From x", a leading continuation line), so every line is counted
+    def _parse_headers(self, lines: list[str]) -> None:
+        self.header_line_count += len(lines)
+        if self.header_line_count > self._header_line_limit:
+            raise _limit_exceeded("max_header_lines", self._header_line_limit)
+        super()._parse_headers(lines)  # pyright: ignore[reportAttributeAccessIssue]
+
+
+def _parse_within_limits(
+    text: str,
+    max_parts: int,
+    max_depth: int,
+    max_boundary_tests: int,
+    max_header_field_length: int,
+    max_header_lines: int,
+    max_address_header_chars: int,
+) -> email.message.Message:
+    parser = _BoundedFeedParser(
+        max_parts, max_depth, max_boundary_tests, max_header_lines
+    )
+    parser.feed(text)
+    message = parser.close()
+    address_chars = 0
+    for part in message.walk():
+        for name, value in part.raw_items():
+            value = str(value)
+            if len(name) + 1 + len(value) > max_header_field_length:
+                raise _limit_exceeded(
+                    "max_header_field_length", max_header_field_length
+                )
+            if name.lower() in _address_header_names:
+                address_chars += len(value)
+                if address_chars > max_address_header_chars:
+                    raise _limit_exceeded(
+                        "max_address_header_chars", max_address_header_chars
+                    )
+    return message
+
+
+def check_message_limits(
+    data: str | bytes,
+    *,
+    max_parts: int = MAX_MIME_PARTS,
+    max_depth: int = MAX_PART_DEPTH,
+    max_boundary_tests: int = MAX_BOUNDARY_TESTS,
+    max_header_field_length: int = MAX_HEADER_FIELD_LENGTH,
+    max_header_lines: int = MAX_HEADER_LINES,
+    max_address_header_chars: int = MAX_ADDRESS_HEADER_CHARS,
+) -> None:
+    """
+    Reject a message whose structure would make parsing it slow or
+    memory-hungry
+
+    The message is parsed with the email package's own parser and policy
+    (``compat32``, which ``email.message_from_string()`` and mail-parser
+    use), counting the parts it creates (the message itself, MIME parts,
+    ``message/*`` bodies and each block of a ``message/delivery-status``
+    body), how deeply they nest, and how many times it tests a line against
+    an open boundary or block end (an upper bound: it tests each one open
+    until one matches), and the lines of its header blocks, including those
+    it keeps only as defects; the parse stops as soon as a count goes above
+    its limit, the header lines being counted after each header block is
+    read, so one oversized block is read once before it is rejected. The
+    header fields of the parsed parts are then limited in length, and in
+    the total length of the address headers mail-parser parses (``From``,
+    ``Reply-To``, ``To``, ``Cc``, ``Bcc``, ``Delivered-To``) plus
+    ``Sender``, which :func:`parse_email` parses, counted in every part.
+
+    mail-parser parses one more text: when any part has a
+    ``StartBoundaryNotFoundDefect``, it parses the text of the top-level
+    epilogue between the first ``--<boundary>`` and the next
+    ``--<boundary>--`` (``mailparser/core.py`` lines 735-752 and
+    ``find_between()`` in ``mailparser/utils.py`` lines 374-380, 4.9.0 and
+    4.10.0). That text is checked with the same limits.
+
+    Args:
+        data: An RFC 822 message; bytes are decoded as UTF-8, with
+          undecodable bytes replaced
+        max_parts: Most parts, the message itself included
+        max_depth: Deepest nesting of parts, the message itself being 1
+        max_boundary_tests: Most tests of a line against an open multipart
+          boundary or delivery-status block end
+        max_header_field_length: Longest header field, in characters of
+          its name, colon and raw value, folded lines included
+        max_header_lines: Most header lines, folded lines and lines kept
+          as defects included, over all parts
+        max_address_header_chars: Most characters in the values of the
+          ``From``, ``Reply-To``, ``To``, ``Cc``, ``Bcc``, ``Delivered-To``
+          and ``Sender`` headers, counted in every part
+
+    Raises:
+        MessageLimitExceeded: The message exceeds one of the limits; the
+          message names the limit and its value
+    """
+    if isinstance(data, bytes):
+        data = data.decode("utf-8", errors="replace")
+    limits = (
+        max_parts,
+        max_depth,
+        max_boundary_tests,
+        max_header_field_length,
+        max_header_lines,
+        max_address_header_chars,
+    )
+    message = _parse_within_limits(data, *limits)
+    if not any(
+        isinstance(defect, email.errors.StartBoundaryNotFoundDefect)
+        for part in message.walk()
+        for defect in part.defects
+    ):
+        return
+    boundary = message.get_boundary()
+    epilogue = message.epilogue
+    if boundary is None or not isinstance(epilogue, str):
+        return
+    start = epilogue.find(f"--{boundary}")
+    if start < 0:
+        return
+    start += len(boundary) + 2
+    end = epilogue.find(f"--{boundary}--", start)
+    if end < 0:
+        return
+    _parse_within_limits(epilogue[start:end].strip(), *limits)
+
+
+def _without_address_groups(value: str) -> tuple[str, dict[str, str]]:
+    """
+    Remove RFC 5322 group syntax from a long address header value
+
+    Parsing a group with many members whole takes time out of proportion
+    to its size, so a value longer than
+    ``_ADDRESS_GROUP_PARSE_LIMIT`` loses each group's display name and its
+    ``:``, and each group's ``;`` becomes a comma before a following
+    address; these are found outside quoted strings, comments and angle
+    brackets. Every other ``:`` is removed too, since email.utils lexes some
+    text differently (a route address ends one character past its address)
+    and with no ``:`` it cannot find a group; a domain literal holding one
+    (``[IPv6:2001:db8::1]``) is first swapped for a placeholder carrying a
+    random token, returned in the mapping for :func:`_with_literals`, so a
+    sender cannot write one. Shorter values are unchanged. The removal loses
+    the ``:`` of a quoted display name or local part (``"a:b"@c.example``
+    becomes ``"ab"@c.example``) and of an angle address's local part
+    (``<a:b@c.example>`` is read as ``ab@c.example``) and a source route's
+    address, and a malformed literal holding ``[`` or ``\\`` can make the
+    strict parser return no address for the whole value.
+    """
+    if len(value) <= _ADDRESS_GROUP_PARSE_LIMIT:
+        return value, {}
+    literals: dict[str, str] = {}
+    token = secrets.token_hex(8)
+
+    def placeholder(match: re.Match[str]) -> str:
+        if ":" not in match.group():
+            return match.group()
+        key = f"[ms-{token}-{len(literals)}]"
+        literals[key] = match.group()
+        return key
+
+    value = _domain_literal_regex.sub(placeholder, value)
+    kept: list[str] = []
+    # Where the current address starts in kept
+    segment = 0
+    quoted = escaped = angle = after_group = False
+    comment_depth = 0
+    for char in value:
+        if after_group and not (escaped or quoted or comment_depth or char.isspace()):
+            # Keep the address after a group apart from the group's last one
+            after_group = False
+            if char not in ",;":
+                kept.append(",")
+                segment = len(kept)
+        if escaped:
+            escaped = False
+        elif quoted or comment_depth:
+            if char == "\\":
+                escaped = True
+            elif quoted:
+                quoted = char != '"'
+            elif char == "(":
+                comment_depth += 1
+            elif char == ")":
+                comment_depth -= 1
+        elif char == '"':
+            quoted = True
+        elif char == "(":
+            comment_depth = 1
+        elif char == "<":
+            angle = True
+        elif char == ">":
+            angle = False
+            kept.append(char)
+            segment = len(kept)
+            continue
+        elif char == "," and not angle:
+            kept.append(char)
+            segment = len(kept)
+            continue
+        elif char == ":" and not angle:
+            del kept[segment:]
+            continue
+        elif char == ";" and not angle:
+            segment = len(kept)
+            after_group = True
+            continue
+        kept.append(char)
+    return "".join(kept).replace(":", ""), literals
+
+
+def _restore_literals(text: str, literals: dict[str, str]) -> str:
+    # Put back the domain literals _without_address_groups() swapped out;
+    # any other text that looks like a placeholder is the sender's own
+    if not literals:
+        return text
+    return _literal_placeholder_regex.sub(
+        lambda match: literals.get(match.group(), match.group()), text
+    )
+
+
+def _with_literals(
+    address: tuple[str, str], literals: dict[str, str]
+) -> tuple[str, str]:
+    return (
+        _restore_literals(address[0], literals),
+        _restore_literals(address[1], literals),
+    )
+
+
+def _address_with_literals(parsed: dict, literals: dict[str, str]) -> dict:
+    # parse_email_address() output with the domain literals put back in the
+    # display name and address, and the local part, domain and SLD derived
+    # again from the restored address as parse_email_address() derives them,
+    # since a literal may hold an "@"
+    if not literals:
+        return parsed
+    if parsed["display_name"] is not None:
+        parsed["display_name"] = _restore_literals(parsed["display_name"], literals)
+    address = parsed["address"] = _restore_literals(parsed["address"], literals)
+    address_parts = address.split("@")
+    parsed["local"] = parsed["domain"] = parsed["sld"] = None
+    if len(address_parts) > 1:
+        parsed["local"] = address_parts[0].lower()
+        parsed["domain"] = address_parts[-1].lower()
+        parsed["sld"] = get_sld(parsed["domain"])
+    return parsed
+
+
 def parse_email(
     data: str | bytes, strip_attachment_payloads: bool = False
 ) -> dict:
@@ -341,6 +697,13 @@ def parse_email(
         strip_attachment_payloads: Remove attachment payloads
 
     Returns: Parsed email data
+
+    Raises:
+        MessageLimitExceeded: The message exceeds a limit of
+          :func:`check_message_limits`, checked with its defaults before
+          parsing; an address header value, read up to the next ``\\n``,
+          is longer than ``MAX_HEADER_FIELD_LENGTH``; or an address header
+          nests comments too deeply to parse. It is a ``ValueError``.
 
     .. note::
       Attachment dictionaries with binary payloads contain the value
@@ -359,6 +722,7 @@ def parse_email(
     else:
         raise TypeError("data must be a file path, RFC 822 string, or bytes")
 
+    check_message_limits(data_str)
     _parsed_email = mailparser.parse_from_string(data_str)
     parsed_email = _parsed_email.mail
     # mail-parser <=4.6.1 returns the input string for unparseable input;
@@ -370,36 +734,60 @@ def parse_email(
     headers_str = re.sub(r"(\n|\r\n)\s+", " ", headers_str)
     if "to_domains" in parsed_email and "" in parsed_email["to_domains"]:
         parsed_email["to_domains"].remove("")
-    if "subject" in parsed_email:
-        # Use a function replacement so backslash sequences in the decoded
-        # subject (e.g. "\1", "\g<0>") aren't interpreted as group references.
-        headers_str = re.sub(
-            r"Subject: .+",
-            lambda _m: f"Subject: {parsed_email['subject']}",
-            headers_str,
-        )
-
-    if "thread-topic" in parsed_email:
-        headers_str = re.sub(
-            r"Thread-Topic: .+",
-            lambda _m: f"Thread-Topic: {parsed_email['thread-topic']}",
-            headers_str,
-        )
+    # mail-parser gives a list for a repeated field; the first one is used.
+    # Only the first field at the start of the text or after a "\n" is replaced
+    # with its decoded text, and a line break in that text becomes a space:
+    # it would otherwise add a header line of the sender's choosing, and RFC
+    # 2047 section 5 asks decoders to make sure displaying decoded text has
+    # no unwanted side-effects. A function replacement keeps backslash
+    # sequences (e.g. "\1") from being group references, and the field's
+    # own line terminator is kept.
+    for name, key in (("Subject", "subject"), ("Thread-Topic", "thread-topic")):
+        if key in parsed_email:
+            if isinstance(parsed_email[key], list):
+                parsed_email[key] = parsed_email[key][0]
+            decoded = str(parsed_email[key]).replace("\r", " ").replace("\n", " ")
+            headers_str = re.sub(
+                rf"^{name}:[^\r\n]*",
+                lambda _m, text=f"{name}: {decoded}": text,
+                headers_str,
+                count=1,
+                flags=re.MULTILINE | re.IGNORECASE,
+            )
     parsed_email["headers_string"] = headers_str
     _headers = {}
     _header_matches = header_regex.findall(headers_str)
     for header in _header_matches:
         _headers[header[0].lower()] = header[1]
-    for header in address_headers:
-        if header not in _headers:
-            parsed_email[header] = None
-        else:
-            parsed_email[header] = parse_email_address(_headers[header])
-    for header in addresses_headers:
-        if header not in _headers:
-            parsed_email[header] = []
-        else:
-            parsed_email[header] = [parse_email_address(x) for x in email.utils.getaddresses([_headers[header]])]
+    for header in address_headers + addresses_headers:
+        if len(_headers.get(header, "")) > MAX_HEADER_FIELD_LENGTH:
+            raise MessageLimitExceeded(
+                f"Message {header} header exceeds max_header_field_length "
+                f"({MAX_HEADER_FIELD_LENGTH})"
+            )
+    try:
+        for header in address_headers:
+            if header not in _headers:
+                parsed_email[header] = None
+            else:
+                value, literals = _without_address_groups(_headers[header])
+                parsed_email[header] = _address_with_literals(
+                    parse_email_address(value), literals
+                )
+        for header in addresses_headers:
+            if header not in _headers:
+                parsed_email[header] = []
+            else:
+                value, literals = _without_address_groups(_headers[header])
+                parsed_email[header] = [
+                    parse_email_address(_with_literals(address, literals))
+                    for address in email.utils.getaddresses([value])
+                ]
+    except RecursionError:
+        # email.utils parses nested comments recursively
+        raise MessageLimitExceeded(
+            "Message has an address header nested too deeply to parse"
+        ) from None
     from_domain = None
     if "from" in parsed_email:
         if (
@@ -551,6 +939,10 @@ def from_trusted_domain(
 
     Returns:
         Results of the check
+
+    Raises:
+        MessageLimitExceeded: ``message`` is not a dict and
+          :func:`parse_email` rejects it
     """
     if isinstance(message, dict):
         parsed_email = message

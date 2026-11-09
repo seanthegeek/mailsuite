@@ -430,6 +430,11 @@ class IMAPClient(imapclient.IMAPClient):
         Returns:
             str: The raw mail message, including headers
             dict: A parsed email message
+
+        Raises:
+            mailsuite.utils.MessageLimitExceeded: ``parse`` is ``True`` and
+              the message exceeds a limit of
+              :func:`mailsuite.utils.check_message_limits`
         """
         # List of fetch commands to try and their expected response keys
         fetch_attempts = [
