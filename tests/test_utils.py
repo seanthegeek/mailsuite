@@ -1452,3 +1452,39 @@ class TestUrlRegex:
         ):
             parsed = parse_email(f"From: a@b.example\r\nSubject: x\r\n\r\n{text}\r\n")
             assert parsed["body_urls"] == [url], text
+
+
+class TestParseEmailEdgeCases:
+    """Messages with a body but no text part, and a mail-parser failure."""
+
+    _HEADERS = "From: a@example.com\r\nTo: b@example.com\r\nSubject: x\r\n"
+
+    def test_single_part_non_text_body(self):
+        """A one-part message whose body is not text or HTML raised KeyError
+        ('body_markdown') on 2.3.5."""
+        message = (
+            self._HEADERS
+            + "Content-Type: application/octet-stream\r\n"
+            + "Content-Transfer-Encoding: 8bit\r\n\r\n"
+            + "caf\u00e9"
+        )
+        parsed = parse_email(message)
+        assert parsed["body"] == "caf\u00e9"
+        assert parsed["body_markdown"] == parsed["body"]
+        assert parsed["body_urls"] == []
+
+    def test_attachment_only_message(self):
+        message = (
+            self._HEADERS
+            + "Content-Type: image/png\r\n\r\n"
+            + "AAEC\r\n"
+        )
+        parsed = parse_email(message)
+        assert parsed["text_plain"] == []
+        assert parsed["text_html"] == []
+        assert parsed["body_markdown"] == parsed["body"]
+
+    def test_message_without_body_has_empty_markdown(self):
+        parsed = parse_email(self._HEADERS + "\r\n")
+        assert parsed["body"] == ""
+        assert parsed["body_markdown"] == ""

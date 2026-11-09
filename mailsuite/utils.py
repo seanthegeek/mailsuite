@@ -817,7 +817,7 @@ def parse_email(
                 logger.warning(f"Failed to parse {header} header: {e}")
     if "body" not in parsed_email or parsed_email["body"] is None:
         parsed_email["body"] = ""
-        parsed_email["body_markdown"] = ""
+    parsed_email["body_markdown"] = parsed_email["body"]
     parsed_email["raw_body"] = parsed_email["body"]
     parsed_email["text_plain"] = _parsed_email.text_plain.copy()
     parsed_email["text_html"] = _parsed_email.text_html.copy()
@@ -879,9 +879,6 @@ def parse_email(
         parsed_email["subject"]
     )
 
-    if "body" not in parsed_email:
-        parsed_email["body"] = None
-        parsed_email["body_markdown"] = None
     # RFC 3834: a message is an automatic response/submission when it carries
     # an Auto-Submitted header with any value other than "no" — e.g. Gmail's
     # "auto-replied", Microsoft 365 / Exchange's "auto-generated", and MTA
