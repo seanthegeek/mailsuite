@@ -262,6 +262,11 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
         raise EmailParserError(
             "Failed to convert Outlook .msg file: msgconvert utility not found"
         )
+    except subprocess.CalledProcessError as e:
+        raise EmailParserError(
+            f"Failed to convert Outlook .msg file: msgconvert failed with "
+            f"exit status {e.returncode} on sample.msg"
+        ) from e
     finally:
         os.chdir(orig_dir)
         shutil.rmtree(tmp_dir)

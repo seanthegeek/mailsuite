@@ -10,6 +10,7 @@ import glob
 import logging
 import os
 import random
+import subprocess
 import time
 import tracemalloc
 
@@ -1499,3 +1500,22 @@ class TestParseEmailEdgeCases:
         with pytest.raises(ValueError, match="mail-parser could not parse") as info:
             parse_email(self._HEADERS + "\r\nbody\r\n")
         assert isinstance(info.value.__cause__, mailparser.exceptions.MailParserError)
+
+
+class TestConvertOutlookMsgFailure:
+    """A failing msgconvert surfaces as EmailParserError."""
+
+    _OLE = bytes.fromhex("d0cf11e0a1b11ae1") + b"\x00" * 64
+
+    def test_msgconvert_failure_becomes_email_parser_error(self, monkeypatch):
+        """subprocess.CalledProcessError escaped parse_email() on 2.3.5."""
+
+        def fail(*_args, **_kwargs):
+            raise subprocess.CalledProcessError(1, "msgconvert")
+
+        monkeypatch.setattr(subprocess, "check_call", fail)
+        with pytest.raises(
+            mailsuite.utils.EmailParserError, match=r"msgconvert failed.*status 1"
+        ) as info:
+            parse_email(self._OLE)
+        assert isinstance(info.value.__cause__, subprocess.CalledProcessError)
