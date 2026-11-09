@@ -710,6 +710,10 @@ def parse_email(
           parsing; an address header value, read up to the next ``\\n``,
           is longer than ``MAX_HEADER_FIELD_LENGTH``; or an address header
           nests comments too deeply to parse. It is a ``ValueError``.
+        ValueError: The data is not an email, or mail-parser could not parse
+          it (the mail-parser error is the ``__cause__``).
+        EmailParserError: A ``.msg`` file could not be converted, because
+          ``msgconvert`` is missing or failed.
 
     .. note::
       Attachment dictionaries with binary payloads contain the value

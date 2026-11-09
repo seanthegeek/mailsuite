@@ -1464,7 +1464,7 @@ class TestParseEmailEdgeCases:
 
     def test_single_part_non_text_body(self):
         """A one-part message whose body is not text or HTML raised KeyError
-        ('body_markdown') on 2.3.5."""
+        ('body_markdown')."""
         message = (
             self._HEADERS
             + "Content-Type: application/octet-stream\r\n"
@@ -1488,6 +1488,8 @@ class TestParseEmailEdgeCases:
         assert parsed["body_markdown"] == parsed["body"]
 
     def test_message_without_body_has_empty_markdown(self):
+        """Pins the existing no-body result, which the body_markdown
+        initialisation must not change."""
         parsed = parse_email(self._HEADERS + "\r\n")
         assert parsed["body"] == ""
         assert parsed["body_markdown"] == ""
@@ -1508,7 +1510,7 @@ class TestConvertOutlookMsgFailure:
     _OLE = bytes.fromhex("d0cf11e0a1b11ae1") + b"\x00" * 64
 
     def test_msgconvert_failure_becomes_email_parser_error(self, monkeypatch):
-        """subprocess.CalledProcessError escaped parse_email() on 2.3.5."""
+        """subprocess.CalledProcessError escaped parse_email()."""
 
         def fail(*_args, **_kwargs):
             raise subprocess.CalledProcessError(1, "msgconvert")
