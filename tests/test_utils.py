@@ -557,17 +557,43 @@ def _part_count(message: str) -> int:
     return sum(1 for _ in email.message_from_string(message).walk())
 
 
+_REFERENCE_MESSAGE = _HEAD + "\r\n" + "a\r\n" * 300_000
+
+
+def _budget(seconds: float = 2.0) -> float:
+    """Return ``seconds``, scaled up on a machine slower than the reference.
+
+    Some timed checks do real work at a limit (20,000,000 boundary tests,
+    240 KB of addresses), so their bound must scale with the machine running
+    them. The reference is ``_REFERENCE_MESSAGE`` parsed by the email
+    package, 0.04 s on the workstation the bounds were written on (Python
+    3.12). It is measured just before the timed call, twice, and the slower
+    run sets the scale, so a brief fast moment in the reference is not taken
+    as the machine's speed; a slowdown during the timed call itself is not
+    covered. A faster machine keeps the written bound, and the scale is
+    capped at ten, so a stall during the reference cannot hide a regression.
+    """
+    reference = 0.0
+    for _ in range(2):
+        start = time.perf_counter()
+        email.message_from_string(_REFERENCE_MESSAGE)
+        reference = max(reference, time.perf_counter() - start)
+    return seconds * min(max(1.0, reference / 0.04), 10.0)
+
+
 def _rejected_quickly(message: str | bytes, limit: str) -> None:
+    budget = _budget()
     start = time.monotonic()
     with pytest.raises(MessageLimitExceeded, match=limit):
         parse_email(message)
-    assert time.monotonic() - start < 2
+    assert time.monotonic() - start < budget
 
 
 def _parses_quickly(message: str) -> dict:
+    budget = _budget()
     start = time.monotonic()
     parsed = parse_email(message)
-    assert time.monotonic() - start < 2
+    assert time.monotonic() - start < budget
     return parsed
 
 
@@ -1087,6 +1113,7 @@ class TestCheckMessageLimits:
     def test_long_groups_lose_group_syntax_and_parse_under_bound(self):
         """Seven headers each of these three groups took 5.0 s to parse
         with their group syntax kept."""
+        budget = _budget(2.5)
         start = time.monotonic()
         for members in (
             " ".join("a@x" for _ in range(15_000)),
@@ -1098,15 +1125,16 @@ class TestCheckMessageLimits:
             assert ":" not in value and ";" not in value
             for _ in range(7):
                 email.utils.getaddresses([value])
-        assert time.monotonic() - start < 2.5
+        assert time.monotonic() - start < budget
 
     def test_group_hidden_after_a_route_address_parses_quickly(self):
         # email.utils ends a route address one character after its address,
         # so the group here is outside any angle brackets to it
         group = '<a@x" g:' + ",".join("a@x" for _ in range(15_000)) + ";"
+        budget = _budget()
         start = time.monotonic()
         parse_email(f"From: a@x\r\nTo: {group}\r\nSubject: s\r\n\r\nbody\r\n")
-        assert time.monotonic() - start < 2
+        assert time.monotonic() - start < budget
 
     def test_long_address_list_keeps_every_address(self):
         names = ", ".join(f'"Last{i}, First" <u{i}@example.com>' for i in range(1_001))
@@ -1398,17 +1426,19 @@ class TestUrlRegex:
     def test_long_run_of_letters_is_linear(self):
         """findall() on 80,000 letters took 5.1 s on 2.3.4 (100,000: about
         8 s): the scheme group was retried from every offset inside the run."""
+        budget = _budget()
         start = time.monotonic()
         assert url_regex.findall("x" * 100_000) == []
-        assert time.monotonic() - start < 2
+        assert time.monotonic() - start < budget
 
     def test_long_body_line_parses_quickly(self):
         """A 114 KB JSON body line took 10.7 s in parse_email on 2.3.4."""
         body = '{"a":"' + "x" * 114_000 + '"}'
+        budget = _budget()
         start = time.monotonic()
         parsed = parse_email(f"From: a@b.example\r\nSubject: x\r\n\r\n{body}\r\n")
         assert parsed["body_urls"] == []
-        assert time.monotonic() - start < 2
+        assert time.monotonic() - start < budget
 
     def test_urls_after_any_prefix_are_found(self):
         for text, url in (
