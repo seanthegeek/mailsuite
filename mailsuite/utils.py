@@ -24,6 +24,7 @@ import dns.resolver
 import dns.reversename
 import html2text
 import mailparser
+import mailparser.exceptions
 import publicsuffix2
 from expiringdict import ExpiringDict
 from publicsuffix2 import get_sld
@@ -237,6 +238,12 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
         msg_bytes: the content of the .msg file
 
     Returns: A RFC 822 string
+
+    Raises:
+        ValueError: The bytes are not an Outlook .msg file.
+        EmailParserError: ``msgconvert`` is missing, could not be run,
+          failed, produced no output, or its output could not be read.
+        OSError: The temporary directory could not be created or written.
     """
     url = "https://seanthegeek.github.io/mailsuite/#email-samples-and-outlook-clients"
     if not is_outlook_msg(msg_bytes):
@@ -247,23 +254,46 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
     )
     orig_dir = os.getcwd()
     tmp_dir = tempfile.mkdtemp()
-    os.chdir(tmp_dir)
-    with open("sample.msg", "wb") as msg_file:
-        msg_file.write(msg_bytes)
     try:
-        subprocess.check_call(
-            ["msgconvert", "sample.msg"], stdout=null_file, stderr=null_file
-        )
-        eml_path = "sample.eml"
-        with open(eml_path, "r") as eml_file:
-            rfc822 = eml_file.read()
-    except FileNotFoundError:
-        raise EmailParserError(
-            "Failed to convert Outlook .msg file: msgconvert utility not found"
-        )
+        os.chdir(tmp_dir)
+        with open("sample.msg", "wb") as msg_file:
+            msg_file.write(msg_bytes)
+        try:
+            subprocess.check_call(
+                ["msgconvert", "sample.msg"], stdout=null_file, stderr=null_file
+            )
+        except FileNotFoundError as e:
+            raise EmailParserError(
+                "Failed to convert Outlook .msg file: msgconvert utility not found"
+            ) from e
+        except subprocess.CalledProcessError as e:
+            raise EmailParserError(
+                f"Failed to convert Outlook .msg file: msgconvert failed with "
+                f"exit status {e.returncode}"
+            ) from e
+        except OSError as e:
+            raise EmailParserError(
+                f"Failed to convert Outlook .msg file: msgconvert could not be "
+                f"run: {type(e).__name__}"
+            ) from e
+        try:
+            with open("sample.eml", "rb") as eml_file:
+                rfc822 = eml_file.read().decode("utf-8", errors="replace")
+        except FileNotFoundError as e:
+            raise EmailParserError(
+                "Failed to convert Outlook .msg file: msgconvert produced no output"
+            ) from e
+        except OSError as e:
+            raise EmailParserError(
+                f"Failed to convert Outlook .msg file: could not read msgconvert "
+                f"output: {type(e).__name__}"
+            ) from e
     finally:
-        os.chdir(orig_dir)
-        shutil.rmtree(tmp_dir)
+        try:
+            os.chdir(orig_dir)
+        except OSError as e:
+            logger.warning(f"Could not restore the working directory: {e}")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
     return rfc822
 
@@ -704,6 +734,12 @@ def parse_email(
           parsing; an address header value, read up to the next ``\\n``,
           is longer than ``MAX_HEADER_FIELD_LENGTH``; or an address header
           nests comments too deeply to parse. It is a ``ValueError``.
+        ValueError: The data is not an email, or mail-parser could not parse
+          it (the mail-parser error is the ``__cause__``).
+        EmailParserError: A ``.msg`` file could not be converted, because
+          ``msgconvert`` is missing, not runnable, failed, produced no
+          output, or its output could not be read. A failure to create or
+          write the temporary directory stays an ``OSError``.
 
     .. note::
       Attachment dictionaries with binary payloads contain the value
@@ -723,7 +759,10 @@ def parse_email(
         raise TypeError("data must be a file path, RFC 822 string, or bytes")
 
     check_message_limits(data_str)
-    _parsed_email = mailparser.parse_from_string(data_str)
+    try:
+        _parsed_email = mailparser.parse_from_string(data_str)
+    except mailparser.exceptions.MailParserError as e:
+        raise ValueError(f"mail-parser could not parse the message: {e}") from e
     parsed_email = _parsed_email.mail
     # mail-parser <=4.6.1 returns the input string for unparseable input;
     # 4.6.2+ returns a dict with no headers instead.
@@ -817,7 +856,7 @@ def parse_email(
                 logger.warning(f"Failed to parse {header} header: {e}")
     if "body" not in parsed_email or parsed_email["body"] is None:
         parsed_email["body"] = ""
-        parsed_email["body_markdown"] = ""
+    parsed_email["body_markdown"] = parsed_email["body"]
     parsed_email["raw_body"] = parsed_email["body"]
     parsed_email["text_plain"] = _parsed_email.text_plain.copy()
     parsed_email["text_html"] = _parsed_email.text_html.copy()
@@ -879,9 +918,6 @@ def parse_email(
         parsed_email["subject"]
     )
 
-    if "body" not in parsed_email:
-        parsed_email["body"] = None
-        parsed_email["body_markdown"] = None
     # RFC 3834: a message is an automatic response/submission when it carries
     # an Auto-Submitted header with any value other than "no" — e.g. Gmail's
     # "auto-replied", Microsoft 365 / Exchange's "auto-generated", and MTA

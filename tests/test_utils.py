@@ -10,9 +10,14 @@ import glob
 import logging
 import os
 import random
+import shutil
+import subprocess
+import tempfile
 import time
 import tracemalloc
 
+import mailparser
+import mailparser.exceptions
 import pytest
 
 import mailsuite.utils
@@ -1452,3 +1457,180 @@ class TestUrlRegex:
         ):
             parsed = parse_email(f"From: a@b.example\r\nSubject: x\r\n\r\n{text}\r\n")
             assert parsed["body_urls"] == [url], text
+
+
+class TestParseEmailEdgeCases:
+    """Messages with a body but no text part, and a mail-parser failure."""
+
+    _HEADERS = "From: a@example.com\r\nTo: b@example.com\r\nSubject: x\r\n"
+
+    def test_single_part_non_text_body(self):
+        """A one-part message whose body is not text or HTML still gets a
+        body_markdown equal to its body."""
+        message = (
+            self._HEADERS
+            + "Content-Type: application/octet-stream\r\n"
+            + "Content-Transfer-Encoding: 8bit\r\n\r\n"
+            + "caf\u00e9"
+        )
+        parsed = parse_email(message)
+        assert parsed["body"] == "caf\u00e9"
+        assert parsed["body_markdown"] == parsed["body"]
+        assert parsed["body_urls"] == []
+
+    def test_attachment_only_message(self):
+        """A message with no text or HTML part has body_markdown equal to its
+        body."""
+        message = (
+            self._HEADERS
+            + "Content-Type: image/png\r\n\r\n"
+            + "AAEC\r\n"
+        )
+        parsed = parse_email(message)
+        assert parsed["text_plain"] == []
+        assert parsed["text_html"] == []
+        assert parsed["body_markdown"] == parsed["body"]
+
+    def test_message_without_body_has_empty_markdown(self):
+        """Pins the existing no-body result, which the body_markdown
+        initialisation must not change."""
+        parsed = parse_email(self._HEADERS + "\r\n")
+        assert parsed["body"] == ""
+        assert parsed["body_markdown"] == ""
+
+    def test_mail_parser_error_becomes_value_error(self, monkeypatch):
+        """A mail-parser error is raised as a ValueError chained to it."""
+
+        def fail(_data):
+            raise mailparser.exceptions.MailParserRecursionError("too deep")
+
+        monkeypatch.setattr(mailparser, "parse_from_string", fail)
+        with pytest.raises(ValueError, match="mail-parser could not parse") as info:
+            parse_email(self._HEADERS + "\r\nbody\r\n")
+        assert isinstance(info.value.__cause__, mailparser.exceptions.MailParserError)
+
+
+class TestConvertOutlookMsgFailure:
+    """Every way msgconvert can fail surfaces as EmailParserError."""
+
+    _OLE = bytes.fromhex("d0cf11e0a1b11ae1") + b"\x00" * 64
+
+    def _run(self, monkeypatch, tmp_path, check_call, match):
+        """Run parse_email with check_call patched; check the cleanup."""
+        created = []
+        real_mkdtemp = tempfile.mkdtemp
+
+        def mkdtemp():
+            created.append(real_mkdtemp(dir=tmp_path))
+            return created[-1]
+
+        monkeypatch.setattr(subprocess, "check_call", check_call)
+        monkeypatch.setattr(tempfile, "mkdtemp", mkdtemp)
+        before = os.getcwd()
+        with pytest.raises(mailsuite.utils.EmailParserError, match=match) as info:
+            parse_email(self._OLE)
+        assert os.getcwd() == before
+        assert len(created) == 1
+        assert not os.path.exists(created[0])
+        return info.value
+
+    def test_nonzero_exit_status(self, monkeypatch, tmp_path):
+        """A non-zero exit gives the exit status, chained to the cause."""
+
+        def fail(*_args, **_kwargs):
+            raise subprocess.CalledProcessError(1, "msgconvert")
+
+        error = self._run(monkeypatch, tmp_path, fail, r"msgconvert failed.*status 1")
+        assert isinstance(error.__cause__, subprocess.CalledProcessError)
+        # No file name or command line in the message.
+        assert "sample.msg" not in str(error)
+
+    def test_not_runnable(self, monkeypatch, tmp_path):
+        """A present but non-executable tool names the error class."""
+
+        def fail(*_args, **_kwargs):
+            raise PermissionError(13, "Permission denied")
+
+        error = self._run(
+            monkeypatch, tmp_path, fail, r"could not be run: PermissionError"
+        )
+        assert isinstance(error.__cause__, PermissionError)
+
+    def test_not_installed(self, monkeypatch, tmp_path):
+        """A missing tool reports that the utility was not found."""
+
+        def fail(*_args, **_kwargs):
+            raise FileNotFoundError(2, "No such file")
+
+        self._run(monkeypatch, tmp_path, fail, "utility not found")
+
+    def test_exit_zero_without_output(self, monkeypatch, tmp_path):
+        """A tool that exits 0 and writes no file is not 'not found'."""
+
+        def succeed(*_args, **_kwargs):
+            return 0
+
+        error = self._run(monkeypatch, tmp_path, succeed, "produced no output")
+        assert "not found" not in str(error)
+
+    def test_temp_directory_already_removed(self, monkeypatch, tmp_path):
+        """A failing cleanup does not replace the EmailParserError."""
+
+        def fail(*_args, **_kwargs):
+            shutil.rmtree(os.getcwd())
+            raise subprocess.CalledProcessError(1, "msgconvert")
+
+        monkeypatch.setattr(subprocess, "check_call", fail)
+        before = os.getcwd()
+        with pytest.raises(mailsuite.utils.EmailParserError, match="status 1"):
+            parse_email(self._OLE)
+        assert os.getcwd() == before
+
+    def test_output_decoded_as_utf8_with_replacement(self, monkeypatch):
+        """A non-UTF-8 byte in the output becomes U+FFFD, as for bytes input."""
+
+        def write_output(*_args, **_kwargs):
+            with open("sample.eml", "wb") as eml_file:
+                eml_file.write(b"From: a@example.com\r\nSubject: caf\xe9\r\n\r\nhi\r\n")
+
+        monkeypatch.setattr(subprocess, "check_call", write_output)
+        parsed = parse_email(self._OLE)
+        assert parsed["subject"] == "caf\ufffd"
+
+    def test_output_unreadable(self, monkeypatch):
+        """An output path that cannot be read as a file names the error class."""
+
+        def make_directory(*_args, **_kwargs):
+            os.mkdir("sample.eml")
+
+        monkeypatch.setattr(subprocess, "check_call", make_directory)
+        with pytest.raises(
+            mailsuite.utils.EmailParserError,
+            match=r"could not read msgconvert output: IsADirectoryError",
+        ):
+            parse_email(self._OLE)
+
+    def test_restoring_working_directory_fails(self, monkeypatch, caplog):
+        """A failed chdir back is logged and the EmailParserError still comes out."""
+        original = os.getcwd()
+        real_chdir = os.chdir
+
+        def chdir(path):
+            if path == original:
+                raise OSError("gone")
+            real_chdir(path)
+
+        def fail(*_args, **_kwargs):
+            raise subprocess.CalledProcessError(1, "msgconvert")
+
+        monkeypatch.setattr(subprocess, "check_call", fail)
+        monkeypatch.setattr(os, "chdir", chdir)
+        try:
+            with (
+                caplog.at_level(logging.WARNING, logger="mailsuite.utils"),
+                pytest.raises(mailsuite.utils.EmailParserError, match="status 1"),
+            ):
+                parse_email(self._OLE)
+        finally:
+            real_chdir(original)
+        assert "Could not restore the working directory" in caplog.text
