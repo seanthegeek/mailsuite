@@ -13,6 +13,8 @@ import random
 import time
 import tracemalloc
 
+import mailparser
+import mailparser.exceptions
 import pytest
 
 import mailsuite.utils
@@ -1488,3 +1490,12 @@ class TestParseEmailEdgeCases:
         parsed = parse_email(self._HEADERS + "\r\n")
         assert parsed["body"] == ""
         assert parsed["body_markdown"] == ""
+
+    def test_mail_parser_error_becomes_value_error(self, monkeypatch):
+        def fail(_data):
+            raise mailparser.exceptions.MailParserRecursionError("too deep")
+
+        monkeypatch.setattr(mailparser, "parse_from_string", fail)
+        with pytest.raises(ValueError, match="mail-parser could not parse") as info:
+            parse_email(self._HEADERS + "\r\nbody\r\n")
+        assert isinstance(info.value.__cause__, mailparser.exceptions.MailParserError)

@@ -24,6 +24,7 @@ import dns.resolver
 import dns.reversename
 import html2text
 import mailparser
+import mailparser.exceptions
 import publicsuffix2
 from expiringdict import ExpiringDict
 from publicsuffix2 import get_sld
@@ -723,7 +724,10 @@ def parse_email(
         raise TypeError("data must be a file path, RFC 822 string, or bytes")
 
     check_message_limits(data_str)
-    _parsed_email = mailparser.parse_from_string(data_str)
+    try:
+        _parsed_email = mailparser.parse_from_string(data_str)
+    except mailparser.exceptions.MailParserError as e:
+        raise ValueError(f"mail-parser could not parse the message: {e}") from e
     parsed_email = _parsed_email.mail
     # mail-parser <=4.6.1 returns the input string for unparseable input;
     # 4.6.2+ returns a dict with no headers instead.
