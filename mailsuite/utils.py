@@ -238,6 +238,11 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
         msg_bytes: the content of the .msg file
 
     Returns: A RFC 822 string
+
+    Raises:
+        ValueError: The bytes are not an Outlook .msg file.
+        EmailParserError: ``msgconvert`` is missing, could not be run,
+          failed, or produced no output.
     """
     url = "https://seanthegeek.github.io/mailsuite/#email-samples-and-outlook-clients"
     if not is_outlook_msg(msg_bytes):
@@ -248,25 +253,35 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
     )
     orig_dir = os.getcwd()
     tmp_dir = tempfile.mkdtemp()
-    os.chdir(tmp_dir)
-    with open("sample.msg", "wb") as msg_file:
-        msg_file.write(msg_bytes)
     try:
-        subprocess.check_call(
-            ["msgconvert", "sample.msg"], stdout=null_file, stderr=null_file
-        )
-        eml_path = "sample.eml"
-        with open(eml_path, "r") as eml_file:
-            rfc822 = eml_file.read()
-    except FileNotFoundError:
-        raise EmailParserError(
-            "Failed to convert Outlook .msg file: msgconvert utility not found"
-        )
-    except subprocess.CalledProcessError as e:
-        raise EmailParserError(
-            f"Failed to convert Outlook .msg file: msgconvert failed with "
-            f"exit status {e.returncode} on sample.msg"
-        ) from e
+        os.chdir(tmp_dir)
+        with open("sample.msg", "wb") as msg_file:
+            msg_file.write(msg_bytes)
+        try:
+            subprocess.check_call(
+                ["msgconvert", "sample.msg"], stdout=null_file, stderr=null_file
+            )
+        except FileNotFoundError as e:
+            raise EmailParserError(
+                "Failed to convert Outlook .msg file: msgconvert utility not found"
+            ) from e
+        except subprocess.CalledProcessError as e:
+            raise EmailParserError(
+                f"Failed to convert Outlook .msg file: msgconvert failed with "
+                f"exit status {e.returncode}"
+            ) from e
+        except OSError as e:
+            raise EmailParserError(
+                f"Failed to convert Outlook .msg file: msgconvert could not be "
+                f"run: {type(e).__name__}"
+            ) from e
+        try:
+            with open("sample.eml", "r") as eml_file:
+                rfc822 = eml_file.read()
+        except FileNotFoundError as e:
+            raise EmailParserError(
+                "Failed to convert Outlook .msg file: msgconvert produced no output"
+            ) from e
     finally:
         os.chdir(orig_dir)
         shutil.rmtree(tmp_dir)
@@ -713,7 +728,8 @@ def parse_email(
         ValueError: The data is not an email, or mail-parser could not parse
           it (the mail-parser error is the ``__cause__``).
         EmailParserError: A ``.msg`` file could not be converted, because
-          ``msgconvert`` is missing or failed.
+          ``msgconvert`` is missing, not runnable, failed, or produced no
+          output.
 
     .. note::
       Attachment dictionaries with binary payloads contain the value
