@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Fix `parse_email()` raising `KeyError: 'body_markdown'` for a message whose body mail-parser returns but which has no `text/plain` or `text/html` part, such as a single-part `application/octet-stream` or `image/png` message. `body_markdown` is now set from the body before the text parts replace it
+- Fix `parse_email()` raising `KeyError: 'body_markdown'` for a message whose body mail-parser returns but which has no `text/plain` or `text/html` part, such as a single-part `application/octet-stream` or `image/png` message. `body_markdown` is now always present
 - `parse_email()` now raises `ValueError` (with the mail-parser error as its cause) when mail-parser raises `MailParserError`, such as `MailParserRecursionError`, where it previously raised the mail-parser exception itself
 - `convert_outlook_msg()`, and through it `parse_email()`, now raises `EmailParserError` for every failure to run `msgconvert`: a non-zero exit status (where `subprocess.CalledProcessError` escaped), a present but non-executable tool (where `PermissionError` escaped), and an exit with no output file (previously reported as "utility not found"). The message gives the exit status or the error class, not the tool's output. The working directory and temporary directory are restored and removed on every failure
 

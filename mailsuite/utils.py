@@ -276,15 +276,23 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
                 f"run: {type(e).__name__}"
             ) from e
         try:
-            with open("sample.eml", "r") as eml_file:
-                rfc822 = eml_file.read()
+            with open("sample.eml", "rb") as eml_file:
+                rfc822 = eml_file.read().decode("utf-8", errors="replace")
         except FileNotFoundError as e:
             raise EmailParserError(
                 "Failed to convert Outlook .msg file: msgconvert produced no output"
             ) from e
+        except OSError as e:
+            raise EmailParserError(
+                f"Failed to convert Outlook .msg file: could not read msgconvert "
+                f"output: {type(e).__name__}"
+            ) from e
     finally:
-        os.chdir(orig_dir)
-        shutil.rmtree(tmp_dir)
+        try:
+            os.chdir(orig_dir)
+        except OSError as e:
+            logger.warning(f"Could not restore the working directory: {e}")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
     return rfc822
 

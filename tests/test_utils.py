@@ -10,6 +10,7 @@ import glob
 import logging
 import os
 import random
+import shutil
 import subprocess
 import tempfile
 import time
@@ -1570,3 +1571,40 @@ class TestConvertOutlookMsgFailure:
 
         error = self._run(monkeypatch, tmp_path, succeed, "produced no output")
         assert "not found" not in str(error)
+
+    def test_temp_directory_already_removed(self, monkeypatch, tmp_path):
+        """A failing cleanup does not replace the EmailParserError."""
+
+        def fail(*_args, **_kwargs):
+            shutil.rmtree(os.getcwd())
+            raise subprocess.CalledProcessError(1, "msgconvert")
+
+        monkeypatch.setattr(subprocess, "check_call", fail)
+        before = os.getcwd()
+        with pytest.raises(mailsuite.utils.EmailParserError, match="status 1"):
+            parse_email(self._OLE)
+        assert os.getcwd() == before
+
+    def test_output_decoded_as_utf8_with_replacement(self, monkeypatch):
+        """A non-UTF-8 byte in the output becomes U+FFFD, as for bytes input."""
+
+        def write_output(*_args, **_kwargs):
+            with open("sample.eml", "wb") as eml_file:
+                eml_file.write(b"From: a@example.com\r\nSubject: caf\xe9\r\n\r\nhi\r\n")
+
+        monkeypatch.setattr(subprocess, "check_call", write_output)
+        parsed = parse_email(self._OLE)
+        assert parsed["subject"] == "caf\ufffd"
+
+    def test_output_unreadable(self, monkeypatch):
+        """An output path that cannot be read as a file names the error class."""
+
+        def make_directory(*_args, **_kwargs):
+            os.mkdir("sample.eml")
+
+        monkeypatch.setattr(subprocess, "check_call", make_directory)
+        with pytest.raises(
+            mailsuite.utils.EmailParserError,
+            match=r"could not read msgconvert output: IsADirectoryError",
+        ):
+            parse_email(self._OLE)
