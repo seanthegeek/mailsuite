@@ -242,7 +242,8 @@ def convert_outlook_msg(msg_bytes: bytes) -> str:
     Raises:
         ValueError: The bytes are not an Outlook .msg file.
         EmailParserError: ``msgconvert`` is missing, could not be run,
-          failed, or produced no output.
+          failed, produced no output, or its output could not be read.
+        OSError: The temporary directory could not be created or written.
     """
     url = "https://seanthegeek.github.io/mailsuite/#email-samples-and-outlook-clients"
     if not is_outlook_msg(msg_bytes):
@@ -736,8 +737,9 @@ def parse_email(
         ValueError: The data is not an email, or mail-parser could not parse
           it (the mail-parser error is the ``__cause__``).
         EmailParserError: A ``.msg`` file could not be converted, because
-          ``msgconvert`` is missing, not runnable, failed, or produced no
-          output.
+          ``msgconvert`` is missing, not runnable, failed, produced no
+          output, or its output could not be read. A failure to create or
+          write the temporary directory stays an ``OSError``.
 
     .. note::
       Attachment dictionaries with binary payloads contain the value

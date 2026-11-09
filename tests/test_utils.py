@@ -1542,6 +1542,7 @@ class TestConvertOutlookMsgFailure:
 
         error = self._run(monkeypatch, tmp_path, fail, r"msgconvert failed.*status 1")
         assert isinstance(error.__cause__, subprocess.CalledProcessError)
+        # No file name or command line in the message.
         assert "sample.msg" not in str(error)
 
     def test_not_runnable(self, monkeypatch, tmp_path):
@@ -1608,3 +1609,28 @@ class TestConvertOutlookMsgFailure:
             match=r"could not read msgconvert output: IsADirectoryError",
         ):
             parse_email(self._OLE)
+
+    def test_restoring_working_directory_fails(self, monkeypatch, caplog):
+        """A failed chdir back is logged and the EmailParserError still comes out."""
+        original = os.getcwd()
+        real_chdir = os.chdir
+
+        def chdir(path):
+            if path == original:
+                raise OSError("gone")
+            real_chdir(path)
+
+        def fail(*_args, **_kwargs):
+            raise subprocess.CalledProcessError(1, "msgconvert")
+
+        monkeypatch.setattr(subprocess, "check_call", fail)
+        monkeypatch.setattr(os, "chdir", chdir)
+        try:
+            with (
+                caplog.at_level(logging.WARNING, logger="mailsuite.utils"),
+                pytest.raises(mailsuite.utils.EmailParserError, match="status 1"),
+            ):
+                parse_email(self._OLE)
+        finally:
+            real_chdir(original)
+        assert "Could not restore the working directory" in caplog.text
