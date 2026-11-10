@@ -1512,6 +1512,78 @@ class TestUrlRegex:
             parsed = parse_email(f"From: a@b.example\r\nSubject: x\r\n\r\n{text}\r\n")
             assert parsed["body_urls"] == [url], text
 
+    def test_long_dotted_url_does_not_cost_memory(self):
+        """GHSA-4g5q-xm2p-2gc4: on 2.3.6 a path of 100,000 dotted segments
+        held about 200 bytes per character while it was matched, and a host
+        of as many labels about 100."""
+        segments = "a." * 100_000 + "a"
+        for text in (f"http://a.example/{segments}", f"http://{segments}/x"):
+            tracemalloc.start()
+            try:
+                found = url_regex.findall(text)
+                peak = tracemalloc.get_traced_memory()[1]
+            finally:
+                tracemalloc.stop()
+            assert ["".join(groups) for groups in found] == [text]
+            assert peak < 8 * len(text), text[:24]
+
+    def test_long_dotted_url_in_an_encoded_body(self):
+        """A transfer encoding carries the URL in short lines; parse_email()
+        returns it whole. Parsing this 270 KB message held 35 MB or more on
+        2.3.6 and holds about 4 MB now."""
+        url = "http://a.example/" + "a." * 100_000 + "a"
+        encoded = base64.encodebytes(f"see {url}\n".encode()).decode()
+        message = (
+            "From: a@b.example\r\nSubject: x\r\nMIME-Version: 1.0\r\n"
+            "Content-Type: text/plain; charset=us-ascii\r\n"
+            "Content-Transfer-Encoding: base64\r\n\r\n" + encoded
+        )
+        tracemalloc.start()
+        try:
+            parsed = parse_email(message)
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+        assert parsed["body_urls"] == [url]
+        assert peak < 16 * 1024 * 1024
+
+    def test_runs_of_dots_are_linear(self):
+        """The host and the path each give back a run of trailing dots in one
+        pass."""
+        for text, url in (
+            ("http://a.example/p" + "." * 200_000, "http://a.example/p"),
+            ("http://a.example" + "." * 200_000, "http://a.example"),
+            ("http://a.example/" + "?." * 100_000, "http://a.example/"),
+        ):
+            budget = _budget()
+            start = time.monotonic()
+            found = url_regex.findall(text)
+            assert time.monotonic() - start < budget, text[:24]
+            assert ["".join(groups) for groups in found] == [url]
+
+    def test_where_a_host_and_a_path_end(self):
+        for text, urls in (
+            ("http://a.example/p.", ["http://a.example/p"]),
+            ("http://a.example/a.b.c?x=1,2!", ["http://a.example/a.b.c?x=1,2"]),
+            ("http://a.example/...", ["http://a.example/"]),
+            ("http://a.example/..b", ["http://a.example/..b"]),
+            ("http://a.example.", ["http://a.example"]),
+            ("http://a.example..b/c", ["http://a.example"]),
+            ("http://a.example.-b/c", ["http://a.example"]),
+            ("http://a.example.:80/x", ["http://a.example"]),
+            ("http://a.example:8080/x.y,", ["http://a.example:8080/x.y"]),
+            ("http://-a.b-.c_d/x", ["http://-a.b-.c_d/x"]),
+            ("http://localhost/x", []),
+            ("http://.a.example/x", []),
+            ("http://a.example/x).", ["http://a.example/x"]),
+            (
+                "http://a.example/p?. http://b.example/q!",
+                ["http://a.example/p", "http://b.example/q"],
+            ),
+        ):
+            parsed = parse_email(f"From: a@b.example\r\nSubject: x\r\n\r\n{text}\r\n")
+            assert parsed["body_urls"] == urls, text
+
 
 class TestParseEmailEdgeCases:
     """Messages with a body but no text part, and a mail-parser failure."""

@@ -35,11 +35,17 @@ mailparser_logger = logging.getLogger("mailparser")
 mailparser_logger.setLevel(logging.CRITICAL)
 
 # The lookbehind starts a scheme only where a run of letters starts; without
-# it every offset inside a long run is retried, which is quadratic
+# it every offset inside a long run is retried, which is quadratic. Every
+# repeat is over one character class: re keeps a position for each repeat of
+# a group until the match ends, so a group repeated once per label or path
+# segment costs memory in proportion to the URL's length. The host therefore
+# ends before the first dot that no word character follows, and the path
+# gives back the sentence punctuation that ends it
 url_regex = re.compile(
-    r"(?<![A-Za-z])([A-Za-z]+://)([-\w]+(?:\.\w[-\w]*)+)(:\d+)?(/[^.!,?"
-    r"\"<>\[\]{}\s\x7F-\xFF]*(?:[.!,?]+[^.!,?"
-    r"\"<>\[\]{}\s\x7F-\xFF]+)*)?"
+    r"(?<![A-Za-z])([A-Za-z]+://)"
+    r"((?=[-\w]+\.\w)[-\w.]*?(?=\.(?!\w)|(?![-\w.])))"
+    r"(:\d+)?"
+    r"(/[^\"<>\[\]{}\s\x7F-\xFF]*(?<![.!,?]))?"
 )
 header_regex = re.compile(r"^([a-zA-Z-]+): (.+)", re.MULTILINE)
 
