@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.3.6
 
 - Fix `parse_email()` raising `KeyError: 'body_markdown'` for a message whose body mail-parser returns but which has no `text/plain` or `text/html` part, such as a single-part `application/octet-stream` or `image/png` message. `body_markdown` is now always present
 - `parse_email()` now raises `ValueError` (with the mail-parser error as its cause) when mail-parser raises `MailParserError`, such as `MailParserRecursionError`, where it previously raised the mail-parser exception itself
