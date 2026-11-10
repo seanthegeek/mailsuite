@@ -190,6 +190,23 @@ class TestCreateEmail:
 
 
 class TestParseEmail:
+    @pytest.mark.parametrize(
+        "sender",
+        [
+            "Admin <admin@[IPv6:2001:db8::1]>",
+            "a@[IPv6:2001:db8::1]",
+            '"Alice" <a@example.com> trailing',
+            "Alice <a@example.com>",
+        ],
+    )
+    def test_from_is_independent_of_line_endings(self, sender):
+        lines = [f"From: {sender}", "Subject: Test", "", "Body", ""]
+        crlf = parse_email("\r\n".join(lines))["from"]
+        lf = parse_email("\n".join(lines))["from"]
+
+        assert crlf == lf
+        assert all("\r" not in crlf[field] for field in ("address", "domain", "sld"))
+
     def test_basic_message(self, sample_email_str):
         parsed = parse_email(sample_email_str)
         assert parsed["from"]["address"] == "sender@example.com"

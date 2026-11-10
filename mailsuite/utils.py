@@ -797,7 +797,8 @@ def parse_email(
     _headers = {}
     _header_matches = header_regex.findall(headers_str)
     for header in _header_matches:
-        _headers[header[0].lower()] = header[1]
+        # The regex stops at LF, leaving CR in values from CRLF headers.
+        _headers[header[0].lower()] = header[1].removesuffix("\r")
     for header in address_headers + addresses_headers:
         if len(_headers.get(header, "")) > MAX_HEADER_FIELD_LENGTH:
             raise MessageLimitExceeded(

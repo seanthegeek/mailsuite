@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Strip the CRLF line terminator from header values used by `parse_email()` so parsed addresses agree with LF input.
+
 ## 2.3.6
 
 - Fix `parse_email()` raising `KeyError: 'body_markdown'` for a message whose body mail-parser returns but which has no `text/plain` or `text/html` part, such as a single-part `application/octet-stream` or `image/png` message. `body_markdown` is now always present
