@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix `parse_email()` retaining carriage returns in CRLF address headers. This could leave trailing `\r` characters in `from`, `sender`, or `delivered-to` addresses, or introduce an extra entry in `to`, `cc`, `reply-to`, or `bcc` when the value ended with a comma. Trailing carriage returns are now removed before parsing, and empty values are treated as absent for both CRLF and LF input ([#74](https://github.com/seanthegeek/mailsuite/issues/74)).
+
 ## 2.3.6
 
 - Fix `parse_email()` raising `KeyError: 'body_markdown'` for a message whose body mail-parser returns but which has no `text/plain` or `text/html` part, such as a single-part `application/octet-stream` or `image/png` message. `body_markdown` is now always present

@@ -731,9 +731,10 @@ def parse_email(
     Raises:
         MessageLimitExceeded: The message exceeds a limit of
           :func:`check_message_limits`, checked with its defaults before
-          parsing; an address header value, read up to the next ``\\n``,
-          is longer than ``MAX_HEADER_FIELD_LENGTH``; or an address header
-          nests comments too deeply to parse. It is a ``ValueError``.
+          parsing; an extracted address header value, excluding trailing
+          carriage returns, is longer than ``MAX_HEADER_FIELD_LENGTH``;
+          or an address header nests comments too deeply to parse. It is
+          a ``ValueError``.
         ValueError: The data is not an email, or mail-parser could not parse
           it (the mail-parser error is the ``__cause__``).
         EmailParserError: A ``.msg`` file could not be converted, because
@@ -796,8 +797,11 @@ def parse_email(
     parsed_email["headers_string"] = headers_str
     _headers = {}
     _header_matches = header_regex.findall(headers_str)
-    for header in _header_matches:
-        _headers[header[0].lower()] = header[1]
+    for name, value in _header_matches:
+        # The regex includes trailing CRs but never matches an empty LF value.
+        value = value.rstrip("\r")
+        if value:
+            _headers[name.lower()] = value
     for header in address_headers + addresses_headers:
         if len(_headers.get(header, "")) > MAX_HEADER_FIELD_LENGTH:
             raise MessageLimitExceeded(
