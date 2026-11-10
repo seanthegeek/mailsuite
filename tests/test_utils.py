@@ -196,7 +196,7 @@ class TestParseEmail:
             "Admin <admin@[IPv6:2001:db8::1]>",
             "a@[IPv6:2001:db8::1]",
             '"Alice" <a@example.com> trailing',
-            "Alice <a@example.com>",
+            "Alice <a@example.com>",  # Control: a conventional mailbox already agrees.
         ],
     )
     def test_from_is_independent_of_line_endings(self, sender):
@@ -206,6 +206,43 @@ class TestParseEmail:
 
         assert crlf == lf
         assert all("\r" not in crlf[field] for field in ("address", "domain", "sld"))
+
+    @pytest.mark.parametrize("header", ["Sender", "Delivered-To"])
+    def test_other_single_address_headers_are_independent_of_line_endings(
+        self, header
+    ):
+        lines = [f"{header}: a@[IPv6:2001:db8::1]", "Subject: Test", "", "Body", ""]
+        key = header.lower()
+        crlf = parse_email("\r\n".join(lines))[key]
+        lf = parse_email("\n".join(lines))[key]
+
+        assert crlf == lf
+        assert crlf["address"] == "a@[IPv6:2001:db8::1]"
+
+    def test_to_with_trailing_comma_has_no_extra_address_in_crlf(self):
+        lines = ["To: a@b.example,", "Subject: Test", "", "Body", ""]
+        crlf = parse_email("\r\n".join(lines))["to"]
+        lf = parse_email("\n".join(lines))["to"]
+
+        assert crlf == lf
+        # The stdlib's strict parser can reject the trailing comma.
+        assert len(crlf) == 1
+
+    def test_from_ignores_doubled_carriage_return_at_line_end(self):
+        address = "a@[IPv6:2001:db8::1]"
+        doubled = parse_email(f"From: {address}\r\r\nSubject: Test\r\n\r\nBody\r\n")
+        lf = parse_email(f"From: {address}\nSubject: Test\n\nBody\n")
+
+        assert doubled["from"] == lf["from"]
+        assert doubled["from"]["address"] == address
+
+    @pytest.mark.parametrize("line_end", ["\n", "\r\n"])
+    @pytest.mark.parametrize(("header", "expected"), [("From", None), ("To", [])])
+    def test_empty_address_headers_are_absent(self, line_end, header, expected):
+        lines = [f"{header}: ", "Subject: Test", "", "Body", ""]
+        parsed = parse_email(line_end.join(lines))
+
+        assert parsed[header.lower()] == expected
 
     def test_basic_message(self, sample_email_str):
         parsed = parse_email(sample_email_str)

@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Strip the CRLF line terminator from header values used by `parse_email()` so parsed addresses agree with LF input.
+- Fix `parse_email()` retaining carriage returns in CRLF address headers. This could leave trailing `\r` characters in `from`, `sender`, or `delivered-to` addresses, or introduce an extra entry in `to`, `cc`, `reply-to`, or `bcc` when the value ended with a comma. Trailing carriage returns are now removed before parsing, and empty values are treated as absent for both CRLF and LF input ([#74](https://github.com/seanthegeek/mailsuite/issues/74)).
 
 ## 2.3.6
 
