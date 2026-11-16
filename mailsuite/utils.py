@@ -606,7 +606,11 @@ def _without_address_groups(value: str) -> tuple[str, dict[str, str]]:
     Remove RFC 5322 group syntax from a long address header value
 
     Parsing a group with many members whole takes time out of proportion
-    to its size, so a value longer than
+    to its size: before Python 3.16, CPython's
+    ``email.utils.getaddresses()`` copies the group's list of parsed
+    addresses once per member, so its time grows with the square of the
+    member count (fixed in python/cpython pull request 159990, not
+    backported). A value longer than
     ``_ADDRESS_GROUP_PARSE_LIMIT`` loses each group's display name and its
     ``:``, and each group's ``;`` becomes a comma before a following
     address; these are found outside quoted strings, comments and angle
