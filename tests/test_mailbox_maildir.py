@@ -270,6 +270,105 @@ class TestMaildirConnection:
         conn.watch(cb, check_timeout=0, config_reloading=reload)
 
 
+def _add_inbox_message(maildir_path: str) -> str:
+    box = mailbox.Maildir(maildir_path)
+    return box.add(mailbox.MaildirMessage(b"From: a\r\nSubject: t\r\n\r\nbody\r\n"))
+
+
+class TestMaildirFolderSeparator:
+    """``folder_separator="."`` stores ``/``-separated folder names in the
+    Maildir++ layout (``.Archive.Aggregate``) that Dovecot and Courier list,
+    instead of a directory nested inside ``.Archive``."""
+
+    def test_default_nests_subfolder_directory(self, maildir_path):
+        conn = MaildirConnection(maildir_path, maildir_create=True)
+        conn.create_folder("Archive")
+        conn.create_folder("Archive/Aggregate")
+        assert os.path.isdir(os.path.join(maildir_path, ".Archive", "Aggregate"))
+        assert not os.path.exists(os.path.join(maildir_path, ".Archive.Aggregate"))
+
+    def test_create_folder_uses_separator(self, maildir_path):
+        conn = MaildirConnection(
+            maildir_path, maildir_create=True, folder_separator="."
+        )
+        conn.create_folder("Archive")
+        conn.create_folder("Archive/Aggregate")
+        sub = os.path.join(maildir_path, ".Archive.Aggregate")
+        for d in ("cur", "new", "tmp"):
+            assert os.path.isdir(os.path.join(sub, d))
+        assert os.path.isfile(os.path.join(sub, "maildirfolder"))
+        assert not os.path.exists(os.path.join(maildir_path, ".Archive", "Aggregate"))
+        # The stdlib lists the folder under its Maildir++ name.
+        assert "Archive.Aggregate" in mailbox.Maildir(maildir_path).list_folders()
+
+    def test_folder_exists_uses_separator(self, maildir_path):
+        conn = MaildirConnection(
+            maildir_path, maildir_create=True, folder_separator="."
+        )
+        assert not conn.folder_exists("Archive/Aggregate")
+        os.makedirs(os.path.join(maildir_path, ".Archive.Aggregate"))
+        assert conn.folder_exists("Archive/Aggregate")
+
+    def test_move_and_fetch_message(self, maildir_path):
+        conn = MaildirConnection(
+            maildir_path, maildir_create=True, folder_separator="."
+        )
+        key = _add_inbox_message(maildir_path)
+        conn.create_folder("Archive/Aggregate")
+        conn.fetch_messages("INBOX")
+        conn.move_message(key, "Archive/Aggregate")
+        assert conn.fetch_messages("INBOX") == []
+        new_dir = os.path.join(maildir_path, ".Archive.Aggregate", "new")
+        assert os.listdir(new_dir) == [key]
+        assert conn.fetch_messages("Archive/Aggregate") == [key]
+
+    def test_rename_folder_moves_subfolders(self, maildir_path):
+        conn = MaildirConnection(
+            maildir_path, maildir_create=True, folder_separator="."
+        )
+        conn.create_folder("Archive")
+        conn.create_folder("Archive/Aggregate")
+        conn.create_folder("Archive/Aggregate/2026")
+        conn.create_folder("ArchiveOld")
+        conn.rename_folder("Archive", "Reports")
+        entries = sorted(e for e in os.listdir(maildir_path) if e.startswith("."))
+        assert entries == [
+            ".ArchiveOld",
+            ".Reports",
+            ".Reports.Aggregate",
+            ".Reports.Aggregate.2026",
+        ]
+        assert conn.folder_exists("Reports/Aggregate/2026")
+
+    def test_move_folder_new_path(self, maildir_path):
+        conn = MaildirConnection(
+            maildir_path, maildir_create=True, folder_separator="."
+        )
+        conn.create_folder("Archive")
+        conn.create_folder("Archive/Forensic")
+        conn.create_folder("Reports")
+        conn.move_folder("Archive/Forensic", new_path="Reports/Failure")
+        assert not conn.folder_exists("Archive/Forensic")
+        assert os.path.isdir(os.path.join(maildir_path, ".Reports.Failure"))
+
+    def test_delete_folder_with_subfolder_raises(self, maildir_path):
+        conn = MaildirConnection(
+            maildir_path, maildir_create=True, folder_separator="."
+        )
+        conn.create_folder("Archive")
+        conn.create_folder("Archive/Aggregate")
+        with pytest.raises(mailbox.NotEmptyError):
+            conn.delete_folder("Archive")
+        conn.delete_folder("Archive/Aggregate")
+        conn.delete_folder("Archive")
+        assert not conn.folder_exists("Archive")
+
+    @pytest.mark.parametrize("separator", ["", "..", "/", os.sep])
+    def test_invalid_separator_raises(self, maildir_path, separator):
+        with pytest.raises(ValueError, match="folder_separator"):
+            MaildirConnection(maildir_path, folder_separator=separator)
+
+
 class TestUidMismatch:
     """Maildir on Linux/Docker often runs with a non-root user that doesn't
     own the maildir directory. We must warn — not crash — so the operator

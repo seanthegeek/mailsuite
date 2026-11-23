@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add a `folder_separator` parameter to `MaildirConnection`. Folder names use `/` for hierarchy, and `MaildirConnection` stored `Archive/Aggregate` as `.Archive/Aggregate`, a directory inside `.Archive`. Mail servers with the Maildir++ layout, such as Dovecot (its default `maildir` layout) and Courier, keep every folder as a sibling directory with `.` between the levels (`.Archive.Aggregate`) and do not list a folder nested inside another folder's directory, so mail moved there was invisible to IMAP clients. With `folder_separator="."`, `/` in a folder name becomes `.` in its directory name; `rename_folder()` and `move_folder()` also rename the folder's subfolders, and `delete_folder()` raises `mailbox.NotEmptyError` while subfolders exist. The default (`None`) keeps the previous layout
+
 ## 2.3.7
 
 - **Security:** Stop the URL search in `parse_email()` from holding memory in proportion to the length of a URL in the body ([GHSA-4g5q-xm2p-2gc4](https://github.com/seanthegeek/mailsuite/security/advisories/GHSA-4g5q-xm2p-2gc4), affects 1.9.6 through 2.3.6). `url_regex`, which `parse_email()` runs over the body text to collect `body_urls`, repeated a group once for each label of the host and once for each run of `.`, `!`, `,` or `?` inside the path, and `re` keeps a position for every repeat of a group until the match ends. One URL with a very long dotted host or path therefore cost 100 to 200 bytes of memory for each of its characters: parsing a 10.4 MB quoted-printable message took the process to a peak of 1.7 GB, and a 25 MB one to 4.1 GB. Quoted-printable or base64 encoding keeps every line of such a message short, and the time taken stays in proportion to the size, so nothing else stops it. Every repeat in the pattern is now over a single character class, which keeps no positions: the same 10.4 MB message now peaks at 128 MB. The URLs it finds, and the four groups of each match, are unchanged
