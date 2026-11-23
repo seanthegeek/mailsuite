@@ -21,15 +21,40 @@ class MaildirConnection(MailboxConnection):
     Useful for local processing of messages dropped into a Maildir by an MTA
     (e.g. postfix delivering DMARC reports). Maildir has no concept of
     sending — :meth:`send_message` raises :class:`NotImplementedError`.
+
+    Folder names use ``/`` for hierarchy, as with the other backends
+    (``Archive/Aggregate``). By default the name is stored as given, under
+    one leading dot (``.Archive/Aggregate``, a directory inside
+    ``.Archive``). Mail servers that use the Maildir++ layout, such as
+    Dovecot's default ``maildir`` layout and Courier, store every folder as a
+    sibling directory with ``.`` between the levels (``.Archive.Aggregate``)
+    and do not see folders nested inside another folder's directory. Pass
+    ``folder_separator="."`` to store folders that way.
+
+    Args:
+        maildir_path: Path to the Maildir
+        maildir_create: Create the Maildir if it does not exist
+        folder_separator: When set, ``/`` in folder names is replaced with
+            this character in the folder's directory name (``"."`` for
+            Maildir++). ``None`` (the default) keeps the name unchanged
     """
 
     def __init__(
         self,
         maildir_path: str,
         maildir_create: bool = False,
+        folder_separator: str | None = None,
     ):
+        if folder_separator is not None and (
+            len(folder_separator) != 1 or folder_separator in ("/", os.sep)
+        ):
+            raise ValueError(
+                "folder_separator must be a single character other than the "
+                f"path separator, not {folder_separator!r}"
+            )
         self._maildir_path = maildir_path
         self._maildir_create = maildir_create
+        self._folder_separator = folder_separator
 
         # When run as root over a user-owned Maildir, drop privileges to the
         # Maildir's owner so file creation/locking works correctly. This is
@@ -69,9 +94,52 @@ class MaildirConnection(MailboxConnection):
         self._active_folder: mailbox.Maildir = self._client
         self._subfolder_client: dict[str, mailbox.Maildir] = {}
 
+    def _disk_name(self, folder_name: str) -> str:
+        """The folder's directory name without its leading dot."""
+        if self._folder_separator is None:
+            return folder_name
+        return folder_name.replace("/", self._folder_separator)
+
+    def _folder_path(self, folder_name: str) -> str:
+        return os.path.join(self._maildir_path, "." + self._disk_name(folder_name))
+
+    def _descendant_dirs(self, folder_name: str) -> list[str]:
+        """Directory names of ``folder_name``'s subfolders that are stored as
+        siblings (only with ``folder_separator``; otherwise subfolders live
+        inside the folder's own directory and move with it)."""
+        if self._folder_separator is None:
+            return []
+        prefix = "." + self._disk_name(folder_name) + self._folder_separator
+        return sorted(
+            entry
+            for entry in os.listdir(self._maildir_path)
+            if entry.startswith(prefix)
+            and os.path.isdir(os.path.join(self._maildir_path, entry))
+        )
+
+    def _rename_tree(self, old_name: str, new_name: str) -> None:
+        old_dir = "." + self._disk_name(old_name)
+        new_dir = "." + self._disk_name(new_name)
+        descendants = self._descendant_dirs(old_name)
+        os.rename(
+            os.path.join(self._maildir_path, old_dir),
+            os.path.join(self._maildir_path, new_dir),
+        )
+        for entry in descendants:
+            os.rename(
+                os.path.join(self._maildir_path, entry),
+                os.path.join(self._maildir_path, new_dir + entry[len(old_dir) :]),
+            )
+        for name in list(self._subfolder_client):
+            for stale in (old_name, new_name):
+                if name == stale or name.startswith(stale + "/"):
+                    self._subfolder_client.pop(name, None)
+
     def _get_folder(self, folder_name: str) -> mailbox.Maildir:
         if folder_name not in self._subfolder_client:
-            self._subfolder_client[folder_name] = self._client.add_folder(folder_name)
+            self._subfolder_client[folder_name] = self._client.add_folder(
+                self._disk_name(folder_name)
+            )
         return self._subfolder_client[folder_name]
 
     def create_folder(self, folder_name: str) -> None:
@@ -82,32 +150,32 @@ class MaildirConnection(MailboxConnection):
         # ".<folder>"; the stdlib mailbox.Maildir has no rename, so move the
         # directory and drop the stale cached client for the old name. Guard
         # first: os.rename would otherwise silently replace an empty target.
+        # With folder_separator, subfolders are sibling directories and are
+        # renamed along with the folder.
         self._ensure_no_folder_conflict(new_name)
-        old_path = os.path.join(self._maildir_path, "." + old_name)
-        new_path = os.path.join(self._maildir_path, "." + new_name)
-        os.rename(old_path, new_path)
-        self._subfolder_client.pop(old_name, None)
-        self._subfolder_client.pop(new_name, None)
+        self._rename_tree(old_name, new_name)
 
     def folder_exists(self, folder_name: str) -> bool:
-        return os.path.isdir(os.path.join(self._maildir_path, "." + folder_name))
+        return os.path.isdir(self._folder_path(folder_name))
 
     def delete_folder(self, folder_name: str) -> None:
         # stdlib remove_folder requires the folder be empty of messages and
-        # subfolders; merge_folders empties it first.
-        self._client.remove_folder(folder_name)
+        # subfolders; merge_folders empties it first. With folder_separator
+        # the subfolders are siblings that remove_folder cannot see, so check
+        # for them here.
+        descendants = self._descendant_dirs(folder_name)
+        if descendants:
+            raise mailbox.NotEmptyError(
+                f"Folder contains subdirectory '{descendants[0]}': {folder_name}"
+            )
+        self._client.remove_folder(self._disk_name(folder_name))
         self._subfolder_client.pop(folder_name, None)
 
     def _do_move_folder(
         self, source: str, target_parent: str, target_path: str
     ) -> None:
         del target_parent
-        os.rename(
-            os.path.join(self._maildir_path, "." + source),
-            os.path.join(self._maildir_path, "." + target_path),
-        )
-        self._subfolder_client.pop(source, None)
-        self._subfolder_client.pop(target_path, None)
+        self._rename_tree(source, target_path)
 
     def fetch_messages(self, reports_folder: str, **kwargs: Any) -> list:
         if reports_folder and reports_folder != "INBOX":
